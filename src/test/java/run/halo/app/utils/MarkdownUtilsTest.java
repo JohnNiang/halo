@@ -4,10 +4,11 @@ import cn.hutool.core.lang.Assert;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
+ * Markdown utilities test.
+ *
  * @author zhixiang.yuan
+ * @author johnniang
  * @since 2020/07/19 20:22:58
  */
 @Slf4j
@@ -31,5 +32,17 @@ class MarkdownUtilsTest {
             "---" +
             "test---";
         Assert.isTrue("test---".equals(MarkdownUtils.removeFrontMatter(markdown)));
+    }
+
+    @Test
+    void mathRenderTest() {
+        // $a \ne 0$
+        String markdown = "$a \\ne 0$";
+        String html = MarkdownUtils.renderHtml(markdown);
+        log.info("[{}]: [{}]", markdown, html);
+
+        markdown = "ax^2 + bx + c = 0";
+        html = MarkdownUtils.renderHtml(markdown);
+        log.info("[{}]: [{}]", markdown, html);
     }
 }
