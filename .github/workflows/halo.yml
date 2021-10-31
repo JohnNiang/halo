@@ -163,7 +163,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            halohub/halo
+            johnniang/halo
             ghcr.io/${{ github.repository_owner }}/halo
           tags: |
             type=schedule
