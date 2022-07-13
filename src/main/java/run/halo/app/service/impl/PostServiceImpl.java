@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.persistence.criteria.Expression;
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
@@ -593,7 +596,28 @@ public class PostServiceImpl extends BasePostServiceImpl<Post> implements PostSe
                     criteriaBuilder.or(titleLike, criteriaBuilder.in(root).value(postSubquery)));
             }
 
-            return query.where(predicates.toArray(new Predicate[0])).getRestriction();
+            var orders = new ArrayList<Order>(2);
+            var groups = new ArrayList<Expression<?>>(1);
+            var commentCountOrderBy = postQuery.getCommentCountOrderBy();
+            if (commentCountOrderBy != null) {
+                var comment = root.join("comments", JoinType.LEFT);
+
+                if (commentCountOrderBy.isAscending()) {
+                    orders.add(criteriaBuilder.asc(criteriaBuilder.count(comment.get("id"))));
+                } else {
+                    orders.add(criteriaBuilder.desc(criteriaBuilder.count(comment.get("id"))));
+                }
+                groups.add(root.get("id"));
+            } else {
+                // set default sort
+                orders.add(criteriaBuilder.desc(root.get("topPriority")));
+                orders.add(criteriaBuilder.desc(root.get("createTime")));
+            }
+
+            return query.where(predicates.toArray(new Predicate[0]))
+                .groupBy(groups)
+                .orderBy(orders)
+                .getRestriction();
         };
     }
 
@@ -671,7 +695,8 @@ public class PostServiceImpl extends BasePostServiceImpl<Post> implements PostSe
         Assert.isTrue(top > 0, "Top number must not be less than 0");
 
         List<Post> allPost = this.listAllBy(PostStatus.PUBLISHED);
-        List<Integer> allPostIdList = allPost.stream().map(Post::getId).collect(Collectors.toList());
+        List<Integer> allPostIdList =
+            allPost.stream().map(Post::getId).collect(Collectors.toList());
         Map<Integer, Long> postCommentCountMap =
             postCommentService.countByStatusAndPostIds(CommentStatus.PUBLISHED, allPostIdList);
         allPost = allPost.stream().sorted(Comparator.comparingLong(post ->

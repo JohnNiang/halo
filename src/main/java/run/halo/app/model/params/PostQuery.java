@@ -3,6 +3,7 @@ package run.halo.app.model.params;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
+import org.springframework.data.domain.Sort;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.model.enums.PostStatus;
 
@@ -38,11 +39,16 @@ public class PostQuery {
     private Integer categoryId;
 
     /**
+     * Order by comment count with desc or asc.
+     */
+    private Sort.Direction commentCountOrderBy;
+
+    /**
      * This method is deprecated in version 1.5.0, and it is recommended to use
      * <code>getStatuses()</code> method.
      *
-     * @see #getStatuses()
      * @return post status.
+     * @see #getStatuses()
      */
     @Deprecated
     public PostStatus getStatus() {
