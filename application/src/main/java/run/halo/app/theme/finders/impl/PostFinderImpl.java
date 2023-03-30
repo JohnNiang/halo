@@ -51,7 +51,7 @@ import run.halo.app.theme.finders.vo.StatsVo;
 public class PostFinderImpl implements PostFinder {
 
     public static final Predicate<Post> FIXED_PREDICATE = post -> post.isPublished()
-        && Objects.equals(false, post.getSpec().getDeleted())
+        && Objects.equals(false, post.getSpec().isDeleted())
         && Post.VisibleEnum.PUBLIC.equals(post.getSpec().getVisible());
     private final ReactiveExtensionClient client;
 
@@ -357,7 +357,7 @@ public class PostFinderImpl implements PostFinder {
 
     static Comparator<Post> defaultComparator() {
         Function<Post, Boolean> pinned =
-            post -> Objects.requireNonNullElse(post.getSpec().getPinned(), false);
+            post -> post.getSpec().isPinned();
         Function<Post, Integer> priority =
             post -> Objects.requireNonNullElse(post.getSpec().getPriority(), 0);
         Function<Post, Instant> publishTime =

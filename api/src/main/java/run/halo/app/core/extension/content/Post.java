@@ -67,7 +67,7 @@ public class Post extends AbstractExtension {
 
     @JsonIgnore
     public boolean isDeleted() {
-        return Objects.equals(true, spec.getDeleted())
+        return Objects.equals(true, spec.isDeleted())
             || getMetadata().getDeletionTimestamp() != null;
     }
 
@@ -105,18 +105,18 @@ public class Post extends AbstractExtension {
         private String cover;
 
         @Schema(requiredMode = RequiredMode.REQUIRED, defaultValue = "false")
-        private Boolean deleted;
+        private boolean deleted;
 
         @Schema(requiredMode = RequiredMode.REQUIRED, defaultValue = "false")
-        private Boolean publish;
+        private boolean publish;
 
         private Instant publishTime;
 
         @Schema(requiredMode = RequiredMode.REQUIRED, defaultValue = "false")
-        private Boolean pinned;
+        private boolean pinned;
 
         @Schema(requiredMode = RequiredMode.REQUIRED, defaultValue = "true")
-        private Boolean allowComment;
+        private boolean allowComment = true;
 
         @Schema(requiredMode = RequiredMode.REQUIRED, defaultValue = "PUBLIC")
         private VisibleEnum visible;
@@ -136,8 +136,9 @@ public class Post extends AbstractExtension {
 
     @Data
     public static class PostStatus {
+
         @Schema(requiredMode = RequiredMode.REQUIRED)
-        private String phase;
+        private PostPhase phase;
 
         @Schema
         private ConditionList conditions;

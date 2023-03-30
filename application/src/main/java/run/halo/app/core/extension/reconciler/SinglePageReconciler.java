@@ -133,14 +133,14 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
                         .lastTransitionTime(Instant.now())
                         .build();
                     status.getConditionsOrDefault().addAndEvictFIFO(condition);
-                    status.setPhase(Post.PostPhase.FAILED.name());
+                    status.setPhase(Post.PostPhase.FAILED);
                     client.update(page);
                     return;
                 }
 
                 // do publish
                 annotations.put(SinglePage.LAST_RELEASED_SNAPSHOT_ANNO, releaseSnapshot);
-                status.setPhase(Post.PostPhase.PUBLISHED.name());
+                status.setPhase(Post.PostPhase.PUBLISHED);
                 Condition condition = Condition.builder()
                     .type(Post.PostPhase.PUBLISHED.name())
                     .reason("Published")
@@ -177,7 +177,7 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
             condition.setLastTransitionTime(Instant.now());
             status.getConditionsOrDefault().addAndEvictFIFO(condition);
 
-            status.setPhase(Post.PostPhase.DRAFT.name());
+            status.setPhase(Post.PostPhase.DRAFT);
             if (!oldPage.equals(page)) {
                 client.update(page);
             }
@@ -192,7 +192,7 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
 
             SinglePage.SinglePageStatus status = page.getStatusOrDefault();
             Post.PostPhase phase = Post.PostPhase.FAILED;
-            status.setPhase(phase.name());
+            status.setPhase(phase);
 
             final ConditionList conditions = status.getConditionsOrDefault();
 
@@ -297,7 +297,7 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
             SinglePage.SinglePageSpec spec = singlePage.getSpec();
             SinglePage.SinglePageStatus status = singlePage.getStatusOrDefault();
             if (status.getPhase() == null) {
-                status.setPhase(Post.PostPhase.DRAFT.name());
+                status.setPhase(Post.PostPhase.DRAFT);
             }
 
             // handle excerpt

@@ -113,8 +113,8 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
             paramPredicate = paramPredicate.and(post -> {
                 if (Post.PostPhase.PENDING_APPROVAL.equals(publishPhase)) {
                     return !post.isPublished()
-                        && Post.PostPhase.PENDING_APPROVAL.name()
-                        .equalsIgnoreCase(post.getStatusOrDefault().getPhase());
+                        && Post.PostPhase.PENDING_APPROVAL
+                        .equals(post.getStatusOrDefault().getPhase());
                 }
                 // published
                 if (Post.PostPhase.PUBLISHED.equals(publishPhase)) {
@@ -272,7 +272,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
                 .flatMap(post -> {
                     post.getSpec().setBaseSnapshot(contentWrapper.getSnapshotName());
                     post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
-                    if (Objects.equals(true, post.getSpec().getPublish())) {
+                    if (Objects.equals(true, post.getSpec().isPublish())) {
                         post.getSpec().setReleaseSnapshot(post.getSpec().getHeadSnapshot());
                     }
                     Condition condition = Condition.builder()
@@ -283,7 +283,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
                         .lastTransitionTime(Instant.now())
                         .build();
                     Post.PostStatus status = post.getStatusOrDefault();
-                    status.setPhase(Post.PostPhase.DRAFT.name());
+                    status.setPhase(Post.PostPhase.DRAFT);
                     status.getConditionsOrDefault().addAndEvictFIFO(condition);
                     return client.update(post);
                 }))

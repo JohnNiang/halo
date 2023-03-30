@@ -144,7 +144,7 @@ public class SinglePageServiceImpl extends AbstractContentService implements Sin
                         .build();
                     SinglePage.SinglePageStatus status = page.getStatusOrDefault();
                     status.getConditionsOrDefault().addAndEvictFIFO(condition);
-                    status.setPhase(Post.PostPhase.DRAFT.name());
+                    status.setPhase(Post.PostPhase.DRAFT);
                     return client.update(page);
                 }))
             .retryWhen(Retry.backoff(5, Duration.ofMillis(100))
@@ -195,8 +195,8 @@ public class SinglePageServiceImpl extends AbstractContentService implements Sin
             paramPredicate = paramPredicate.and(page -> {
                 if (Post.PostPhase.PENDING_APPROVAL.equals(publishPhase)) {
                     return !page.isPublished()
-                        && Post.PostPhase.PENDING_APPROVAL.name()
-                        .equalsIgnoreCase(page.getStatusOrDefault().getPhase());
+                        && Post.PostPhase.PENDING_APPROVAL
+                        .equals(page.getStatusOrDefault().getPhase());
                 }
                 // published
                 if (Post.PostPhase.PUBLISHED.equals(publishPhase)) {
