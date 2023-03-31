@@ -73,8 +73,8 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
                 addFinalizerIfNecessary(post);
 
                 // reconcile spec first
-                reconcileSpec(request.name());
-                reconcileMetadata(request.name());
+                reconcileSpec(post);
+                reconcileMetadata(post);
                 reconcileStatus(request.name());
             });
         return new Result(false, null);
@@ -89,31 +89,82 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
             .build();
     }
 
-    private void reconcileSpec(String name) {
-        client.fetch(Post.class, name).ifPresent(post -> {
-            // un-publish post if necessary
-            unpublishIfRequired(post);
+    private void reconcileSpec(Post post) {
+        // un-publish post if necessary
+        unpublishIfRequired(post);
 
-            try {
-                publishPost(name);
-            } catch (Throwable e) {
-                publishFailed(name, e);
-                throw e;
-            }
-        });
+        try {
+            // publishPost(name);
+            publishIfRequired(post);
+        } catch (Throwable e) {
+            // TODO fire an event related with the post instead of conditions.
+            publishFailed(post.getMetadata().getName(), e);
+            throw e;
+        }
     }
 
     private void publishIfRequired(Post post) {
+        // publish the post
+        // get last released snapshot name
+        var annotations = post.getMetadata().getAnnotations();
+        if (annotations == null) {
+            annotations = new HashMap<>();
+            post.getMetadata().setAnnotations(annotations);
+        }
+        var releaseSnapshot = post.getSpec().getReleaseSnapshot();
+        if (StringUtils.isBlank(releaseSnapshot)) {
+            // skip releasing due to blank release snapshot name
+            return;
+        }
+        var lastReleasedSnapshot = annotations.get(Post.LAST_RELEASED_SNAPSHOT_ANNO);
+        if (Objects.equals(releaseSnapshot, lastReleasedSnapshot)) {
+            // skip releasing if the release has been released
+            return;
+        }
+        annotations = new HashMap<>();
+        post.getMetadata().setAnnotations(annotations);
         if (PUBLISHED.equals(post.getStatus().getPhase())) {
             // skip publishing
             return;
         }
-        // publish the post
-        // get last released snapshot name
-        var annotations = post.getMetadata().getAnnotations();
-        if (annotations != null) {
-            var lastReleasedSnapshotName = annotations.get(Post.LAST_RELEASED_SNAPSHOT_ANNO);
+        // check the release snapshot
+        var snapshot = client.fetch(Snapshot.class, releaseSnapshot);
+        if (snapshot.isEmpty()) {
+            // should we requeue?
+            var condition = Condition.builder()
+                .type(Post.PostPhase.FAILED.name())
+                .reason("SnapshotNotFound")
+                .message(
+                    String.format("Snapshot [%s] not found for publish", releaseSnapshot))
+                .status(ConditionStatus.FALSE)
+                .lastTransitionTime(Instant.now())
+                .build();
+            if (post.getStatus() == null) {
+                post.setStatus(new Post.PostStatus());
+            }
+            post.getStatus().getConditionsOrDefault().addAndEvictFIFO(condition);
+            post.getStatus().setPhase(Post.PostPhase.FAILED);
+            return;
         }
+        post.getStatus().setLastModifyTime(snapshot.get().getSpec().getLastModifyTime());
+        // publish the post
+        post.getStatus().setPhase(PUBLISHED);
+
+        var condition = Condition.builder()
+            .type(PUBLISHED.name())
+            .reason("Published")
+            .message("Post published successfully.")
+            .lastTransitionTime(Instant.now())
+            .status(ConditionStatus.TRUE)
+            .build();
+        post.getStatus().getConditionsOrDefault().addAndEvictFIFO(condition);
+
+        var labels = post.getMetadata().getLabels();
+        if (labels == null) {
+            labels = new HashMap<>();
+            post.getMetadata().setLabels(labels);
+        }
+        eventPublisher.publishEvent(new PostPublishedEvent(this, post.getMetadata().getName()));
     }
 
     private void publishPost(String name) {
@@ -254,39 +305,37 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
         });
     }
 
-    private void reconcileMetadata(String name) {
-        client.fetch(Post.class, name).ifPresent(post -> {
-            final Post oldPost = JsonUtils.deepCopy(post);
-            Post.PostSpec spec = post.getSpec();
+    private void reconcileMetadata(Post post) {
+        final Post oldPost = JsonUtils.deepCopy(post);
+        Post.PostSpec spec = post.getSpec();
 
-            // handle logic delete
-            Map<String, String> labels = MetadataUtil.nullSafeLabels(post);
-            if (Objects.equals(spec.isDeleted(), true)) {
-                labels.put(Post.DELETED_LABEL, Boolean.TRUE.toString());
-            } else {
-                labels.put(Post.DELETED_LABEL, Boolean.FALSE.toString());
-            }
-            labels.put(Post.VISIBLE_LABEL,
-                Objects.requireNonNullElse(spec.getVisible(), Post.VisibleEnum.PUBLIC).name());
-            labels.put(Post.OWNER_LABEL, spec.getOwner());
-            Instant publishTime = post.getSpec().getPublishTime();
-            if (publishTime != null) {
-                labels.put(Post.ARCHIVE_YEAR_LABEL, HaloUtils.getYearText(publishTime));
-                labels.put(Post.ARCHIVE_MONTH_LABEL, HaloUtils.getMonthText(publishTime));
-                labels.put(Post.ARCHIVE_DAY_LABEL, HaloUtils.getDayText(publishTime));
-            }
-            if (!labels.containsKey(Post.PUBLISHED_LABEL)) {
-                labels.put(Post.PUBLISHED_LABEL, Boolean.FALSE.toString());
-            }
+        // handle logic delete
+        Map<String, String> labels = MetadataUtil.nullSafeLabels(post);
+        if (Objects.equals(spec.isDeleted(), true)) {
+            labels.put(Post.DELETED_LABEL, Boolean.TRUE.toString());
+        } else {
+            labels.put(Post.DELETED_LABEL, Boolean.FALSE.toString());
+        }
+        labels.put(Post.VISIBLE_LABEL,
+            Objects.requireNonNullElse(spec.getVisible(), Post.VisibleEnum.PUBLIC).name());
+        labels.put(Post.OWNER_LABEL, spec.getOwner());
+        Instant publishTime = post.getSpec().getPublishTime();
+        if (publishTime != null) {
+            labels.put(Post.ARCHIVE_YEAR_LABEL, HaloUtils.getYearText(publishTime));
+            labels.put(Post.ARCHIVE_MONTH_LABEL, HaloUtils.getMonthText(publishTime));
+            labels.put(Post.ARCHIVE_DAY_LABEL, HaloUtils.getDayText(publishTime));
+        }
+        if (!labels.containsKey(Post.PUBLISHED_LABEL)) {
+            labels.put(Post.PUBLISHED_LABEL, Boolean.FALSE.toString());
+        }
 
-            Map<String, String> annotations = MetadataUtil.nullSafeAnnotations(post);
-            String newPattern = postPermalinkPolicy.pattern();
-            annotations.put(Constant.PERMALINK_PATTERN_ANNO, newPattern);
+        Map<String, String> annotations = MetadataUtil.nullSafeAnnotations(post);
+        String newPattern = postPermalinkPolicy.pattern();
+        annotations.put(Constant.PERMALINK_PATTERN_ANNO, newPattern);
 
-            if (!oldPost.equals(post)) {
-                client.update(post);
-            }
-        });
+        if (!oldPost.equals(post)) {
+            client.update(post);
+        }
     }
 
     private void reconcileStatus(String name) {
@@ -357,20 +406,12 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
     }
 
     private void addFinalizerIfNecessary(Post oldPost) {
-        Set<String> finalizers = oldPost.getMetadata().getFinalizers();
-        if (finalizers != null && finalizers.contains(FINALIZER_NAME)) {
-            return;
+        var finalizers = oldPost.getMetadata().getFinalizers();
+        if (finalizers == null) {
+            finalizers = new HashSet<>();
+            oldPost.getMetadata().setFinalizers(finalizers);
         }
-        client.fetch(Post.class, oldPost.getMetadata().getName())
-            .ifPresent(post -> {
-                Set<String> newFinalizers = post.getMetadata().getFinalizers();
-                if (newFinalizers == null) {
-                    newFinalizers = new HashSet<>();
-                    post.getMetadata().setFinalizers(newFinalizers);
-                }
-                newFinalizers.add(FINALIZER_NAME);
-                client.update(post);
-            });
+        finalizers.add(FINALIZER_NAME);
     }
 
     private void cleanUpResourcesAndRemoveFinalizer(String postName) {
