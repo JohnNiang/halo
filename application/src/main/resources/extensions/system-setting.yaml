@@ -55,6 +55,16 @@ spec:
           min: 1
           max: 100
           validation: required
+    - group: attachment
+      label: 附件设置
+      formSchema:
+        - $formkit: attachmentPolicySelect
+          label: "拖拽/粘贴上传存储策略"
+          name: pasteUploadAttachmentPolicy
+          value: "default-policy"
+        - $formkit: attachmentGroupSelect
+          label: "拖拽/粘贴上传存储策略组"
+          name: pasteUploadAttachmentGroup
     - group: seo
       label: SEO 设置
       formSchema:

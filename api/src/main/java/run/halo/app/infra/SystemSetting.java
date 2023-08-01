@@ -109,6 +109,11 @@ public class SystemSetting {
         private Set<String> enabled;
     }
 
+    public record AttachmentSetting(String pasteUploadAttachmentPolicy,
+                                    String pasteUploadAttachmentGroup) {
+        public static final String GROUP = "attachment";
+    }
+
     /**
      * ExtensionPointEnabled key is full qualified name of extension point and value is a list of
      * full qualified name of implementation.

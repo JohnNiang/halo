@@ -28,6 +28,10 @@ data:
     {
       "review": false
     }
+  attachment: |
+    {
+      "pasteUploadAttachmentPolicy": "default-policy"
+    }
   menu: |
     {
       "primary": "primary"

@@ -6,6 +6,7 @@ import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
 import static org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuilder;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Duration;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
@@ -14,12 +15,16 @@ import org.springdoc.core.fn.builders.schema.Builder;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.http.codec.multipart.Part;
 import org.springframework.retry.RetryException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.ServerErrorException;
+import org.springframework.web.server.ServerWebInputException;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -28,11 +33,15 @@ import run.halo.app.content.ListedPost;
 import run.halo.app.content.PostQuery;
 import run.halo.app.content.PostRequest;
 import run.halo.app.content.PostService;
+import run.halo.app.core.extension.attachment.Attachment;
 import run.halo.app.core.extension.content.Post;
+import run.halo.app.core.extension.service.AttachmentService;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.MetadataUtil;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.router.QueryParamBuildUtil;
+import run.halo.app.infra.SystemConfigurableEnvironmentFetcher;
+import run.halo.app.infra.SystemSetting.AttachmentSetting;
 
 /**
  * Endpoint for managing posts.
@@ -47,6 +56,8 @@ public class PostEndpoint implements CustomEndpoint {
 
     private final PostService postService;
     private final ReactiveExtensionClient client;
+    private final AttachmentService attachmentService;
+    private final SystemConfigurableEnvironmentFetcher settingFetcher;
 
     @Override
     public RouterFunction<ServerResponse> endpoint() {
@@ -167,7 +178,49 @@ public class PostEndpoint implements CustomEndpoint {
                     .parameter(parameterBuilder().name("name")
                         .in(ParameterIn.PATH)
                         .required(true)))
+            .POST("/posts/-/attachments",
+                request -> request.multipartData()
+                    .map(UploadRequest::new)
+                    .flatMap(uploadRequest -> {
+                        var filePart = uploadRequest.getFile();
+                        return settingFetcher.fetch(
+                                AttachmentSetting.GROUP,
+                                AttachmentSetting.class)
+                            .switchIfEmpty(Mono.defer(() -> Mono.error(
+                                new ServerErrorException("Attachment configuration needed", null)))
+                            )
+                            .flatMap(attachmentSetting -> attachmentService.upload(
+                                attachmentSetting.pasteUploadAttachmentPolicy(),
+                                attachmentSetting.pasteUploadAttachmentGroup(),
+                                filePart.filename(),
+                                filePart.content(),
+                                filePart.headers().getContentType()
+                            ));
+                    })
+                    .flatMap(attachment -> ServerResponse.ok().bodyValue(attachment)),
+                builder -> builder.operationId("UploadAttachment")
+                    .description("Upload attachment from paste.")
+                    .tag(tag)
+                    .requestBody(requestBodyBuilder()
+                        .required(true)
+                        .content(contentBuilder()
+                            .mediaType(MediaType.MULTIPART_FORM_DATA_VALUE)
+                            .schema(Builder.schemaBuilder().implementation(UploadRequest.class))))
+                    .response(responseBuilder().implementation(Attachment.class))
+            )
             .build();
+    }
+
+    public record UploadRequest(@Schema(hidden = true) MultiValueMap<String, Part> multipartData) {
+
+        @Schema(name = "file", requiredMode = Schema.RequiredMode.REQUIRED)
+        public FilePart getFile() {
+            if (multipartData.getFirst("file") instanceof FilePart file) {
+                return file;
+            }
+            throw new ServerWebInputException("File part missed or ");
+        }
+
     }
 
     private Mono<ServerResponse> fetchReleaseContent(ServerRequest request) {
