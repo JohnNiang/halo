@@ -31,7 +31,6 @@ import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.infra.AnonymousUserConst;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
-import run.halo.app.security.DefaultServerAuthenticationEntryPoint;
 import run.halo.app.security.DefaultUserDetailService;
 import run.halo.app.security.DynamicMatcherSecurityWebFilterChain;
 import run.halo.app.security.authentication.SecurityConfigurer;
@@ -79,12 +78,11 @@ public class WebServerSecurityConfig {
                 var authManagerResolver = builder().add(
                         new PatServerWebExchangeMatcher(),
                         new PatAuthenticationManager(client, patJwkSupplier))
-                    // TODO Add other authentication mangers here. e.g.: JwtAuthentiationManager.
+                    // TODO Add other authentication mangers here. e.g.: JwtAuthenticationManager.
                     .build();
                 oauth2.authenticationManagerResolver(authManagerResolver);
             })
-            .exceptionHandling(
-                spec -> spec.authenticationEntryPoint(new DefaultServerAuthenticationEntryPoint()));
+        ;
 
         // Integrate with other configurers separately
         securityConfigurers.orderedStream()

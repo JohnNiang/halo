@@ -43,9 +43,9 @@ public class User extends AbstractExtension {
     public static final String HIDDEN_USER_LABEL = "halo.run/hidden-user";
 
     @Schema(requiredMode = REQUIRED)
-    private UserSpec spec;
+    private UserSpec spec = new UserSpec();
 
-    private UserStatus status;
+    private UserStatus status = new UserStatus();
 
     @Data
     public static class UserSpec {

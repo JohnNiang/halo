@@ -5,6 +5,7 @@ import UserStatsWidget from "./widgets/UserStatsWidget.vue";
 import UserList from "./UserList.vue";
 import UserDetail from "./UserDetail.vue";
 import Login from "./Login.vue";
+import Mfa from "./Mfa.vue";
 import { IconUserSettings } from "@halo-dev/components";
 import { markRaw } from "vue";
 import Binding from "./Binding.vue";
@@ -23,6 +24,14 @@ export default definePlugin({
       component: Login,
       meta: {
         title: "core.login.title",
+      },
+    },
+    {
+      path: "/login/mfa",
+      name: "Mfa",
+      component: Mfa,
+      meta: {
+        title: "Multi-Factor Authentication",
       },
     },
     {

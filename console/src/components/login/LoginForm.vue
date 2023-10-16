@@ -68,6 +68,7 @@ const handleLogin = async () => {
         withCredentials: true,
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          "X-Requested-With": "XMLHttpRequest",
         },
       }
     );
@@ -92,12 +93,20 @@ const handleLogin = async () => {
         return;
       }
 
-      const { title: errorTitle, detail: errorDetail } = e.response?.data || {};
+      const {
+        title: errorTitle,
+        detail: errorDetail,
+        type: errorType,
+        redirectURI: redirectURI,
+      } = e.response?.data || {};
 
       if (errorTitle || errorDetail) {
         Toast.error(errorDetail || errorTitle);
       } else {
         Toast.error(t("core.common.toast.unknown_error"));
+      }
+      if (errorType === "https://halo.run/probs/mfa-required") {
+        window.location = redirectURI;
       }
     } else {
       Toast.error(t("core.common.toast.unknown_error"));

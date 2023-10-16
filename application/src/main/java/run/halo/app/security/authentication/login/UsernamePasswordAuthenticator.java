@@ -42,6 +42,7 @@ import run.halo.app.infra.exception.RateLimitExceededException;
 import run.halo.app.infra.utils.IpAddressUtils;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 import run.halo.app.security.AdditionalWebFilter;
+import run.halo.app.security.authentication.mfa.MfaAuthentication;
 
 /**
  * Authentication filter for username and password.
@@ -112,8 +113,7 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
         filter.setRequiresAuthenticationMatcher(requiresMatcher);
         filter.setAuthenticationFailureHandler(new LoginFailureHandler());
         filter.setAuthenticationSuccessHandler(new LoginSuccessHandler());
-        filter.setServerAuthenticationConverter(new LoginAuthenticationConverter(cryptoService
-        ));
+        filter.setServerAuthenticationConverter(new LoginAuthenticationConverter(cryptoService));
         filter.setSecurityContextRepository(securityContextRepository);
     }
 
@@ -139,7 +139,7 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
             var metrics = rateLimiter.getMetrics();
             log.debug(
                 "Authentication with Rate Limiter: {}, available permissions: {}, number of "
-                    + "waiting threads: {}",
+                + "waiting threads: {}",
                 rateLimiter, metrics.getAvailablePermissions(),
                 metrics.getNumberOfWaitingThreads());
         }
@@ -152,7 +152,7 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
         return writeErrorResponse(errorResponse, exchange);
     }
 
-    private Mono<Void> handleAuthenticationException(AuthenticationException exception,
+    private Mono<Void> handleAuthenticationException(Throwable exception,
         ServerWebExchange exchange) {
         var errorResponse = createErrorResponse(exception, UNAUTHORIZED, exchange, messageSource);
         return writeErrorResponse(errorResponse, exchange);
@@ -176,6 +176,15 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
         @Override
         protected Mono<Void> onAuthenticationSuccess(Authentication authentication,
             WebFilterExchange webFilterExchange) {
+            // check if MFA is enabled
+            if (authentication.getPrincipal() instanceof HaloUser user) {
+                var twoFactorAuthEnabled =
+                    user.getDelegate().getSpec().getTwoFactorAuthEnabled();
+                if (twoFactorAuthEnabled != null && twoFactorAuthEnabled) {
+                    authentication = new MfaAuthentication(authentication);
+                }
+            }
+
             return super.onAuthenticationSuccess(authentication, webFilterExchange)
                 .transformDeferred(createIPBasedRateLimiter(webFilterExchange.getExchange()))
                 .onErrorMap(RequestNotPermitted.class, RateLimitExceededException::new)
@@ -189,28 +198,39 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
         private final ServerAuthenticationSuccessHandler defaultHandler =
             new RedirectServerAuthenticationSuccessHandler("/console/");
 
+        private final ServerAuthenticationSuccessHandler mfaRedirectHandler =
+            new RedirectServerAuthenticationSuccessHandler("/console/mfa/totp");
+
         @Override
         public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange,
             Authentication authentication) {
-            var exchange = webFilterExchange.getExchange();
-            return ignoringMediaTypeAll(APPLICATION_JSON)
-                .matches(exchange)
-                .filter(ServerWebExchangeMatcher.MatchResult::isMatch)
-                .switchIfEmpty(
-                    defaultHandler.onAuthenticationSuccess(webFilterExchange, authentication)
-                        .then(Mono.empty())
-                )
-                .flatMap(matchResult -> {
-                    var principal = authentication.getPrincipal();
-                    if (principal instanceof CredentialsContainer credentialsContainer) {
-                        credentialsContainer.eraseCredentials();
-                    }
 
+            if (authentication instanceof MfaAuthentication) {
+                // continue filtering for authorization
+                return webFilterExchange.getChain().filter(webFilterExchange.getExchange());
+            }
+
+            ServerWebExchangeMatcher xhrMatcher = exchange -> {
+                if (exchange.getRequest().getHeaders().getOrEmpty("X-Requested-With")
+                    .contains("XMLHttpRequest")) {
+                    return ServerWebExchangeMatcher.MatchResult.match();
+                }
+                return ServerWebExchangeMatcher.MatchResult.notMatch();
+            };
+
+            var exchange = webFilterExchange.getExchange();
+            return xhrMatcher.matches(exchange)
+                .filter(ServerWebExchangeMatcher.MatchResult::isMatch)
+                .switchIfEmpty(Mono.defer(
+                    () -> defaultHandler.onAuthenticationSuccess(webFilterExchange, authentication)
+                        .then(Mono.empty())))
+                .flatMap(isXhr -> {
+                    if (authentication instanceof CredentialsContainer container) {
+                        container.eraseCredentials();
+                    }
                     return ServerResponse.ok()
-                        .contentType(APPLICATION_JSON)
-                        .bodyValue(principal)
-                        .flatMap(serverResponse ->
-                            serverResponse.writeTo(exchange, context));
+                        .bodyValue(authentication.getPrincipal())
+                        .flatMap(response -> response.writeTo(exchange, context));
                 });
         }
     }
