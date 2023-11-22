@@ -29,22 +29,25 @@ public class PluginCompositeRouterFunction implements RouterFunction<ServerRespo
 
     private final ReverseProxyRouterFunctionRegistry reverseProxyRouterFunctionFactory;
 
+    private final List<RouterFunction<ServerResponse>> routerFunctions;
+
     public PluginCompositeRouterFunction(
         ReverseProxyRouterFunctionRegistry reverseProxyRouterFunctionFactory) {
         this.reverseProxyRouterFunctionFactory = reverseProxyRouterFunctionFactory;
+        this.routerFunctions = routerFunctions();
     }
 
     @Override
     @NonNull
     public Mono<HandlerFunction<ServerResponse>> route(@NonNull ServerRequest request) {
-        return Flux.fromIterable(routerFunctions())
+        return Flux.fromIterable(this.routerFunctions)
             .concatMap(routerFunction -> routerFunction.route(request))
             .next();
     }
 
     @Override
     public void accept(@NonNull RouterFunctions.Visitor visitor) {
-        routerFunctions().forEach(routerFunction -> routerFunction.accept(visitor));
+        this.routerFunctions.forEach(routerFunction -> routerFunction.accept(visitor));
     }
 
     @SuppressWarnings("unchecked")
