@@ -1,3 +1,5 @@
+import org.gradle.crypto.checksum.Checksum
+
 plugins {
     id 'org.springframework.boot' version '3.2.0'
     id 'io.spring.dependency-management' version '1.1.0'
@@ -7,6 +9,7 @@ plugins {
     id 'jacoco'
     id "de.undercouch.download" version "5.3.1"
     id "io.freefair.lombok" version "8.4"
+    id 'org.gradle.crypto.checksum' version '1.4.0'
 }
 
 group = "run.halo.app"
@@ -39,6 +42,7 @@ springBoot {
 }
 
 bootJar {
+    archiveBaseName = "halo"
     manifest {
         attributes "Implementation-Title": "Halo Application",
                 "Implementation-Version": archiveVersion
@@ -58,6 +62,17 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'io.projectreactor:reactor-test'
+}
+
+tasks.register('createChecksums', Checksum) {
+    dependsOn tasks.named('bootJar')
+    inputFiles.setFrom(layout.buildDirectory.files('libs'))
+    outputDirectory = layout.buildDirectory.dir("libs")
+    checksumAlgorithm = Checksum.Algorithm.SHA256
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('createChecksums')
 }
 
 tasks.named('test') {
