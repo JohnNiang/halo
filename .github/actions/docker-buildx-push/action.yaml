@@ -36,7 +36,6 @@ runs:
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
-          halohub/${{ inputs.image-name }}
         tags: |
           type=schedule,pattern=nightly-{{date 'YYYYMMDD'}},enabled=${{ github.event_name == 'schedule' }}
           type=ref,event=branch,enabled=${{ github.event_name == 'push' }}
