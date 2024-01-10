@@ -1,4 +1,4 @@
-name: Halo CI
+name: Halo Workflow
 
 on:
   pull_request:
@@ -21,23 +21,25 @@ on:
 
 jobs:
   test:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-#      - name: Setup Environment
-#        uses: ./.github/actions/setup-env
-#      - name: Check Halo console
-#        run: make -C console check
-#      - name: Check Halo core
-#        run: ./gradlew check
-#      - name: Analyze code
-#        if: ${{ github.event_name == 'push' && env.SONAR_TOKEN != '' }} # Due to inability to access secrets during PR, only the code pushed into the branch can be analyzed.
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#        run: ./gradlew sonar --info
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
+      - name: Check Halo console
+        run: make -C console check
+      - name: Check Halo core
+        run: ./gradlew check
+      - name: Analyze code
+        if: ${{ github.event_name == 'push' && env.SONAR_TOKEN != '' }} # Due to inability to access secrets during PR, only the code pushed into the branch can be analyzed.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --info
   build:
     runs-on: ubuntu-latest
+    if: always() && (needs.test.result == 'skipped' || needs.test.result == 'success')
     needs: test
     steps:
       - uses: actions/checkout@v3
@@ -94,13 +96,13 @@ jobs:
         with:
           image-name: ${{ github.event_name == 'release' && 'halo' || 'halo-dev' }}
           ghcr-token: ${{ secrets.GITHUB_TOKEN }}
-#          dockerhub-user: ${{ secrets.DOCKER_USERNAME }}
-#          dockerhub-token: ${{ secrets.DOCKER_TOKEN }}
+          dockerhub-user: ${{ secrets.DOCKER_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKER_TOKEN }}
           push: true
           platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
 
   e2e-test:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: build
     steps:
