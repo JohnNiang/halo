@@ -18,10 +18,6 @@ inputs:
     description: Should push the docker image or not.
     required: false
     default: "false"
-  load:
-    description: Should load the image into docker or not.
-    required: false
-    default: "false"
   platforms:
     description: Target platforms for building image
     required: false
@@ -30,20 +26,17 @@ inputs:
     description: The basic name of docker.
     required: false
     default: "halo"
-  console-ref:
-    description: The Git ref of console project.
-    required: false
-    default: "main"
 
 runs:
   using: "composite"
   steps:
     - name: Docker meta for Halo
       id: meta
-      uses: docker/metadata-action@v4
+      uses: docker/metadata-action@v5
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
+          halohub/${{ inputs.image-name }}
         tags: |
           type=schedule,pattern=nightly-{{date 'YYYYMMDD'}},enabled=${{ github.event_name == 'schedule' }}
           type=ref,event=branch,enabled=${{ github.event_name == 'push' }}
@@ -71,7 +64,7 @@ runs:
         username: ${{ inputs.dockerhub-user }}
         password: ${{ inputs.dockerhub-token }}
     - name: Build and push
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
@@ -79,4 +72,3 @@ runs:
         labels: ${{ steps.meta.outputs.labels }}
         tags: ${{ steps.meta.outputs.tags }}
         push: ${{ (inputs.ghcr-token != '' || inputs.dockerhub-token != '') && inputs.push == 'true' }}
-        load: ${{ inputs.load == 'true' }}
