@@ -1,5 +1,5 @@
-name: "Docker build"
-description: "Builds the Docker image."
+name: "Docker buildx and push"
+description: "Buildx and push the Docker image."
 
 inputs:
   ghcr-token:

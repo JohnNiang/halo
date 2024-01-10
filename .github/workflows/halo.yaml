@@ -21,23 +21,26 @@ on:
 
 jobs:
   test:
+#    if: github.event_name == 'pull-request' || github.event_name == 'push'
+    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-#      - name: Setup Environment
-#        uses: ./.github/actions/setup-env
-#      - name: Check Halo console
-#        run: make -C console check
-#      - name: Check Halo core
-#        run: ./gradlew check
-#      - name: Analyze code
-#        if: ${{ github.event_name == 'push' && env.SONAR_TOKEN != '' }} # Due to inability to access secrets during PR, only the code pushed into the branch can be analyzed.
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#        run: ./gradlew sonar --info
+      - name: Setup Environment
+        uses: ./.github/actions/setup-env
+      - name: Check Halo console
+        run: make -C console check
+      - name: Check Halo core
+        run: ./gradlew check
+      - name: Analyze code
+        if: ${{ github.event_name == 'push' && env.SONAR_TOKEN != '' }} # Due to inability to access secrets during PR, only the code pushed into the branch can be analyzed.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --info
   build:
     runs-on: ubuntu-latest
+    if: always() && (needs.test.result == skipped || needs.test.result == success)
     needs: test
     steps:
       - uses: actions/checkout@v3
