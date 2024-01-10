@@ -40,7 +40,7 @@ jobs:
         run: ./gradlew sonar --info
   build:
     runs-on: ubuntu-latest
-    if: always() && (needs.test.result == skipped || needs.test.result == success)
+    if: always() && (needs.test.result == 'skipped' || needs.test.result == 'success')
     needs: test
     steps:
       - uses: actions/checkout@v3
