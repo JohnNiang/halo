@@ -22,14 +22,13 @@ on:
 jobs:
   test:
 #    if: github.event_name == 'pull-request' || github.event_name == 'push'
-    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Setup Environment
         uses: ./.github/actions/setup-env
       - name: Check Halo console
-        run: make -C console check
+        run: aaamake -C console check
       - name: Check Halo core
         run: ./gradlew check
       - name: Analyze code
