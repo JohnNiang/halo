@@ -128,7 +128,7 @@ public interface QueryIndexView {
 
     List<String> sortBy(NavigableSet<String> resultSet, Sort sort);
 
-    IndexEntry getIndexEntry(String fieldName);
+    <T extends Comparable<? super T>> IndexEntry<T> getIndexEntry(String fieldName);
 
     /**
      * Acquire a read lock on the indexer.

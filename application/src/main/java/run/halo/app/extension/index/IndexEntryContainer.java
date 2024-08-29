@@ -15,8 +15,8 @@ import org.springframework.lang.NonNull;
  * @see DefaultIndexer
  * @since 2.12.0
  */
-public class IndexEntryContainer implements Iterable<IndexEntry> {
-    private final ConcurrentMap<IndexDescriptor, IndexEntry> indexEntryMap;
+public class IndexEntryContainer implements Iterable<IndexEntry<?>> {
+    private final ConcurrentMap<IndexDescriptor, IndexEntry<?>> indexEntryMap;
 
     public IndexEntryContainer() {
         this.indexEntryMap = new ConcurrentHashMap<>();
@@ -28,8 +28,8 @@ public class IndexEntryContainer implements Iterable<IndexEntry> {
      * @param entry the entry to add
      * @throws IllegalArgumentException if the entry already exists
      */
-    public void add(IndexEntry entry) {
-        IndexEntry existing = indexEntryMap.putIfAbsent(entry.getIndexDescriptor(), entry);
+    public void add(IndexEntry<?> entry) {
+        IndexEntry<?> existing = indexEntryMap.putIfAbsent(entry.getIndexDescriptor(), entry);
         if (existing != null) {
             throw new IllegalArgumentException(
                 "Index entry already exists for " + entry.getIndexDescriptor());
@@ -42,7 +42,7 @@ public class IndexEntryContainer implements Iterable<IndexEntry> {
      * @param indexDescriptor the index descriptor
      * @return the index entry
      */
-    public IndexEntry get(IndexDescriptor indexDescriptor) {
+    public IndexEntry<?> get(IndexDescriptor indexDescriptor) {
         return indexEntryMap.get(indexDescriptor);
     }
 
@@ -60,12 +60,12 @@ public class IndexEntryContainer implements Iterable<IndexEntry> {
 
     @Override
     @NonNull
-    public Iterator<IndexEntry> iterator() {
+    public Iterator<IndexEntry<?>> iterator() {
         return indexEntryMap.values().iterator();
     }
 
     @Override
-    public void forEach(Consumer<? super IndexEntry> action) {
+    public void forEach(Consumer<? super IndexEntry<?>> action) {
         indexEntryMap.values().forEach(action);
     }
 }

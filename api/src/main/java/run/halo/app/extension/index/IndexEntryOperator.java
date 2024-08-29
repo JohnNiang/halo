@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.NavigableSet;
 import java.util.Set;
 
-public interface IndexEntryOperator {
+public interface IndexEntryOperator<T extends Comparable<? super T>> {
 
     /**
      * Search all values that key less than the target key.
@@ -13,7 +13,7 @@ public interface IndexEntryOperator {
      * @param orEqual whether to include the value of the target key
      * @return object names that key less than the target key
      */
-    NavigableSet<String> lessThan(String key, boolean orEqual);
+    NavigableSet<String> lessThan(T key, boolean orEqual);
 
     /**
      * Search all values that key greater than the target key.
@@ -22,7 +22,7 @@ public interface IndexEntryOperator {
      * @param orEqual whether to include the value of the target key
      * @return object names that key greater than the target key
      */
-    NavigableSet<String> greaterThan(String key, boolean orEqual);
+    NavigableSet<String> greaterThan(T key, boolean orEqual);
 
     /**
      * Search all values that key in the range of [start, end].
@@ -33,7 +33,7 @@ public interface IndexEntryOperator {
      * @param endInclusive whether to include the value of the end key
      * @return object names that key in the range of [start, end]
      */
-    NavigableSet<String> range(String start, String end, boolean startInclusive,
+    NavigableSet<String> range(T start, T end, boolean startInclusive,
         boolean endInclusive);
 
     /**
@@ -42,9 +42,9 @@ public interface IndexEntryOperator {
      * @param key target key
      * @return object names that key equals to the target key
      */
-    NavigableSet<String> find(String key);
+    NavigableSet<String> find(T key);
 
-    NavigableSet<String> findIn(Collection<String> keys);
+    NavigableSet<String> findIn(Collection<T> keys);
 
     /**
      * Get all values in the index entry.

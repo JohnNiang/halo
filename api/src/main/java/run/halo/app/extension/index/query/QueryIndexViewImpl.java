@@ -1,6 +1,7 @@
 package run.halo.app.extension.index.query;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -14,7 +15,6 @@ import run.halo.app.extension.index.IndexEntry;
 import run.halo.app.extension.index.IndexEntryOperator;
 import run.halo.app.extension.index.IndexEntryOperatorImpl;
 import run.halo.app.extension.index.Indexer;
-import run.halo.app.extension.index.KeyComparator;
 
 /**
  * A default implementation for {@link run.halo.app.extension.index.query.QueryIndexView}.
@@ -62,7 +62,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
         indexer.acquireReadLock();
         try {
             return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
-                var compare = KeyComparator.INSTANCE.compare(k1, k2);
+                var compare = k1.compareTo(k2);
                 return compare == 0;
             });
         } finally {
@@ -76,7 +76,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
         indexer.acquireReadLock();
         try {
             return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
-                var compare = KeyComparator.INSTANCE.compare(k1, k2);
+                var compare = k1.compareTo(k2);
                 return orEqual ? compare <= 0 : compare < 0;
             });
         } finally {
@@ -97,7 +97,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
         indexer.acquireReadLock();
         try {
             return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
-                var compare = KeyComparator.INSTANCE.compare(k1, k2);
+                var compare = k1.compareTo(k2);
                 return orEqual ? compare >= 0 : compare > 0;
             });
         } finally {
@@ -139,7 +139,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     Comparator<String> comparatorFrom(Sort.Order order) {
-        var indexEntry = getIndexEntry(order.getProperty());
+        IndexEntry<?> indexEntry = getIndexEntry(order.getProperty());
         var idPositionMap = indexEntry.getIdPositionMap();
         var isDesc = order.isDescending();
         // This sort algorithm works leveraging on that the idPositionMap is a map of id -> position
@@ -168,7 +168,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     @Override
-    public IndexEntry getIndexEntry(String fieldName) {
+    public <T extends Comparable<? super T>> IndexEntry<T> getIndexEntry(String fieldName) {
         return indexer.getIndexEntry(fieldName);
     }
 
@@ -199,24 +199,27 @@ public class QueryIndexViewImpl implements QueryIndexView {
     /**
      * Must lock the indexer before calling this method.
      */
-    private NavigableSet<String> findIdsWithKeyComparator(String fieldName1, String fieldName2,
-        BiPredicate<String, String> keyComparator) {
+    private <T extends Comparable<? super T>> NavigableSet<String> findIdsWithKeyComparator(
+        String fieldName1, String fieldName2, BiPredicate<T, T> keyComparator
+    ) {
         // get entries from indexer for fieldName1
-        var entriesA = getIndexEntry(fieldName1).entries();
+        IndexEntry<T> indexEntry1 = getIndexEntry(fieldName1);
+        Collection<? extends Map.Entry<T, String>> entriesA = indexEntry1.entries();
 
-        Map<String, List<String>> keyMap = new HashMap<>();
-        for (Map.Entry<String, String> entry : entriesA) {
+        Map<String, List<T>> keyMap = new HashMap<>();
+        for (Map.Entry<T, String> entry : entriesA) {
             keyMap.computeIfAbsent(entry.getValue(), v -> new ArrayList<>()).add(entry.getKey());
         }
 
         NavigableSet<String> result = new TreeSet<>();
 
         // get entries from indexer for fieldName2
-        var entriesB = getIndexEntry(fieldName2).entries();
-        for (Map.Entry<String, String> entry : entriesB) {
-            List<String> matchedKeys = keyMap.get(entry.getValue());
+        IndexEntry<T> indexEntry2 = getIndexEntry(fieldName2);
+        Collection<? extends Map.Entry<T, String>> entriesB = indexEntry2.entries();
+        for (Map.Entry<T, String> entry : entriesB) {
+            List<T> matchedKeys = keyMap.get(entry.getValue());
             if (matchedKeys != null) {
-                for (String key : matchedKeys) {
+                for (T key : matchedKeys) {
                     if (keyComparator.test(entry.getKey(), key)) {
                         result.add(entry.getValue());
                         // found one match, no need to continue

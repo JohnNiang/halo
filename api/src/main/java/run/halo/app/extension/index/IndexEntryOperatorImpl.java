@@ -8,19 +8,21 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.util.Assert;
 
-public class IndexEntryOperatorImpl implements IndexEntryOperator {
-    private final IndexEntry indexEntry;
+public class IndexEntryOperatorImpl<T extends Comparable<? super T>>
+    implements IndexEntryOperator<T> {
+    private final IndexEntry<T> indexEntry;
 
-    public IndexEntryOperatorImpl(IndexEntry indexEntry) {
+    public IndexEntryOperatorImpl(IndexEntry<T> indexEntry) {
         this.indexEntry = indexEntry;
     }
 
+
     private static NavigableSet<String> createNavigableSet() {
-        return new TreeSet<>(KeyComparator.INSTANCE);
+        return new TreeSet<>();
     }
 
     @Override
-    public NavigableSet<String> lessThan(String key, boolean orEqual) {
+    public NavigableSet<String> lessThan(T key, boolean orEqual) {
         Assert.notNull(key, "Key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -33,7 +35,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> greaterThan(String key, boolean orEqual) {
+    public NavigableSet<String> greaterThan(T key, boolean orEqual) {
         Assert.notNull(key, "Key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -46,7 +48,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> range(String start, String end, boolean startInclusive,
+    public NavigableSet<String> range(T start, T end, boolean startInclusive,
         boolean endInclusive) {
         Assert.notNull(start, "The start must not be null.");
         Assert.notNull(end, "The end must not be null.");
@@ -61,7 +63,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> find(String key) {
+    public NavigableSet<String> find(T key) {
         Assert.notNull(key, "The key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -77,7 +79,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> findIn(Collection<String> keys) {
+    public NavigableSet<String> findIn(Collection<T> keys) {
         if (keys == null || keys.isEmpty()) {
             return createNavigableSet();
         }
@@ -101,7 +103,8 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
         indexEntry.acquireReadLock();
         try {
             Set<String> uniqueValues = new HashSet<>();
-            for (Map.Entry<String, String> entry : indexEntry.entries()) {
+            Collection<? extends Map.Entry<?, String>> entries = indexEntry.entries();
+            for (Map.Entry<?, String> entry : entries) {
                 uniqueValues.add(entry.getValue());
             }
             return uniqueValues;

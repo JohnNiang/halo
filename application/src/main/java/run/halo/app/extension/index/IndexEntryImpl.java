@@ -2,6 +2,7 @@ package run.halo.app.extension.index;
 
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
+import com.google.common.collect.Ordering;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -16,13 +17,14 @@ import lombok.Data;
 import run.halo.app.infra.exception.DuplicateNameException;
 
 @Data
-public class IndexEntryImpl implements IndexEntry {
+public class IndexEntryImpl<T extends Comparable<? super T>> implements IndexEntry<T> {
+
     private final ReadWriteLock rwl = new ReentrantReadWriteLock();
     private final Lock readLock = rwl.readLock();
     private final Lock writeLock = rwl.writeLock();
 
     private final IndexDescriptor indexDescriptor;
-    private final ListMultimap<String, String> indexKeyObjectNamesMap;
+    private final ListMultimap<T, String> indexKeyObjectNamesMap;
 
     /**
      * Creates a new {@link IndexEntryImpl} for the given {@link IndexDescriptor}.
@@ -31,16 +33,19 @@ public class IndexEntryImpl implements IndexEntry {
      */
     public IndexEntryImpl(IndexDescriptor indexDescriptor) {
         this.indexDescriptor = indexDescriptor;
-        this.indexKeyObjectNamesMap = MultimapBuilder.treeKeys(keyComparator())
+
+        this.indexKeyObjectNamesMap = MultimapBuilder.treeKeys(getComparator())
             .linkedListValues().build();
     }
 
-    Comparator<String> keyComparator() {
-        var order = indexDescriptor.getSpec().getOrder();
-        if (IndexSpec.OrderType.ASC.equals(order)) {
-            return KeyComparator.INSTANCE;
+    @Override
+    public Comparator<T> getComparator() {
+        Ordering<T> ordering = Ordering.natural();
+        var order = this.indexDescriptor.getSpec().getOrder();
+        if (IndexSpec.OrderType.DESC.equals(order)) {
+            ordering = ordering.reverse();
         }
-        return KeyComparator.INSTANCE.reversed();
+        return ordering;
     }
 
     @Override
@@ -54,11 +59,11 @@ public class IndexEntryImpl implements IndexEntry {
     }
 
     @Override
-    public void addEntry(List<String> keys, String objectName) {
+    public void addEntry(List<T> keys, String objectName) {
         var isUnique = indexDescriptor.getSpec().isUnique();
-        for (String key : keys) {
-            writeLock.lock();
-            try {
+        writeLock.lock();
+        try {
+            for (T key : keys) {
                 if (isUnique && indexKeyObjectNamesMap.containsKey(key)) {
                     throw new DuplicateNameException(
                         "The value [%s] is already exists for unique index [%s].".formatted(
@@ -69,14 +74,14 @@ public class IndexEntryImpl implements IndexEntry {
                         new Object[] {key, indexDescriptor.getSpec().getName()});
                 }
                 this.indexKeyObjectNamesMap.put(key, objectName);
-            } finally {
-                writeLock.unlock();
             }
+        } finally {
+            writeLock.unlock();
         }
     }
 
     @Override
-    public void removeEntry(String indexedKey, String objectKey) {
+    public void removeEntry(T indexedKey, String objectKey) {
         writeLock.lock();
         try {
             indexKeyObjectNamesMap.remove(indexedKey, objectKey);
@@ -86,7 +91,7 @@ public class IndexEntryImpl implements IndexEntry {
     }
 
     @Override
-    public void remove(String objectName) {
+    public void remove(T objectName) {
         writeLock.lock();
         try {
             indexKeyObjectNamesMap.values().removeIf(objectName::equals);
@@ -96,20 +101,20 @@ public class IndexEntryImpl implements IndexEntry {
     }
 
     @Override
-    public NavigableSet<String> indexedKeys() {
+    public NavigableSet<T> indexedKeys() {
         readLock.lock();
         try {
             var keys = indexKeyObjectNamesMap.keySet();
-            var resultSet = new TreeSet<>(keyComparator());
-            resultSet.addAll(keys);
-            return resultSet;
+            var result =  new TreeSet<>(getComparator());
+            result.addAll(keys);
+            return result;
         } finally {
             readLock.unlock();
         }
     }
 
     @Override
-    public Collection<Map.Entry<String, String>> entries() {
+    public Collection<Map.Entry<T, String>> entries() {
         readLock.lock();
         try {
             return indexKeyObjectNamesMap.entries();
@@ -139,12 +144,12 @@ public class IndexEntryImpl implements IndexEntry {
         }
     }
 
-    protected Map<String, Collection<String>> getKeyObjectMap() {
+    protected Map<T, Collection<String>> getKeyObjectMap() {
         return indexKeyObjectNamesMap.asMap();
     }
 
     @Override
-    public List<String> getObjectNamesBy(String indexKey) {
+    public List<String> getObjectNamesBy(T indexKey) {
         readLock.lock();
         try {
             return indexKeyObjectNamesMap.get(indexKey);

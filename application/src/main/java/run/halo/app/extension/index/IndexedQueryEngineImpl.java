@@ -174,7 +174,8 @@ public class IndexedQueryEngineImpl implements IndexedQueryEngine {
             indexer.acquireReadLock();
             try {
                 final var objectNameLabelsMap = new HashMap<String, Map<String, String>>();
-                final var labelIndexEntry = indexer.getIndexEntry(LabelIndexSpecUtils.LABEL_PATH);
+                final var labelIndexEntry =
+                    indexer.<String>getIndexEntry(LabelIndexSpecUtils.LABEL_PATH);
                 // O(m) time complexity, m is the number of labelMatchers
                 final var labelKeysToQuery = labelMatchers.stream()
                     .sorted(Comparator.comparing(SelectorMatcher::getKey))
@@ -191,8 +192,8 @@ public class IndexedQueryEngineImpl implements IndexedQueryEngine {
                         .put(labelPair.getFirst(), labelPair.getSecond());
                 });
 
-                var nameIndexOperator = new IndexEntryOperatorImpl(
-                    indexer.getIndexEntry(PrimaryKeySpecUtils.PRIMARY_INDEX_NAME)
+                var nameIndexOperator = new IndexEntryOperatorImpl<>(
+                    indexer.<String>getIndexEntry(PrimaryKeySpecUtils.PRIMARY_INDEX_NAME)
                 );
                 var allIndexedObjectNames = nameIndexOperator.getValues();
 

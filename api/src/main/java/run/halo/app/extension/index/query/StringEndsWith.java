@@ -13,7 +13,7 @@ public class StringEndsWith extends SimpleQuery {
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
         var resultSet = Sets.<String>newTreeSet();
-        var indexEntry = indexView.getIndexEntry(fieldName);
+        var indexEntry = indexView.<String>getIndexEntry(fieldName);
 
         indexEntry.acquireReadLock();
         try {

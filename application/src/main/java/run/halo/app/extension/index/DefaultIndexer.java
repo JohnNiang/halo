@@ -5,6 +5,8 @@ import static run.halo.app.extension.index.IndexerTransaction.ChangeRecord;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -109,16 +111,24 @@ public class DefaultIndexer implements Indexer {
         }
     }
 
-    private List<ChangeRecord> doUnIndexRecord(String extensionName) {
-        List<ChangeRecord> changeRecords = new ArrayList<>();
+    private List<ChangeRecord<?>> doUnIndexRecord(String extensionName) {
+        List<ChangeRecord<?>> changeRecords = new ArrayList<>();
         for (IndexEntry indexEntry : indexEntries) {
-            indexEntry.entries().forEach(records -> {
-                var indexKey = records.getKey();
-                var objectKey = records.getValue();
-                if (objectKey.equals(extensionName)) {
-                    changeRecords.add(ChangeRecord.onRemove(indexEntry, indexKey, objectKey));
-                }
-            });
+            changeRecords.addAll(from(indexEntry, extensionName));
+        }
+        return changeRecords;
+    }
+
+    private <T extends Comparable<? super T>> List<ChangeRecord<T>> from(
+        IndexEntry<T> indexEntry, String extensionName
+    ) {
+        List<ChangeRecord<T>> changeRecords = new ArrayList<>();
+        for (Map.Entry<T, String> records : indexEntry.entries()) {
+            var indexKey = records.getKey();
+            var objectKey = records.getValue();
+            if (Objects.equals(objectKey, extensionName)) {
+                changeRecords.add(ChangeRecord.onRemove(indexEntry, indexKey, objectKey));
+            }
         }
         return changeRecords;
     }

@@ -13,6 +13,8 @@ public class IndexSpec {
 
     private OrderType order;
 
+    private DataType dataType;
+
     private boolean unique;
 
     public enum OrderType {

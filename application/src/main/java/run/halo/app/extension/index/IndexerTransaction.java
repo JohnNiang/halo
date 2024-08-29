@@ -19,9 +19,10 @@ public interface IndexerTransaction {
 
     void rollback();
 
-    void add(ChangeRecord changeRecord);
+    void add(ChangeRecord<?> changeRecord);
 
-    record ChangeRecord(IndexEntry indexEntry, String key, String value, boolean isAdd) {
+    record ChangeRecord<T extends Comparable<? super T>>(IndexEntry<T> indexEntry, T key,
+                                                         String value, boolean isAdd) {
 
         public ChangeRecord {
             Assert.notNull(indexEntry, "IndexEntry must not be null");
@@ -29,12 +30,14 @@ public interface IndexerTransaction {
             Assert.notNull(value, "Value must not be null");
         }
 
-        public static ChangeRecord onAdd(IndexEntry indexEntry, String key, String value) {
-            return new ChangeRecord(indexEntry, key, value, true);
+        public static <T extends Comparable<? super T>> ChangeRecord<T> onAdd(
+            IndexEntry<T> indexEntry, T key, String value) {
+            return new ChangeRecord<>(indexEntry, key, value, true);
         }
 
-        public static ChangeRecord onRemove(IndexEntry indexEntry, String key, String value) {
-            return new ChangeRecord(indexEntry, key, value, false);
+        public static <T extends Comparable<? super T>> ChangeRecord<T> onRemove(
+            IndexEntry<T> indexEntry, T key, String value) {
+            return new ChangeRecord<>(indexEntry, key, value, false);
         }
     }
 }

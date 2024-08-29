@@ -1,6 +1,7 @@
 package run.halo.app.extension.index;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -31,7 +32,7 @@ import run.halo.app.extension.Metadata;
  * @author guqing
  * @since 2.12.0
  */
-public interface IndexEntry {
+public interface IndexEntry<T extends Comparable<? super T>> {
 
     /**
      * Acquires the read lock for reading such as {@link #getObjectNamesBy(String)},
@@ -44,6 +45,8 @@ public interface IndexEntry {
      * Releases the read lock.
      */
     void releaseReadLock();
+
+    Comparator<T> getComparator();
 
     /**
      * <p>Adds a new entry to this index entry.</p>
@@ -58,7 +61,7 @@ public interface IndexEntry {
      * @param indexKeys index keys
      * @param objectKey object key (usually is {@link Metadata#getName()}).
      */
-    void addEntry(List<String> indexKeys, String objectKey);
+    void addEntry(List<T> indexKeys, String objectKey);
 
     /**
      * Removes the entry with the given {@code indexedKey} and {@code objectKey}.
@@ -66,14 +69,14 @@ public interface IndexEntry {
      * @param indexedKey indexed key
      * @param objectKey object key (usually is {@link Metadata#getName()}).
      */
-    void removeEntry(String indexedKey, String objectKey);
+    void removeEntry(T indexedKey, String objectKey);
 
     /**
      * Removes all entries with the given {@code objectKey}.
      *
      * @param objectKey object key(usually is {@link Metadata#getName()}).
      */
-    void remove(String objectKey);
+    void remove(T objectKey);
 
     /**
      * Returns the {@link IndexDescriptor} of this entry.
@@ -87,7 +90,7 @@ public interface IndexEntry {
      *
      * @return distinct indexed keys of this entry.
      */
-    NavigableSet<String> indexedKeys();
+    NavigableSet<T> indexedKeys();
 
     /**
      * <p>Returns the entries of this entry in order.</p>
@@ -96,7 +99,7 @@ public interface IndexEntry {
      *
      * @return entries of this entry.
      */
-    Collection<Map.Entry<String, String>> entries();
+    Collection<Map.Entry<T, String>> entries();
 
     /**
      * <p>Returns the position of the object name in the indexed attribute value mapping for
@@ -126,7 +129,7 @@ public interface IndexEntry {
      *
      * @return object names of this entry.
      */
-    List<String> getObjectNamesBy(String indexKey);
+    List<String> getObjectNamesBy(T indexKey);
 
     void clear();
 }

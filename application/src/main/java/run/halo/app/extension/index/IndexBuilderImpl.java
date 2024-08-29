@@ -1,5 +1,7 @@
 package run.halo.app.extension.index;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -22,8 +24,14 @@ public class IndexBuilderImpl implements IndexBuilder {
         this.indexDescriptors = indexDescriptors;
         this.extensionIterator = extensionIterator;
         indexDescriptors.forEach(indexDescriptor -> {
-            var indexEntry = new IndexEntryImpl(indexDescriptor);
-            indexEntries.add(indexEntry);
+            var dataType = indexDescriptor.getSpec().getDataType();
+            switch (dataType) {
+                case bool -> indexEntries.add(new IndexEntryImpl<Boolean>(indexDescriptor));
+                case number -> indexEntries.add(new IndexEntryImpl<Long>(indexDescriptor));
+                case decimal -> indexEntries.add(new IndexEntryImpl<BigDecimal>(indexDescriptor));
+                case instant -> indexEntries.add(new IndexEntryImpl<Instant>(indexDescriptor));
+                default -> indexEntries.add(new IndexEntryImpl<String>(indexDescriptor));
+            }
         });
     }
 

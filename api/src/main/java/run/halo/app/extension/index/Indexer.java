@@ -72,6 +72,7 @@ public interface Indexer {
      *
      * @param matchFn the {@link IndexDescriptor} to be matched
      */
+    @Deprecated(forRemoval = true)
     void removeIndexRecords(Function<IndexDescriptor, Boolean> matchFn);
 
     /**
@@ -82,7 +83,7 @@ public interface Indexer {
      * @throws IllegalArgumentException if the index name is not found or the index is not ready
      */
     @NonNull
-    IndexEntry getIndexEntry(String name);
+    <T extends Comparable<? super T>> IndexEntry<T> getIndexEntry(String name);
 
     /**
      * <p>Gets an iterator over all the ready {@link IndexEntry}s, in no particular order.</p>

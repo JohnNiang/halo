@@ -3,7 +3,10 @@ package run.halo.app.extension.index;
 import java.util.Comparator;
 import org.springframework.lang.Nullable;
 
+@Deprecated
 public class KeyComparator implements Comparator<String> {
+
+    @Deprecated
     public static final KeyComparator INSTANCE = new KeyComparator();
 
     @Override
