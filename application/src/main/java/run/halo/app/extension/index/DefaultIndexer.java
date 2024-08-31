@@ -43,7 +43,7 @@ public class DefaultIndexer implements Indexer {
         IndexEntryContainer oldIndexEntries) {
         this.indexDescriptors = new ArrayList<>(indexDescriptors);
         this.indexEntries = new IndexEntryContainer();
-        for (IndexEntry entry : oldIndexEntries) {
+        for (IndexEntry<?> entry : oldIndexEntries) {
             this.indexEntries.add(entry);
         }
         for (IndexDescriptor indexDescriptor : indexDescriptors) {
@@ -133,17 +133,23 @@ public class DefaultIndexer implements Indexer {
         return changeRecords;
     }
 
-    private <E extends Extension> List<ChangeRecord> doIndexRecord(E extension) {
-        List<ChangeRecord> changeRecords = new ArrayList<>();
-        for (IndexDescriptor indexDescriptor : indexDescriptors) {
-            var indexEntry = indexEntries.get(indexDescriptor);
-            var indexFunc = indexDescriptor.getSpec().getIndexFunc();
-            Set<String> indexKeys = indexFunc.getValues(extension);
-            var objectKey = PrimaryKeySpecUtils.getObjectPrimaryKey(extension);
-            for (String indexKey : indexKeys) {
-                changeRecords.add(ChangeRecord.onAdd(indexEntry, indexKey, objectKey));
-            }
-        }
+    private <E extends Extension, T extends Comparable<? super T>> List<ChangeRecord<T>> from(
+        IndexEntry<T> indexEntry,
+        E extension) {
+        var indexDescriptor = indexEntry.getIndexDescriptor();
+        var objectKey = PrimaryKeySpecUtils.getObjectPrimaryKey(extension);
+        return indexDescriptor.getSpec().getIndexFunc().getValues(extension)
+            .stream()
+            .map(indexKey -> ChangeRecord.onAdd(indexEntry, indexKey, objectKey))
+            .toList();
+    }
+
+    private <E extends Extension> List<ChangeRecord<?>> doIndexRecord(E extension) {
+        List<ChangeRecord<?>> changeRecords = new ArrayList<>();
+        indexDescriptors.stream()
+            .map(indexEntries::get)
+            .map(indexEntry -> from(indexEntry, extension))
+            .forEach(changeRecords::addAll);
         return changeRecords;
     }
 
@@ -222,7 +228,7 @@ public class DefaultIndexer implements Indexer {
     }
 
     @Override
-    public Iterator<IndexEntry> allIndexesIterator() {
+    public Iterator<IndexEntry<?>> allIndexesIterator() {
         readLock.lock();
         try {
             return indexEntries.iterator();

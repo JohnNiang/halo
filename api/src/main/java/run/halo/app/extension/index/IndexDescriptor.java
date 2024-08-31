@@ -5,16 +5,17 @@ import lombok.ToString;
 
 @Data
 @ToString(callSuper = true)
-public class IndexDescriptor {
+public class IndexDescriptor<T extends Comparable<? super T>> {
 
-    private final IndexSpec spec;
+    private final IndexSpec<T> spec;
 
     /**
      * Record whether the index is ready, managed by {@code IndexBuilder}.
      */
     private boolean ready;
 
-    public IndexDescriptor(IndexSpec spec) {
+    public IndexDescriptor(IndexSpec<T> spec) {
         this.spec = spec;
     }
+
 }

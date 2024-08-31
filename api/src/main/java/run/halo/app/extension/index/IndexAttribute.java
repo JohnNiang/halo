@@ -3,7 +3,7 @@ package run.halo.app.extension.index;
 import java.util.Set;
 import run.halo.app.extension.Extension;
 
-public interface IndexAttribute {
+public interface IndexAttribute<T extends Comparable<? super T>> {
 
     /**
      * Specify this class is belonged to which extension.
@@ -19,5 +19,6 @@ public interface IndexAttribute {
      * @param <E> the type of the object.
      * @return the value of the attribute must not be null.
      */
-    <E extends Extension> Set<String> getValues(E object);
+    <E extends Extension> Set<T> getValues(E object);
+
 }

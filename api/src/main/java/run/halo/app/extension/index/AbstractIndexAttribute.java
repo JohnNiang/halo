@@ -6,7 +6,9 @@ import run.halo.app.extension.Extension;
 import run.halo.app.extension.GVK;
 
 @EqualsAndHashCode
-public abstract class AbstractIndexAttribute<E extends Extension> implements IndexAttribute {
+public abstract class AbstractIndexAttribute<E extends Extension, T extends Comparable<? super T>>
+    implements IndexAttribute<T> {
+
     private final Class<E> objectType;
 
     /**

@@ -40,8 +40,9 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     @Override
-    public NavigableSet<String> findIds(String fieldName, String fieldValue) {
-        var operator = getEntryOperator(fieldName);
+    public <T extends Comparable<? super T>> NavigableSet<String> findIds(String fieldName,
+        T fieldValue) {
+        var operator = this.<T>getEntryOperator(fieldName);
         return operator.find(fieldValue);
     }
 
@@ -57,8 +58,8 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     @Override
-    public NavigableSet<String> findMatchingIdsWithEqualValues(String fieldName1,
-        String fieldName2) {
+    public NavigableSet<String> findMatchingIdsWithEqualValues(
+        String fieldName1, String fieldName2) {
         indexer.acquireReadLock();
         try {
             return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
@@ -85,9 +86,10 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     @Override
-    public NavigableSet<String> findIdsGreaterThan(String fieldName, String fieldValue,
+    public <T extends Comparable<? super T>> NavigableSet<String> findIdsGreaterThan(
+        String fieldName, T fieldValue,
         boolean orEqual) {
-        var operator = getEntryOperator(fieldName);
+        var operator = this.<T>getEntryOperator(fieldName);
         return operator.greaterThan(fieldValue, orEqual);
     }
 
@@ -106,16 +108,18 @@ public class QueryIndexViewImpl implements QueryIndexView {
     }
 
     @Override
-    public NavigableSet<String> findIdsLessThan(String fieldName, String fieldValue,
+    public <T extends Comparable<? super T>> NavigableSet<String> findIdsLessThan(String fieldName,
+        T fieldValue,
         boolean orEqual) {
-        var operator = getEntryOperator(fieldName);
+        var operator = this.<T>getEntryOperator(fieldName);
         return operator.lessThan(fieldValue, orEqual);
     }
 
     @Override
-    public NavigableSet<String> between(String fieldName, String lowerValue, boolean lowerInclusive,
-        String upperValue, boolean upperInclusive) {
-        var operator = getEntryOperator(fieldName);
+    public <T extends Comparable<? super T>> NavigableSet<String> between(String fieldName,
+        T lowerValue, boolean lowerInclusive,
+        T upperValue, boolean upperInclusive) {
+        var operator = this.<T>getEntryOperator(fieldName);
         return operator.range(lowerValue, upperValue, lowerInclusive, upperInclusive);
     }
 
@@ -182,13 +186,15 @@ public class QueryIndexViewImpl implements QueryIndexView {
         indexer.releaseReadLock();
     }
 
-    private IndexEntryOperator getEntryOperator(String fieldName) {
-        var indexEntry = getIndexEntry(fieldName);
+    private <T extends Comparable<? super T>> IndexEntryOperator<T> getEntryOperator(
+        String fieldName) {
+        IndexEntry<T> indexEntry = getIndexEntry(fieldName);
         return createIndexEntryOperator(indexEntry);
     }
 
-    private IndexEntryOperator createIndexEntryOperator(IndexEntry entry) {
-        return new IndexEntryOperatorImpl(entry);
+    private <T extends Comparable<? super T>> IndexEntryOperator<T> createIndexEntryOperator(
+        IndexEntry<T> entry) {
+        return new IndexEntryOperatorImpl<>(entry);
     }
 
     private Set<String> allIds() {

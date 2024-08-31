@@ -99,7 +99,7 @@ public interface Indexer {
      * @return an iterator over all the {@link IndexEntry}s
      * @see IndexDescriptor#isReady()
      */
-    Iterator<IndexEntry> allIndexesIterator();
+    Iterator<IndexEntry<?>> allIndexesIterator();
 
     void acquireReadLock();
 

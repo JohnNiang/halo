@@ -553,12 +553,12 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
         schemeManager.register(Group.class);
         schemeManager.register(Policy.class);
         schemeManager.register(Attachment.class, indexSpecs -> {
-            indexSpecs.add(new IndexSpec()
+            indexSpecs.add(new IndexSpec<String>()
                 .setName("spec.displayName")
                 .setIndexFunc(simpleAttribute(Attachment.class,
                     attachment -> attachment.getSpec().getDisplayName()))
             );
-            indexSpecs.add(new IndexSpec()
+            indexSpecs.add(new IndexSpec<String>()
                 .setName("spec.policyName")
                 .setIndexFunc(simpleAttribute(Attachment.class,
                     attachment -> attachment.getSpec().getPolicyName()))

@@ -8,13 +8,17 @@ import run.halo.app.extension.Extension;
 @UtilityClass
 public class IndexAttributeFactory {
 
-    public static <E extends Extension> IndexAttribute simpleAttribute(Class<E> type,
-        Function<E, String> valueFunc) {
+    public static <E extends Extension, T extends Comparable<? super T>> IndexAttribute<T>
+        simpleAttribute(
+        Class<E> type,
+        Function<E, T> valueFunc) {
         return new FunctionalIndexAttribute<>(type, valueFunc);
     }
 
-    public static <E extends Extension> IndexAttribute multiValueAttribute(Class<E> type,
-        Function<E, Set<String>> valueFunc) {
+    public static <E extends Extension, T extends Comparable<? super T>> IndexAttribute<T>
+        multiValueAttribute(
+        Class<E> type,
+        Function<E, Set<T>> valueFunc) {
         return new FunctionalMultiValueIndexAttribute<>(type, valueFunc);
     }
 }

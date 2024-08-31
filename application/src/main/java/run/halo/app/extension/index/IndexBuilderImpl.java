@@ -64,10 +64,16 @@ public class IndexBuilderImpl implements IndexBuilder {
     private <E extends Extension> void indexRecords(E extension) {
         for (IndexDescriptor indexDescriptor : indexDescriptors) {
             var indexEntry = indexEntries.get(indexDescriptor);
-            var indexFunc = indexDescriptor.getSpec().getIndexFunc();
-            Set<String> indexKeys = indexFunc.getValues(extension);
-            indexEntry.addEntry(new LinkedList<>(indexKeys),
-                PrimaryKeySpecUtils.getObjectPrimaryKey(extension));
+            addEntry(indexEntry, extension);
         }
+    }
+
+    private <E extends Extension, T extends Comparable<? super T>> void addEntry(
+        IndexEntry<T> indexEntry, E extension) {
+        var indexDescriptor = indexEntry.getIndexDescriptor();
+        var indexFunc = indexDescriptor.getSpec().getIndexFunc();
+        var objectPrimaryKey = PrimaryKeySpecUtils.getObjectPrimaryKey(extension);
+        Set<T> indexKeys = indexFunc.getValues(extension);
+        indexEntry.addEntry(new LinkedList<>(indexKeys), objectPrimaryKey);
     }
 }

@@ -42,8 +42,8 @@ public class IndexEntryContainer implements Iterable<IndexEntry<?>> {
      * @param indexDescriptor the index descriptor
      * @return the index entry
      */
-    public IndexEntry<?> get(IndexDescriptor indexDescriptor) {
-        return indexEntryMap.get(indexDescriptor);
+    public <T extends Comparable<? super T>> IndexEntry<T> get(IndexDescriptor indexDescriptor) {
+        return (IndexEntry<T>) indexEntryMap.get(indexDescriptor);
     }
 
     public boolean contains(IndexDescriptor indexDescriptor) {

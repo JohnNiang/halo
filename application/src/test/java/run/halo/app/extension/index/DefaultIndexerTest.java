@@ -99,14 +99,14 @@ class DefaultIndexerTest {
         var indexContainer = new IndexEntryContainer();
         var descriptor = new IndexDescriptor(nameIndex);
         descriptor.setReady(true);
-        indexContainer.add(new IndexEntryImpl(descriptor));
+        indexContainer.add(new IndexEntryImpl<String>(descriptor));
 
         var indexer = new DefaultIndexer(List.of(descriptor), indexContainer);
         indexer.indexRecord(createFakeExtension());
 
         var iterator = indexer.allIndexesIterator();
         assertThat(iterator.hasNext()).isTrue();
-        var indexEntry = iterator.next();
+        IndexEntry<String> indexEntry = (IndexEntry<String>) iterator.next();
         var entries = indexEntry.entries();
         assertThat(entries).hasSize(1);
         assertThat(entries).contains(Map.entry("fake-extension", "fake-extension"));

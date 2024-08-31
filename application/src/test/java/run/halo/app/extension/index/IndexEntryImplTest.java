@@ -131,13 +131,13 @@ class IndexEntryImplTest {
             .isEqualTo(priorityIndexEntryFromView.getIdPositionMap());
     }
 
-    IndexEntry prepareForPositionMapTest(QueryIndexView indexView, String property) {
+    IndexEntry<String> prepareForPositionMapTest(QueryIndexView indexView, String property) {
         var indexSpec = mock(IndexSpec.class);
         var descriptor = mock(IndexDescriptor.class);
         when(descriptor.getSpec()).thenReturn(indexSpec);
-        var indexEntry = new IndexEntryImpl(descriptor);
+        var indexEntry = new IndexEntryImpl<String>(descriptor);
 
-        var indexEntryFromView = indexView.getIndexEntry(property);
+        IndexEntry<String> indexEntryFromView = indexView.getIndexEntry(property);
         var sortedEntries = IndexViewDataSet.sortEntries(indexEntryFromView.entries());
 
         var spyIndexEntry = spy(indexEntry);

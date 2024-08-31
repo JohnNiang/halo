@@ -83,7 +83,7 @@ public interface IndexEntry<T extends Comparable<? super T>> {
      *
      * @return the {@link IndexDescriptor} of this entry.
      */
-    IndexDescriptor getIndexDescriptor();
+    IndexDescriptor<T> getIndexDescriptor();
 
     /**
      * Returns the indexed keys of this entry in order.

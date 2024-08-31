@@ -13,7 +13,6 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import run.halo.app.extension.index.IndexEntry;
 import run.halo.app.extension.index.Indexer;
-import run.halo.app.extension.index.KeyComparator;
 
 public class IndexViewDataSet {
 
@@ -308,10 +307,10 @@ public class IndexViewDataSet {
         lenient().when(indexEntry.entries()).thenReturn(entries);
     }
 
-    public static List<Map.Entry<String, String>> sortEntries(
-        Collection<Map.Entry<String, String>> entries) {
+    public static <T extends Comparable<? super T>> List<Map.Entry<T, String>> sortEntries(
+        Collection<Map.Entry<T, String>> entries) {
         return entries.stream()
-            .sorted((a, b) -> KeyComparator.INSTANCE.compare(a.getKey(), b.getKey()))
+            .sorted()
             .toList();
     }
 
@@ -330,11 +329,12 @@ public class IndexViewDataSet {
         return idPositionMap;
     }
 
-    public static LinkedHashMap<String, List<String>> toKeyObjectMap(
-        Collection<Map.Entry<String, String>> sortedEntries) {
+    public static <T extends Comparable<? super T>> LinkedHashMap<T, List<String>> toKeyObjectMap(
+        Collection<Map.Entry<T, String>> sortedEntries) {
         return sortedEntries.stream()
             .collect(Collectors.groupingBy(Map.Entry::getKey,
                 LinkedHashMap::new,
-                Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+                Collectors.mapping(Map.Entry::getValue, Collectors.toList()))
+            );
     }
 }

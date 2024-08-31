@@ -23,7 +23,7 @@ public class IndexEntryImpl<T extends Comparable<? super T>> implements IndexEnt
     private final Lock readLock = rwl.readLock();
     private final Lock writeLock = rwl.writeLock();
 
-    private final IndexDescriptor indexDescriptor;
+    private final IndexDescriptor<T> indexDescriptor;
     private final ListMultimap<T, String> indexKeyObjectNamesMap;
 
     /**
@@ -31,7 +31,7 @@ public class IndexEntryImpl<T extends Comparable<? super T>> implements IndexEnt
      *
      * @param indexDescriptor for which the {@link IndexEntryImpl} is created.
      */
-    public IndexEntryImpl(IndexDescriptor indexDescriptor) {
+    public IndexEntryImpl(IndexDescriptor<T> indexDescriptor) {
         this.indexDescriptor = indexDescriptor;
 
         this.indexKeyObjectNamesMap = MultimapBuilder.treeKeys(getComparator())
@@ -105,7 +105,7 @@ public class IndexEntryImpl<T extends Comparable<? super T>> implements IndexEnt
         readLock.lock();
         try {
             var keys = indexKeyObjectNamesMap.keySet();
-            var result =  new TreeSet<>(getComparator());
+            var result = new TreeSet<>(getComparator());
             result.addAll(keys);
             return result;
         } finally {

@@ -29,7 +29,7 @@ public interface QueryIndexView {
      * @return all indexed object ids associated with the given field name and field value
      * @throws IllegalArgumentException if the field name is not indexed
      */
-    NavigableSet<String> findIds(String fieldName, String fieldValue);
+    <T extends Comparable<? super T>> NavigableSet<String> findIds(String fieldName, T fieldValue);
 
     /**
      * Gets all object ids for a given field name without null cells.
@@ -92,7 +92,8 @@ public interface QueryIndexView {
     NavigableSet<String> findMatchingIdsWithGreaterValues(String fieldName1, String fieldName2,
         boolean orEqual);
 
-    NavigableSet<String> findIdsGreaterThan(String fieldName, String fieldValue, boolean orEqual);
+    <T extends Comparable<? super T>> NavigableSet<String> findIdsGreaterThan(String fieldName,
+        T fieldValue, boolean orEqual);
 
     /**
      * <p>Finds and returns a set of unique identifiers (metadata.name) for entries that have
@@ -121,10 +122,12 @@ public interface QueryIndexView {
     NavigableSet<String> findMatchingIdsWithSmallerValues(String fieldName1, String fieldName2,
         boolean orEqual);
 
-    NavigableSet<String> findIdsLessThan(String fieldName, String fieldValue, boolean orEqual);
+    <T extends Comparable<? super T>> NavigableSet<String> findIdsLessThan(String fieldName,
+        T fieldValue, boolean orEqual);
 
-    NavigableSet<String> between(String fieldName, String lowerValue, boolean lowerInclusive,
-        String upperValue, boolean upperInclusive);
+    <T extends Comparable<? super T>> NavigableSet<String> between(String fieldName,
+        T lowerValue, boolean lowerInclusive,
+        T upperValue, boolean upperInclusive);
 
     List<String> sortBy(NavigableSet<String> resultSet, Sort sort);
 

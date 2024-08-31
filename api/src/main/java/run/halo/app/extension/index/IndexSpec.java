@@ -6,14 +6,14 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class IndexSpec {
+public class IndexSpec<T extends Comparable<? super T>> {
     private String name;
 
-    private IndexAttribute indexFunc;
+    private IndexAttribute<T> indexFunc;
 
     private OrderType order;
 
-    private DataType dataType;
+    private DataType dataType = DataType.string;
 
     private boolean unique;
 
@@ -30,7 +30,7 @@ public class IndexSpec {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        IndexSpec indexSpec = (IndexSpec) o;
+        var indexSpec = (IndexSpec<?>) o;
         return Objects.equal(name, indexSpec.name);
     }
 
