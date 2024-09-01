@@ -1,10 +1,19 @@
 package run.halo.app.extension.index;
 
 public enum DataType {
-    string,
-    number,
-    decimal,
-    instant,
-    bool,
-    ;
+
+    STRING,
+
+    INTEGER,
+
+    LONG,
+
+    FLOAT,
+
+    DOUBLE,
+
+    INSTANT,
+
+    BOOL,
+
 }

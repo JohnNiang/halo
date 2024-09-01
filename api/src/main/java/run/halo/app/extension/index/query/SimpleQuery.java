@@ -5,9 +5,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
 
 @Getter
-public abstract class SimpleQuery implements Query {
+public abstract class SimpleQuery<T extends Comparable<? super T>> implements Query {
     protected final String fieldName;
-    protected final String value;
+    protected final T value;
     /**
      * <p>Whether the value if a field reference.</p>
      * For example, {@code fieldName = "salary", value = "cost"} can lead to a query：
@@ -22,11 +22,11 @@ public abstract class SimpleQuery implements Query {
      */
     protected final boolean isFieldRef;
 
-    protected SimpleQuery(String fieldName, String value) {
+    protected SimpleQuery(String fieldName, T value) {
         this(fieldName, value, false);
     }
 
-    protected SimpleQuery(String fieldName, String value, boolean isFieldRef) {
+    protected SimpleQuery(String fieldName, T value, boolean isFieldRef) {
         Assert.isTrue(StringUtils.isNotBlank(fieldName), "fieldName cannot be blank.");
         this.fieldName = fieldName;
         this.value = value;

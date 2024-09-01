@@ -49,8 +49,7 @@ public class IndexerFactoryImpl implements IndexerFactory {
         log.info("Start building index for type: {}, please wait...", keySpace);
         var indexBuilder = IndexBuilderImpl.of(indexDescriptors, extensionIterator);
         indexBuilder.startBuildingIndex();
-        var indexer =
-            new DefaultIndexer(indexDescriptors, indexBuilder.getIndexEntries());
+        var indexer = new DefaultIndexer(indexDescriptors, indexBuilder.getIndexEntries());
         keySpaceIndexer.put(keySpace, indexer);
         log.info("Index for type: {} built successfully, cost {} ms", keySpace,
             System.currentTimeMillis() - startTimeMs);

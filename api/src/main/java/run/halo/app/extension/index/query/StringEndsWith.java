@@ -5,7 +5,8 @@ import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
 
-public class StringEndsWith extends SimpleQuery {
+public class StringEndsWith extends SimpleQuery<String> {
+
     public StringEndsWith(String fieldName, String value) {
         super(fieldName, value);
     }

@@ -1,6 +1,5 @@
 package run.halo.app.extension.index;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,28 +8,44 @@ import org.springframework.lang.NonNull;
 import run.halo.app.extension.Extension;
 
 public class IndexBuilderImpl implements IndexBuilder {
-    private final List<IndexDescriptor> indexDescriptors;
+    private final List<IndexDescriptor<?>> indexDescriptors;
     private final ExtensionIterator<? extends Extension> extensionIterator;
 
     private final IndexEntryContainer indexEntries = new IndexEntryContainer();
 
-    public static IndexBuilder of(List<IndexDescriptor> indexDescriptors,
+    public static IndexBuilder of(List<IndexDescriptor<?>> indexDescriptors,
         ExtensionIterator<? extends Extension> extensionIterator) {
         return new IndexBuilderImpl(indexDescriptors, extensionIterator);
     }
 
-    IndexBuilderImpl(List<IndexDescriptor> indexDescriptors,
+    IndexBuilderImpl(List<IndexDescriptor<?>> indexDescriptors,
         ExtensionIterator<? extends Extension> extensionIterator) {
         this.indexDescriptors = indexDescriptors;
         this.extensionIterator = extensionIterator;
         indexDescriptors.forEach(indexDescriptor -> {
             var dataType = indexDescriptor.getSpec().getDataType();
             switch (dataType) {
-                case bool -> indexEntries.add(new IndexEntryImpl<Boolean>(indexDescriptor));
-                case number -> indexEntries.add(new IndexEntryImpl<Long>(indexDescriptor));
-                case decimal -> indexEntries.add(new IndexEntryImpl<BigDecimal>(indexDescriptor));
-                case instant -> indexEntries.add(new IndexEntryImpl<Instant>(indexDescriptor));
-                default -> indexEntries.add(new IndexEntryImpl<String>(indexDescriptor));
+                case BOOL -> indexEntries.add(
+                    new BooleanIndexEntry((IndexDescriptor<Boolean>) indexDescriptor)
+                );
+                case INTEGER -> indexEntries.add(
+                    new IntegerIndexEntry((IndexDescriptor<Integer>) indexDescriptor)
+                );
+                case LONG ->
+                    indexEntries.add(new LongIndexEntry((IndexDescriptor<Long>) indexDescriptor)
+                    );
+                case FLOAT ->
+                    indexEntries.add(new FloatIndexEntry((IndexDescriptor<Float>) indexDescriptor)
+                    );
+                case DOUBLE -> indexEntries.add(
+                    new DoubleIndexEntry((IndexDescriptor<Double>) indexDescriptor)
+                );
+                case INSTANT -> indexEntries.add(new IndexEntryImpl<Instant>(
+                    (IndexDescriptor<Instant>) indexDescriptor)
+                );
+                default -> indexEntries.add(new StringIndexEntry(
+                    (IndexDescriptor<String>) indexDescriptor)
+                );
             }
         });
     }
@@ -43,7 +58,7 @@ public class IndexBuilderImpl implements IndexBuilder {
             indexRecords(extensionRecord);
         }
 
-        for (IndexDescriptor indexDescriptor : indexDescriptors) {
+        for (IndexDescriptor<?> indexDescriptor : indexDescriptors) {
             indexDescriptor.setReady(true);
         }
     }
@@ -51,7 +66,7 @@ public class IndexBuilderImpl implements IndexBuilder {
     @Override
     @NonNull
     public IndexEntryContainer getIndexEntries() {
-        for (IndexEntry indexEntry : indexEntries) {
+        for (IndexEntry<?> indexEntry : indexEntries) {
             if (!indexEntry.getIndexDescriptor().isReady()) {
                 throw new IllegalStateException(
                     "IndexEntry are not ready yet for index named "
@@ -62,7 +77,7 @@ public class IndexBuilderImpl implements IndexBuilder {
     }
 
     private <E extends Extension> void indexRecords(E extension) {
-        for (IndexDescriptor indexDescriptor : indexDescriptors) {
+        for (IndexDescriptor<?> indexDescriptor : indexDescriptors) {
             var indexEntry = indexEntries.get(indexDescriptor);
             addEntry(indexEntry, extension);
         }

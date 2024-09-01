@@ -14,10 +14,9 @@ public class PrimaryKeySpecUtils {
      * @param <E> the type parameter of {@link Extension}
      * @return the index spec
      */
-    public static <E extends Extension> IndexSpec primaryKeyIndexSpec(Class<E> type) {
-        return new IndexSpec()
+    public static <E extends Extension> IndexSpec<String> primaryKeyIndexSpec(Class<E> type) {
+        return new IndexSpec<String>()
             .setName(PRIMARY_INDEX_NAME)
-            .setOrder(IndexSpec.OrderType.ASC)
             .setUnique(true)
             .setIndexFunc(IndexAttributeFactory.simpleAttribute(type,
                 e -> e.getMetadata().getName())

@@ -61,6 +61,7 @@ import run.halo.app.extension.DefaultSchemeWatcherManager;
 import run.halo.app.extension.MetadataOperator;
 import run.halo.app.extension.MetadataUtil;
 import run.halo.app.extension.Secret;
+import run.halo.app.extension.index.DataType;
 import run.halo.app.extension.index.IndexSpec;
 import run.halo.app.extension.index.IndexSpecRegistryImpl;
 import run.halo.app.infra.utils.JsonUtils;
@@ -80,7 +81,7 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
         schemeManager.register(Role.class, is -> {
             is.add(new IndexSpec()
                 .setName("labels.aggregateToRoles")
-                .setIndexFunc(multiValueAttribute(Role.class,
+                .<String>setIndexFunc(multiValueAttribute(Role.class,
                     role -> Optional.ofNullable(role.getMetadata().getLabels())
                         .map(labels -> labels.keySet()
                             .stream()
@@ -97,7 +98,7 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
 
         // plugin.halo.run
         schemeManager.register(Plugin.class, is -> {
-            is.add(new IndexSpec()
+            is.add(new IndexSpec<String>()
                 .setName("spec.displayName")
                 .setIndexFunc(
                     simpleAttribute(Plugin.class, plugin -> Optional.ofNullable(plugin.getSpec())
@@ -105,7 +106,7 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
                         .orElse(null))
                 )
             );
-            is.add(new IndexSpec()
+            is.add(new IndexSpec<String>()
                 .setName("spec.description")
                 .setIndexFunc(
                     simpleAttribute(Plugin.class, plugin -> Optional.ofNullable(plugin.getSpec())
@@ -113,13 +114,13 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
                         .orElse(null))
                 )
             );
-            is.add(new IndexSpec()
+            is.add(new IndexSpec<Boolean>()
                 .setName("spec.enabled")
+                .setDataType(DataType.BOOL)
                 .setIndexFunc(
                     simpleAttribute(Plugin.class, plugin -> Optional.ofNullable(plugin.getSpec())
                         .map(Plugin.PluginSpec::getEnabled)
-                        .map(Object::toString)
-                        .orElse(Boolean.FALSE.toString()))
+                        .orElse(false))
                 )
             );
         });

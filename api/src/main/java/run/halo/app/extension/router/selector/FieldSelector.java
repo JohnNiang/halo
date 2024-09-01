@@ -7,6 +7,7 @@ import run.halo.app.extension.index.query.Query;
 import run.halo.app.extension.index.query.QueryFactory;
 
 public record FieldSelector(@NonNull Query query) {
+
     public FieldSelector(Query query) {
         this.query = Objects.requireNonNullElseGet(query, QueryFactory::all);
     }

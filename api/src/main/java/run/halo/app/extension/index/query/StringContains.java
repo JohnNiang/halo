@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
 
-public class StringContains extends SimpleQuery {
+public class StringContains extends SimpleQuery<String> {
     public StringContains(String fieldName, String value) {
         super(fieldName, value);
     }

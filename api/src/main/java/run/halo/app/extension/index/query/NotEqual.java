@@ -3,17 +3,17 @@ package run.halo.app.extension.index.query;
 import java.util.NavigableSet;
 import org.springframework.util.Assert;
 
-public class NotEqual extends SimpleQuery {
-    private final EqualQuery equalQuery;
+public class NotEqual<T extends Comparable<? super T>> extends SimpleQuery<T> {
+    private final EqualQuery<T> equalQuery;
 
-    public NotEqual(String fieldName, String value) {
+    public NotEqual(String fieldName, T value) {
         this(fieldName, value, false);
     }
 
-    public NotEqual(String fieldName, String value, boolean isFieldRef) {
+    public NotEqual(String fieldName, T value, boolean isFieldRef) {
         super(fieldName, value, isFieldRef);
         Assert.notNull(value, "Value must not be null, use IsNull or IsNotNull instead");
-        this.equalQuery = new EqualQuery(fieldName, value, isFieldRef);
+        this.equalQuery = new EqualQuery<>(fieldName, value, isFieldRef);
     }
 
     @Override

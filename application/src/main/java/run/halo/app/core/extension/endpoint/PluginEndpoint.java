@@ -586,7 +586,7 @@ public class PluginEndpoint implements CustomEndpoint, InitializingBean {
 
             Optional.ofNullable(queryParams.getFirst("enabled"))
                 .map(Boolean::parseBoolean)
-                .ifPresent(enabled -> builder.andQuery(equal("spec.enabled", enabled.toString())));
+                .ifPresent(enabled -> builder.andQuery(equal("spec.enabled", enabled)));
 
             return builder.build();
         }

@@ -1,6 +1,8 @@
 package run.halo.app.extension.index;
 
-import java.util.Objects;
+import static run.halo.app.extension.index.DataType.INSTANT;
+
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.springframework.lang.NonNull;
@@ -63,20 +65,18 @@ public class IndexSpecRegistryImpl implements IndexSpecRegistry {
         indexSpecs.add(nameIndexSpec);
 
         var creationTimestampIndexSpec = new IndexSpec()
+            .setDataType(INSTANT)
             .setName("metadata.creationTimestamp")
-            .setOrder(IndexSpec.OrderType.ASC)
-            .setUnique(false)
-            .setIndexFunc(IndexAttributeFactory.simpleAttribute(extensionType,
-                e -> e.getMetadata().getCreationTimestamp().toString())
+            .<Instant>setIndexFunc(IndexAttributeFactory.simpleAttribute(extensionType,
+                e -> e.getMetadata().getCreationTimestamp())
             );
         indexSpecs.add(creationTimestampIndexSpec);
 
         var deletionTimestampIndexSpec = new IndexSpec()
+            .setDataType(INSTANT)
             .setName("metadata.deletionTimestamp")
-            .setOrder(IndexSpec.OrderType.ASC)
-            .setUnique(false)
-            .setIndexFunc(IndexAttributeFactory.simpleAttribute(extensionType,
-                e -> Objects.toString(e.getMetadata().getDeletionTimestamp(), null))
+            .<Instant>setIndexFunc(IndexAttributeFactory.simpleAttribute(extensionType,
+                e -> e.getMetadata().getDeletionTimestamp())
             );
         indexSpecs.add(deletionTimestampIndexSpec);
 

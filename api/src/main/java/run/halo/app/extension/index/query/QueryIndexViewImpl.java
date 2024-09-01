@@ -10,6 +10,7 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.BiPredicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import run.halo.app.extension.index.IndexEntry;
 import run.halo.app.extension.index.IndexEntryOperator;
@@ -22,6 +23,7 @@ import run.halo.app.extension.index.Indexer;
  * @author guqing
  * @since 2.17.0
  */
+@Slf4j
 public class QueryIndexViewImpl implements QueryIndexView {
 
     public static final String PRIMARY_INDEX_NAME = "metadata.name";
@@ -43,6 +45,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
     public <T extends Comparable<? super T>> NavigableSet<String> findIds(String fieldName,
         T fieldValue) {
         var operator = this.<T>getEntryOperator(fieldName);
+        // TODO convert the field value to proper type
         return operator.find(fieldValue);
     }
 
@@ -59,10 +62,11 @@ public class QueryIndexViewImpl implements QueryIndexView {
 
     @Override
     public NavigableSet<String> findMatchingIdsWithEqualValues(
-        String fieldName1, String fieldName2) {
+        String fieldName1, String fieldName2
+    ) {
         indexer.acquireReadLock();
         try {
-            return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
+            return findIdsWithKeyComparator(fieldName1, fieldName2, (String k1, String k2) -> {
                 var compare = k1.compareTo(k2);
                 return compare == 0;
             });
@@ -76,7 +80,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
         String fieldName2, boolean orEqual) {
         indexer.acquireReadLock();
         try {
-            return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
+            return findIdsWithKeyComparator(fieldName1, fieldName2, (String k1, String k2) -> {
                 var compare = k1.compareTo(k2);
                 return orEqual ? compare <= 0 : compare < 0;
             });
@@ -98,7 +102,7 @@ public class QueryIndexViewImpl implements QueryIndexView {
         String fieldName2, boolean orEqual) {
         indexer.acquireReadLock();
         try {
-            return findIdsWithKeyComparator(fieldName1, fieldName2, (k1, k2) -> {
+            return findIdsWithKeyComparator(fieldName1, fieldName2, (String k1, String k2) -> {
                 var compare = k1.compareTo(k2);
                 return orEqual ? compare >= 0 : compare > 0;
             });

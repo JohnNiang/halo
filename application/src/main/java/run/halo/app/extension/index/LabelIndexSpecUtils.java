@@ -1,10 +1,12 @@
 package run.halo.app.extension.index;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.springframework.data.util.Pair;
 import run.halo.app.extension.Extension;
+import run.halo.app.extension.MetadataOperator;
 
 @UtilityClass
 public class LabelIndexSpecUtils {
@@ -18,11 +20,9 @@ public class LabelIndexSpecUtils {
      * @param <E> extension type
      * @return label index spec
      */
-    public static <E extends Extension> IndexSpec labelIndexSpec(Class<E> extensionType) {
-        return new IndexSpec()
+    public static <E extends Extension> IndexSpec<String> labelIndexSpec(Class<E> extensionType) {
+        return new IndexSpec<String>()
             .setName(LABEL_PATH)
-            .setOrder(IndexSpec.OrderType.ASC)
-            .setUnique(false)
             .setIndexFunc(IndexAttributeFactory.multiValueAttribute(extensionType,
                 LabelIndexSpecUtils::labelIndexValueFunc)
             );
@@ -43,13 +43,13 @@ public class LabelIndexSpecUtils {
     }
 
     static <E extends Extension> Set<String> labelIndexValueFunc(E obj) {
-        var labels = obj.getMetadata().getLabels();
-        if (labels == null) {
-            return Set.of();
-        }
-        return labels.entrySet()
-            .stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .collect(Collectors.toSet());
+        return Optional.of(obj)
+            .map(Extension::getMetadata)
+            .map(MetadataOperator::getLabels)
+            .map(labels -> labels.entrySet().stream()
+                .map(entry -> entry.getKey() + '=' + entry.getValue())
+                .collect(Collectors.toSet())
+            )
+            .orElseGet(Set::of);
     }
 }

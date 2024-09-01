@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
 
-public class StringStartsWith extends SimpleQuery {
+public class StringStartsWith extends SimpleQuery<String> {
     public StringStartsWith(String fieldName, String value) {
         super(fieldName, value);
     }

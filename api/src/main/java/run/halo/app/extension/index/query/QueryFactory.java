@@ -32,81 +32,97 @@ public class QueryFactory {
     /**
      * Create a {@link NotEqual} for the given {@code fieldName} and {@code attributeValue}.
      */
-    public static Query notEqual(String fieldName, String attributeValue) {
+    public static <T extends Comparable<? super T>> Query notEqual(
+        String fieldName, T attributeValue
+    ) {
         if (attributeValue == null) {
             return new IsNotNull(fieldName);
         }
-        return new NotEqual(fieldName, attributeValue);
+        return new NotEqual<>(fieldName, attributeValue);
     }
 
     public static Query notEqualOtherField(String fieldName, String otherFieldName) {
-        return new NotEqual(fieldName, otherFieldName, true);
+        return new NotEqual<>(fieldName, otherFieldName, true);
     }
 
     /**
      * Create a {@link EqualQuery} for the given {@code fieldName} and {@code attributeValue}.
      */
-    public static Query equal(String fieldName, String attributeValue) {
+    public static <T extends Comparable<? super T>> Query equal(
+        String fieldName, T attributeValue
+    ) {
         if (attributeValue == null) {
             return new IsNull(fieldName);
         }
-        return new EqualQuery(fieldName, attributeValue);
+        return new EqualQuery<>(fieldName, attributeValue);
     }
 
     public static Query equalOtherField(String fieldName, String otherFieldName) {
-        return new EqualQuery(fieldName, otherFieldName, true);
+        return new EqualQuery<>(fieldName, otherFieldName, true);
     }
 
     public static Query lessThanOtherField(String fieldName, String otherFieldName) {
-        return new LessThanQuery(fieldName, otherFieldName, false, true);
+        return new LessThanQuery<>(fieldName, otherFieldName, false, true);
     }
 
     public static Query lessThanOrEqualOtherField(String fieldName, String otherFieldName) {
-        return new LessThanQuery(fieldName, otherFieldName, true, true);
+        return new LessThanQuery<>(fieldName, otherFieldName, true, true);
     }
 
-    public static Query lessThan(String fieldName, String attributeValue) {
-        return new LessThanQuery(fieldName, attributeValue, false);
+    public static <T extends Comparable<? super T>> Query lessThan(
+        String fieldName, T attributeValue
+    ) {
+        return new LessThanQuery<>(fieldName, attributeValue, false);
     }
 
-    public static Query lessThanOrEqual(String fieldName, String attributeValue) {
-        return new LessThanQuery(fieldName, attributeValue, true);
+    public static <T extends Comparable<? super T>> Query lessThanOrEqual(
+        String fieldName, T attributeValue
+    ) {
+        return new LessThanQuery<>(fieldName, attributeValue, true);
     }
 
-    public static Query greaterThan(String fieldName, String attributeValue) {
-        return new GreaterThanQuery(fieldName, attributeValue, false);
+    public static <T extends Comparable<? super T>> Query greaterThan(
+        String fieldName, T attributeValue
+    ) {
+        return new GreaterThanQuery<>(fieldName, attributeValue, false);
     }
 
-    public static Query greaterThanOrEqual(String fieldName, String attributeValue) {
-        return new GreaterThanQuery(fieldName, attributeValue, true);
+    public static <T extends Comparable<? super T>> Query greaterThanOrEqual(
+        String fieldName, T attributeValue
+    ) {
+        return new GreaterThanQuery<>(fieldName, attributeValue, true);
     }
 
     public static Query greaterThanOtherField(String fieldName, String otherFieldName) {
-        return new GreaterThanQuery(fieldName, otherFieldName, false, true);
+        return new GreaterThanQuery<>(fieldName, otherFieldName, false, true);
     }
 
-    public static Query greaterThanOrEqualOtherField(String fieldName,
-        String otherFieldName) {
-        return new GreaterThanQuery(fieldName, otherFieldName, true, true);
+    public static Query greaterThanOrEqualOtherField(String fieldName, String otherFieldName) {
+        return new GreaterThanQuery<>(fieldName, otherFieldName, true, true);
     }
 
-    public static Query in(String fieldName, String... attributeValues) {
+    @SafeVarargs
+    public static <T extends Comparable<? super T>> Query in(
+        String fieldName, T... attributeValues
+    ) {
         return in(fieldName, Set.of(attributeValues));
     }
 
     /**
      * Create an {@link InQuery} for the given {@code fieldName} and {@code values}.
      */
-    public static Query in(String fieldName, Collection<String> values) {
+    public static <T extends Comparable<? super T>> Query in(
+        String fieldName, Collection<T> values
+    ) {
         Assert.notNull(values, "Values must not be null");
         if (values.size() == 1) {
-            String singleValue = values.iterator().next();
+            T singleValue = values.iterator().next();
             return equal(fieldName, singleValue);
         }
         // Copy the values into a Set if necessary...
-        var valueSet = (values instanceof Set ? (Set<String>) values
+        var valueSet = (values instanceof Set ? (Set<T>) values
             : new HashSet<>(values));
-        return new InQuery(fieldName, valueSet);
+        return new InQuery<>(fieldName, valueSet);
     }
 
     /**
@@ -218,9 +234,10 @@ public class QueryFactory {
     public static List<String> getFieldNamesUsedInQuery(Query query) {
         List<String> fieldNames = new ArrayList<>();
 
-        if (query instanceof SimpleQuery simpleQuery) {
-            if (simpleQuery.isFieldRef()) {
-                fieldNames.add(simpleQuery.getValue());
+        if (query instanceof SimpleQuery<?> simpleQuery) {
+            var value = simpleQuery.getValue();
+            if (simpleQuery.isFieldRef() && value instanceof String fieldName) {
+                fieldNames.add(fieldName);
             }
             fieldNames.add(simpleQuery.getFieldName());
         } else if (query instanceof LogicalQuery logicalQuery) {
