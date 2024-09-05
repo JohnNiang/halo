@@ -165,3 +165,9 @@ tasks.named('generateOpenApiDocs') {
         false
     }
 }
+
+tasks.named('bootBuildImage') {
+    environment["BP_JVM_VERSION"] = "21"
+    builder = 'paketobuildpacks/builder-jammy-buildpackless-tiny'
+    buildpacks = ['paketobuildpacks/java']
+}
