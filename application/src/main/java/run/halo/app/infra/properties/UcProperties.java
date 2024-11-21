@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class UcProperties {
 
-    private String location = "classpath:/uc/";
+    private String location = "classpath:/templates/uc/";
 
     @Valid
     private ProxyProperties proxy = new ProxyProperties();
