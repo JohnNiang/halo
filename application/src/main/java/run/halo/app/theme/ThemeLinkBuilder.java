@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.lang.NonNull;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.thymeleaf.context.Contexts;
 import org.thymeleaf.context.IExpressionContext;
 import org.thymeleaf.linkbuilder.StandardLinkBuilder;
 import run.halo.app.infra.ExternalUrlSupplier;
@@ -28,6 +29,10 @@ public class ThemeLinkBuilder extends StandardLinkBuilder {
 
     @Override
     protected String processLink(IExpressionContext context, String link) {
+        // note: the link might be context-relative link and never be null
+        if (!Contexts.isWebContext(context)) {
+            return link;
+        }
         if (link == null || !linkInSite(externalUrlSupplier.get(), link)) {
             return link;
         }
@@ -35,9 +40,19 @@ public class ThemeLinkBuilder extends StandardLinkBuilder {
         if (StringUtils.isBlank(link)) {
             link = "/";
         }
+        var webContext = Contexts.asWebContext(context);
+        var contextPath = webContext.getExchange().getRequest().getApplicationPath();
 
-        if (isAssetsRequest(link)) {
-            return PathUtils.combinePath(THEME_PREVIEW_PREFIX, theme.getName(), link);
+        if (isAssetsRequest(link, contextPath)) {
+            if ("/".equals(contextPath)) {
+                return PathUtils.combinePath(THEME_PREVIEW_PREFIX, theme.getName(), link);
+            }
+            return PathUtils.combinePath(
+                contextPath,
+                THEME_PREVIEW_PREFIX,
+                theme.getName(),
+                StringUtils.removeStart(link, contextPath)
+            );
         }
 
         // not assets link
@@ -64,8 +79,9 @@ public class ThemeLinkBuilder extends StandardLinkBuilder {
         return false;
     }
 
-    private boolean isAssetsRequest(String link) {
-        String assetsPrefix = externalUrlSupplier.get().resolve(THEME_ASSETS_PREFIX).toString();
-        return link.startsWith(assetsPrefix) || link.startsWith(THEME_ASSETS_PREFIX);
+    private boolean isAssetsRequest(String link, String contextPath) {
+        var prefix =
+            "/".equals(contextPath) ? THEME_ASSETS_PREFIX : contextPath + THEME_ASSETS_PREFIX;
+        return link.startsWith(prefix);
     }
 }

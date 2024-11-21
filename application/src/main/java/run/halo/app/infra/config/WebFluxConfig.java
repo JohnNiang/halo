@@ -141,12 +141,12 @@ public class WebFluxConfig implements WebFluxConfigurer {
             .GET(consolePredicate,
                 request -> ServerResponse.ok()
                     .cacheControl(CacheControl.noStore())
-                    .bodyValue(consoleIndexHtml)
+                    .render("console/index")
             )
             .GET(ucPredicate,
                 request -> ServerResponse.ok()
                     .cacheControl(CacheControl.noStore())
-                    .bodyValue(ucIndexHtml)
+                    .render("uc/index")
             )
             .build();
     }

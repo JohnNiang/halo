@@ -7,6 +7,8 @@ spring:
       enabled: always
   thymeleaf:
     cache: false
+  webflux:
+    base-path: /blog
   web:
     resources:
       cache:
@@ -15,6 +17,7 @@ spring:
         use-last-modified: false
 
 halo:
+  external-url: http://localhost:8090/blog
   security:
     basic-auth:
       disabled: false

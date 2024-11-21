@@ -8,7 +8,7 @@ export default ({ mode }: { mode: string }) => {
     base: "/console/",
     entryFile: "/console-src/main.ts",
     port: 3000,
-    outDir: path.resolve("build/dist/console"),
+    outDir: path.resolve("build/dist/templates/console"),
     mode,
     plugins: [
       VueI18nPlugin({

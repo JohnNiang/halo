@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 @Data
 public class ConsoleProperties {
 
-    private String location = "classpath:/console/";
+    private String location = "classpath:/templates/console/";
 
     @Valid
     @NestedConfigurationProperty
