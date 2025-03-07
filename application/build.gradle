@@ -75,6 +75,11 @@ tasks.named('jar') {
 dependencies {
     implementation project(':api')
 
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
+
+    implementation 'io.r2dbc:r2dbc-proxy'
+
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
     annotationProcessor "org.springframework:spring-context-indexer"
 

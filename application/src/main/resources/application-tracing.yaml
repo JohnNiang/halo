@@ -1,0 +1,14 @@
+management:
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1
+
+spring:
+  reactor:
+    context-propagation: auto
+
+logging:
+  pattern:
+    correlation: '[${spring.application.name:},%X{traceId:-},%X{spanId:-}] '
+  include-application-name: false
