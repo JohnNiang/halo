@@ -24,6 +24,7 @@ import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.r2dbc.core.R2dbcEntityOperations;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StopWatch;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -160,6 +161,14 @@ public class DefaultPluginApplicationContextFactory implements PluginApplication
         rootContext.getBeanProvider(SearchService.class)
             .ifUnique(searchService ->
                 beanFactory.registerSingleton("searchService", searchService)
+            );
+
+        rootContext.getBeanProvider(R2dbcEntityOperations.class)
+            .ifUnique(r2dbcEntityOperations ->
+                beanFactory.registerSingleton(
+                    "rootR2dbcEntityOperations",
+                    r2dbcEntityOperations
+                )
             );
 
         sw.stop();
