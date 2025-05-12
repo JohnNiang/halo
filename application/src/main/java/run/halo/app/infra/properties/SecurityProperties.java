@@ -28,6 +28,8 @@ public class SecurityProperties {
 
     private final List<PasswordResetMethod> passwordResetMethods = new ArrayList<>();
 
+    private final KeyStoreProperties keyStore = new KeyStoreProperties();
+
     @Data
     public static class BasicAuthOptions {
         /**
@@ -94,4 +96,12 @@ public class SecurityProperties {
         private URI icon;
 
     }
+
+    @Data
+    public static class KeyStoreProperties {
+
+        private String password = "changeit";
+
+    }
+
 }

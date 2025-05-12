@@ -23,6 +23,7 @@ import org.springframework.security.crypto.encrypt.AesBytesEncryptor;
 import org.springframework.security.crypto.encrypt.BytesEncryptor;
 import org.springframework.security.crypto.keygen.KeyGenerators;
 import org.springframework.stereotype.Component;
+import run.halo.app.infra.KeystoreInitializer;
 import run.halo.app.infra.properties.HaloProperties;
 
 @Slf4j
@@ -31,9 +32,30 @@ public class DefaultTotpAuthService implements TotpAuthService {
 
     private final BytesEncryptor encryptor;
 
-    public DefaultTotpAuthService(HaloProperties haloProperties) {
+    public DefaultTotpAuthService(HaloProperties haloProperties, KeystoreInitializer initializer)
+        throws Exception {
         // init secret key
         var keysRoot = haloProperties.getWorkDir().resolve("keys");
+        // var keyStoreProperties = haloProperties.getSecurity().getKeyStore();
+        // initializer.computeKeyStore(keystore -> {
+        //     var alias = "totp-secret-key";
+        //     var password = keyStoreProperties.getPassword().toCharArray();
+        //     try {
+        //         var entry = keystore.getEntry(alias, new KeyStore.PasswordProtection(password));
+        //         if (!(entry instanceof KeyStore.SecretKeyEntry)) {
+        //             var generator = KeyGenerator.getInstance("AES");
+        //             generator.init(128);
+        //             var secretKey = generator.generateKey();
+        //             var secretKeyEntry = new KeyStore.SecretKeyEntry(secretKey);
+        //             keystore.setEntry(
+        //                 alias, secretKeyEntry, new KeyStore.PasswordProtection(password)
+        //             );
+        //         }
+        //     } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
+        //         throw new RuntimeException(e);
+        //     }
+        // });
+
         this.encryptor = loadOrCreateEncryptor(keysRoot);
     }
 
