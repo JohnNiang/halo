@@ -60,10 +60,10 @@ public class Theme extends AbstractExtension {
 
         private String issues;
 
-        private String version;
+        private String version = WILDCARD;
 
         @Schema(requiredMode = NOT_REQUIRED)
-        private String requires;
+        private String requires = WILDCARD;
 
         private String settingName;
 
@@ -73,11 +73,6 @@ public class Theme extends AbstractExtension {
 
         @Schema
         private CustomTemplates customTemplates;
-
-        @NonNull
-        public String getVersion() {
-            return Objects.toString(this.version, WILDCARD);
-        }
 
     }
 
