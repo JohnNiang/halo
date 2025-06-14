@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -33,6 +34,7 @@ import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.extension.index.IndexedQueryEngine;
 import run.halo.app.extension.index.IndexerFactory;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
+import run.halo.app.perf.adapter.ExtensionAdapter;
 
 @Slf4j
 @Component
@@ -62,10 +64,13 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private TransactionalOperator transactionalOperator;
 
+    private final List<ExtensionAdapter> adapters;
+
     public ReactiveExtensionClientImpl(ReactiveExtensionStoreClient client,
         ExtensionConverter converter, SchemeManager schemeManager, ObjectMapper objectMapper,
         IndexerFactory indexerFactory, IndexedQueryEngine indexedQueryEngine,
-        ReactiveTransactionManager reactiveTransactionManager) {
+        ReactiveTransactionManager reactiveTransactionManager,
+        ObjectProvider<ExtensionAdapter> extensionAdaptersProvider) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
@@ -73,6 +78,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
         this.indexerFactory = indexerFactory;
         this.indexedQueryEngine = indexedQueryEngine;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
+        this.adapters = extensionAdaptersProvider.stream().toList();
     }
 
     /**
@@ -217,43 +223,51 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
-        return Mono.fromCallable(
-                () -> {
-                    checkClientWritable(extension);
-                    var metadata = extension.getMetadata();
-                    // those fields should be managed by halo.
-                    metadata.setCreationTimestamp(Instant.now());
-                    metadata.setDeletionTimestamp(null);
-                    metadata.setVersion(null);
+        var metadata = extension.getMetadata();
+        // those fields should be managed by halo.
+        metadata.setCreationTimestamp(Instant.now());
+        metadata.setDeletionTimestamp(null);
+        metadata.setVersion(null);
 
-                    if (!hasText(metadata.getName())) {
-                        if (!hasText(metadata.getGenerateName())) {
-                            throw new IllegalArgumentException(
-                                "The metadata.generateName must not be blank when metadata.name is "
-                                    + "blank");
-                        }
+        if (!hasText(metadata.getName())) {
+            if (!hasText(metadata.getGenerateName())) {
+                throw new IllegalArgumentException(
+                    "The metadata.generateName must not be blank when "
+                        + "metadata.name is "
+                        + "blank");
+            }
 
-                        // generate name with random text
-                        metadata.setName(metadata.getGenerateName() + secure()
-                            .nextAlphanumeric(GENERATE_NAME_RANDOM_LENGTH)
-                            // Prevent data conflicts caused by database case sensitivity
-                            .toLowerCase()
-                        );
-                    }
-                    extension.setMetadata(metadata);
-                    return converter.convertTo(extension);
-                })
-            // the method secureStrong() may invoke blocking SecureRandom, so we need to subscribe
-            // on boundedElastic thread pool.
-            .subscribeOn(Schedulers.boundedElastic())
-            .flatMap(extStore -> doCreate(extension, extStore.getName(), extStore.getData())
-                .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)))
-            )
-            .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
-                // retry when generateName is set
-                .filter(t -> t instanceof DataIntegrityViolationException
-                    && hasText(extension.getMetadata().getGenerateName()))
+            // generate name with random text
+            metadata.setName(metadata.getGenerateName() + secure()
+                .nextAlphanumeric(GENERATE_NAME_RANDOM_LENGTH)
+                // Prevent data conflicts caused by database case sensitivity
+                .toLowerCase()
             );
+        }
+        extension.setMetadata(metadata);
+
+        return adapters.stream()
+            .filter(adapter -> adapter.support(extension))
+            .findFirst()
+            .map(adapter -> adapter.create(extension))
+            .orElse(Mono.empty())
+            .switchIfEmpty(Mono.defer(() -> Mono.fromCallable(
+                    () -> {
+                        checkClientWritable(extension);
+                        return converter.convertTo(extension);
+                    })
+                // the method secureStrong() may invoke blocking SecureRandom, so we need to
+                // subscribe
+                // on boundedElastic thread pool.
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(extStore -> doCreate(extension, extStore.getName(), extStore.getData())
+                    .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)))
+                )
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                    // retry when generateName is set
+                    .filter(t -> t instanceof DataIntegrityViolationException
+                        && hasText(extension.getMetadata().getGenerateName()))
+                )));
     }
 
     @Override

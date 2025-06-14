@@ -6,6 +6,7 @@ spring:
       enabled: detect
   r2dbc:
     name: halo-test
+    url: r2dbc:h2:mem:///halo-test?MODE=MySQL&DB_CLOSE_ON_EXIT=FALSE
     generate-unique-name: true
   sql:
     init:
