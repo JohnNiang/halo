@@ -3,8 +3,11 @@ package run.halo.app.extension.index.query;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.NavigableSet;
 import lombok.Getter;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 @Getter
 public class Not extends LogicalQuery {
@@ -23,6 +26,14 @@ public class Not extends LogicalQuery {
         var allIds = indexView.getAllIds();
         allIds.removeAll(negatedResult);
         return allIds;
+    }
+
+    @Override
+    @NonNull
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        throw new UnsupportedOperationException(
+            "The 'NOT' query cannot be converted to Criteria directly. "
+                + "Consider using a different query structure.");
     }
 
     @Override

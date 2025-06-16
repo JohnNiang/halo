@@ -1,6 +1,8 @@
 package run.halo.app.extension.index.query;
 
+import java.util.Map;
 import java.util.NavigableSet;
+import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.util.Assert;
 
 public class EqualQuery extends SimpleQuery {
@@ -20,6 +22,12 @@ public class EqualQuery extends SimpleQuery {
             return indexView.findMatchingIdsWithEqualValues(fieldName, value);
         }
         return indexView.findIds(fieldName, value);
+    }
+
+    @Override
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        return Criteria.where(columnName).is(value);
     }
 
     @Override

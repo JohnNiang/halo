@@ -1,6 +1,9 @@
 package run.halo.app.extension.index.query;
 
+import java.util.Map;
 import java.util.NavigableSet;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 public class Between extends SimpleQuery {
     private final String lowerValue;
@@ -21,6 +24,14 @@ public class Between extends SimpleQuery {
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
         return indexView.between(fieldName, lowerValue, lowerInclusive, upperValue, upperInclusive);
+    }
+
+    @Override
+    @NonNull
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        // TODO Handle inclusive and exclusive cases
+        return Criteria.where(columnName).between(lowerValue, upperValue);
     }
 
     @Override

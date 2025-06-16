@@ -1,5 +1,8 @@
 package run.halo.app.extension.router.selector;
 
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
+
 public interface SelectorMatcher {
 
     String getKey();
@@ -11,4 +14,7 @@ public interface SelectorMatcher {
      * @return the boolean
      */
     boolean test(String s);
+
+    @NonNull
+    Criteria toCriteria();
 }

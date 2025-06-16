@@ -1,8 +1,11 @@
 package run.halo.app.extension.index.query;
 
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 import run.halo.app.extension.index.IndexEntryOperatorImpl;
 
 public class InQuery extends SimpleQuery {
@@ -18,6 +21,16 @@ public class InQuery extends SimpleQuery {
         var indexEntry = indexView.getIndexEntry(fieldName);
         var operator = new IndexEntryOperatorImpl(indexEntry);
         return operator.findIn(values);
+    }
+
+    @Override
+    @NonNull
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        if (values == null || values.isEmpty()) {
+            return Criteria.empty();
+        }
+        return Criteria.where(columnName).in(values);
     }
 
     @Override

@@ -1,6 +1,8 @@
 package run.halo.app.extension.index.query;
 
+import java.util.Map;
 import java.util.NavigableSet;
+import org.springframework.data.relational.core.query.Criteria;
 
 public class IsNotNull extends SimpleQuery {
 
@@ -11,6 +13,12 @@ public class IsNotNull extends SimpleQuery {
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
         return indexView.getIdsForField(fieldName);
+    }
+
+    @Override
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        return Criteria.where(columnName).isNotNull();
     }
 
     @Override

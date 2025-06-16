@@ -14,7 +14,7 @@ create table if not exists users (
     email varchar(255) not null,
     email_verified boolean default false not null,
     phone varchar(255) null,
-    encoded_password varchar(255) not null,
+    encoded_password varchar(255) null,
     two_factor_auth_enabled boolean default false not null,
     totp_encrypted_secret varchar(255) null,
     disabled boolean default false not null,
@@ -37,7 +37,9 @@ create table if not exists labels (
     entity_id varchar(255) not null,
     label_name varchar(255) not null,
     label_value varchar(1023) not null,
-    primary key (id)
+    primary key (id),
     UNIQUE (entity_type, entity_id, label_name),
     index idx_entity(entity_type, entity_id)
-)
+);
+
+alter table users alter column encoded_password varchar(255) null;

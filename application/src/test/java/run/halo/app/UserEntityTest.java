@@ -1,24 +1,27 @@
 package run.halo.app;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Example;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.query.Query;
 import reactor.test.StepVerifier;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
 
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 @SpringBootTest
-@ActiveProfiles("mysql")
+//@ActiveProfiles("mysql")
 class UserEntityTest {
 
     @Autowired
@@ -85,4 +88,11 @@ class UserEntityTest {
             .verifyComplete();
     }
 
+    @Test
+    void queryByLabels(@Autowired R2dbcEntityTemplate template) {
+        var criteria = Criteria.where("id").in("johnniang");
+        Query query = Query.query(criteria);
+        template.select(UserEntity.class)
+            .matching(query);
+    }
 }

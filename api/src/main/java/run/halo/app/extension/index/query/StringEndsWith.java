@@ -4,6 +4,8 @@ import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 public class StringEndsWith extends SimpleQuery {
     public StringEndsWith(String fieldName, String value) {
@@ -27,6 +29,16 @@ public class StringEndsWith extends SimpleQuery {
         } finally {
             indexEntry.releaseReadLock();
         }
+    }
+
+    @Override
+    @NonNull
+    public Criteria toCriteria(Map<String, String> fieldNameMap) {
+        if (value == null || value.isBlank()) {
+            return Criteria.empty();
+        }
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        return Criteria.where(columnName).like(value + "%");
     }
 
     @Override

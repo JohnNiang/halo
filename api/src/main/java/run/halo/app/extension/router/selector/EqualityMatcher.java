@@ -2,10 +2,16 @@ package run.halo.app.extension.router.selector;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
+import lombok.Getter;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 public class EqualityMatcher implements SelectorMatcher {
+    @Getter
     private final Operator operator;
     private final String key;
+
+    @Getter
     private final String value;
 
     EqualityMatcher(String key, Operator operator, String value) {
@@ -51,11 +57,27 @@ public class EqualityMatcher implements SelectorMatcher {
     }
 
     @Override
+    @NonNull
+    public Criteria toCriteria() {
+        switch (operator) {
+            case EQUAL, DOUBLE_EQUAL -> {
+                return Criteria.where("labelKey").is(key).and("labelValue").is(value);
+            }
+            case NOT_EQUAL -> {
+                return Criteria.where("labelKey").is(key).and("labelValue").not(value);
+            }
+            default -> {
+            }
+        }
+        return Criteria.empty();
+    }
+
+    @Override
     public String getKey() {
         return key;
     }
 
-    protected enum Operator {
+    public enum Operator {
         EQUAL(arg -> arg::equals),
         DOUBLE_EQUAL(arg -> arg::equals),
         NOT_EQUAL(arg -> v -> !arg.equals(v));

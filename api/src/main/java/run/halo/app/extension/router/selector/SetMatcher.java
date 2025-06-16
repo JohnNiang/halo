@@ -1,13 +1,20 @@
 package run.halo.app.extension.router.selector;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import lombok.Getter;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 public class SetMatcher implements SelectorMatcher {
+    @Getter
     private final SetMatcher.Operator operator;
     private final String key;
+
+    @Getter
     private final String[] values;
 
     SetMatcher(String key, SetMatcher.Operator operator) {
@@ -47,6 +54,33 @@ public class SetMatcher implements SelectorMatcher {
     }
 
     @Override
+    @NonNull
+    public Criteria toCriteria() {
+        switch (operator) {
+            case IN -> {
+                if (values != null && values.length > 0) {
+                    return Criteria.where("labelKey").is(key).and("labelValue").in(List.of(values));
+                }
+            }
+            case NOT_IN -> {
+                if (values != null && values.length > 0) {
+                    return Criteria.where("labelKey").is(key)
+                        .and("labelValue").notIn(List.of(values));
+                }
+            }
+            case EXISTS -> {
+                return Criteria.where("labelKey").is(key);
+            }
+            case NOT_EXISTS -> {
+                return Criteria.where("labelKey").not(key);
+            }
+            default -> {
+            }
+        }
+        return Criteria.empty();
+    }
+
+    @Override
     public String toString() {
         if (Operator.EXISTS.equals(operator) || Operator.NOT_EXISTS.equals(operator)) {
             return key + " " + operator;
@@ -54,7 +88,7 @@ public class SetMatcher implements SelectorMatcher {
         return key + " " + operator + " (" + String.join(", ", values) + ")";
     }
 
-    private enum Operator {
+    public enum Operator {
         IN(values -> v -> contains(values, v)),
         NOT_IN(values -> v -> !contains(values, v)),
         EXISTS(values -> Objects::nonNull),

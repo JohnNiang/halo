@@ -6,8 +6,7 @@ create table if not exists extensions
     primary key (name)
 );
 
-create table if not exists users
-(
+create table if not exists users (
     id varchar(255) not null,
     display_name varchar(255) null,
     avatar varchar(255) null,
@@ -39,6 +38,6 @@ create table if not exists labels (
     label_name varchar(255) not null,
     label_value varchar(1023) not null,
     primary key (id),
-    unique(entity_type, entity_id, label_name),
-    index idx_entity(entity_type, entity_id)
+    UNIQUE (entity_type, entity_id, label_name),
+    INDEX idx_entity(entity_type, entity_id),
 )

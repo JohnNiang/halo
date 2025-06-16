@@ -92,10 +92,15 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     public <E extends Extension> Flux<E> list(Class<E> type, Predicate<E> predicate,
         Comparator<E> comparator) {
         var scheme = schemeManager.get(type);
-        var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
-
-        return client.listByNamePrefix(prefix)
-            .map(extensionStore -> converter.convertFrom(type, extensionStore))
+        return adapters.stream()
+            .filter(adapter -> adapter.support(scheme.groupVersionKind()))
+            .findFirst()
+            .map(ExtensionAdapter::<E>findAll)
+            .orElseGet(() -> {
+                var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
+                return client.listByNamePrefix(prefix)
+                    .map(extensionStore -> converter.convertFrom(type, extensionStore));
+            })
             .filter(predicate == null ? Predicates.isTrue() : predicate)
             .sort(comparator == null ? Comparator.naturalOrder() : comparator);
     }
@@ -182,22 +187,53 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> fetch(Class<E> type, String name) {
-        var storeName = ExtensionStoreUtil.buildStoreName(schemeManager.get(type), name);
-        return client.fetchByName(storeName)
-            .map(extensionStore -> converter.convertFrom(type, extensionStore));
+        var scheme = schemeManager.get(type);
+        return adapters.stream()
+            .filter(adapter -> adapter.support(scheme.groupVersionKind()))
+            .findFirst()
+            .map(adapter -> adapter.<E>findById(name))
+            .orElseGet(() -> {
+                var storeName = ExtensionStoreUtil.buildStoreName(scheme, name);
+                return client.fetchByName(storeName)
+                    .map(extensionStore -> converter.convertFrom(type, extensionStore));
+            });
     }
 
     @Override
     public Mono<Unstructured> fetch(GroupVersionKind gvk, String name) {
-        var storeName = ExtensionStoreUtil.buildStoreName(schemeManager.get(gvk), name);
-        return client.fetchByName(storeName)
-            .map(extensionStore -> converter.convertFrom(Unstructured.class, extensionStore));
+        var scheme = schemeManager.get(gvk);
+
+        return adapters.stream()
+            .filter(adapter -> adapter.support(gvk))
+            .findFirst()
+            .map(adapter -> adapter.findById(name)
+                .map(extension ->
+                    Unstructured.OBJECT_MAPPER.convertValue(extension, Unstructured.class)
+                ))
+            .orElseGet(() -> {
+                var storeName = ExtensionStoreUtil.buildStoreName(scheme, name);
+                return client.fetchByName(storeName).map(extensionStore ->
+                    converter.convertFrom(Unstructured.class, extensionStore)
+                );
+            });
     }
 
     private Mono<JsonExtension> fetchJsonExtension(GroupVersionKind gvk, String name) {
-        var storeName = ExtensionStoreUtil.buildStoreName(schemeManager.get(gvk), name);
-        return client.fetchByName(storeName)
-            .map(extensionStore -> converter.convertFrom(JsonExtension.class, extensionStore));
+        var scheme = schemeManager.get(gvk);
+        return adapters.stream()
+            .filter(adapter -> adapter.support(gvk))
+            .findFirst()
+            .map(adapter -> adapter.findById(name)
+                .map(extension -> new JsonExtension(objectMapper, extension))
+            )
+            .orElseGet(() -> {
+                var storeName = ExtensionStoreUtil.buildStoreName(scheme, name);
+                return client.fetchByName(storeName)
+                    .map(extensionStore ->
+                        converter.convertFrom(JsonExtension.class, extensionStore)
+                    );
+            });
+
     }
 
     @Override
@@ -223,51 +259,52 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
-        var metadata = extension.getMetadata();
-        // those fields should be managed by halo.
-        metadata.setCreationTimestamp(Instant.now());
-        metadata.setDeletionTimestamp(null);
-        metadata.setVersion(null);
 
-        if (!hasText(metadata.getName())) {
-            if (!hasText(metadata.getGenerateName())) {
-                throw new IllegalArgumentException(
-                    "The metadata.generateName must not be blank when "
-                        + "metadata.name is "
-                        + "blank");
-            }
+        return Mono.defer(() -> Mono.fromCallable(
+                () -> {
+                    var metadata = extension.getMetadata();
+                    // those fields should be managed by halo.
+                    metadata.setCreationTimestamp(Instant.now());
+                    metadata.setDeletionTimestamp(null);
+                    metadata.setVersion(null);
 
-            // generate name with random text
-            metadata.setName(metadata.getGenerateName() + secure()
-                .nextAlphanumeric(GENERATE_NAME_RANDOM_LENGTH)
-                // Prevent data conflicts caused by database case sensitivity
-                .toLowerCase()
-            );
-        }
-        extension.setMetadata(metadata);
+                    if (!hasText(metadata.getName())) {
+                        if (!hasText(metadata.getGenerateName())) {
+                            throw new IllegalArgumentException(
+                                "The metadata.generateName must not be blank when "
+                                    + "metadata.name is "
+                                    + "blank");
+                        }
 
-        return adapters.stream()
-            .filter(adapter -> adapter.support(extension))
-            .findFirst()
-            .map(adapter -> adapter.create(extension))
-            .orElse(Mono.empty())
-            .switchIfEmpty(Mono.defer(() -> Mono.fromCallable(
-                    () -> {
-                        checkClientWritable(extension);
-                        return converter.convertTo(extension);
-                    })
-                // the method secureStrong() may invoke blocking SecureRandom, so we need to
-                // subscribe
-                // on boundedElastic thread pool.
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(extStore -> doCreate(extension, extStore.getName(), extStore.getData())
-                    .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)))
-                )
-                .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
-                    // retry when generateName is set
-                    .filter(t -> t instanceof DataIntegrityViolationException
-                        && hasText(extension.getMetadata().getGenerateName()))
-                )));
+                        // generate name with random text
+                        metadata.setName(metadata.getGenerateName() + secure()
+                            .nextAlphanumeric(GENERATE_NAME_RANDOM_LENGTH)
+                            // Prevent data conflicts caused by database case sensitivity
+                            .toLowerCase()
+                        );
+                    }
+                    extension.setMetadata(metadata);
+                    checkClientWritable(extension);
+                    return extension;
+                })
+            // the method secureStrong() may invoke blocking SecureRandom, so we need to
+            // subscribe on boundedElastic thread pool.
+            .subscribeOn(Schedulers.boundedElastic())
+            .flatMap(ext -> adapters.stream()
+                .filter(adapter -> adapter.support(ext.groupVersionKind()))
+                .findFirst()
+                .map(adapter -> adapter.create(ext))
+                .orElseGet(() -> {
+                    var extStore = converter.convertTo(ext);
+                    return doCreate(ext, extStore.getName(), extStore.getData())
+                        .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)));
+                })
+            )
+            .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                // retry when generateName is set
+                .filter(t -> t instanceof DataIntegrityViolationException
+                    && hasText(extension.getMetadata().getGenerateName()))
+            ));
     }
 
     @Override
@@ -296,8 +333,17 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             var onlyStatusChanged =
                 isOnlyStatusChanged(oldJsonExt.getInternal(), newJsonExt.getInternal());
 
-            var store = this.converter.convertTo(newJsonExt);
-            var updated = doUpdate(extension, store.getName(), store.getVersion(), store.getData());
+            var updated = adapters.stream()
+                .filter(adapter -> adapter.support(extension.groupVersionKind()))
+                .findFirst()
+                .map(adapter -> adapter.update(extension))
+                .orElseGet(() -> {
+                    var store = this.converter.convertTo(newJsonExt);
+                    return doUpdate(
+                        extension, store.getName(), store.getVersion(), store.getData()
+                    );
+                });
+
             if (!onlyStatusChanged) {
                 updated = updated.doOnNext(ext -> watchers.onUpdate(convertToRealExtension(old),
                     convertToRealExtension(ext))

@@ -1,6 +1,9 @@
 package run.halo.app.extension.index.query;
 
+import java.util.Map;
 import java.util.NavigableSet;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 import run.halo.app.extension.Metadata;
 
 /**
@@ -19,4 +22,8 @@ public interface Query {
      * @return the matched object names ordered by natural order.
      */
     NavigableSet<String> matches(QueryIndexView indexView);
+
+    @NonNull
+    Criteria toCriteria(Map<String, String> fieldNameMap);
+
 }
