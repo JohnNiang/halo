@@ -1,5 +1,7 @@
 package run.halo.app.extension.index;
 
+import java.time.Duration;
+import java.util.Objects;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -8,10 +10,12 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
+import run.halo.app.core.extension.User;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.ExtensionConverter;
 import run.halo.app.extension.ExtensionStoreUtil;
 import run.halo.app.extension.ListOptions;
+import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.event.IndexerBuiltEvent;
 import run.halo.app.extension.event.SchemeAddedEvent;
@@ -37,17 +41,21 @@ class IndexerInitializer {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final ReactiveExtensionClient client;
+
     IndexerInitializer(ReactiveExtensionStoreClient storeClient,
         ExtensionConverter converter,
         IndexedQueryEngine indexedQueryEngine,
         IndexerFactory indexerFactory,
-        ApplicationEventPublisher eventPublisher
+        ApplicationEventPublisher eventPublisher,
+        ReactiveExtensionClient client
     ) {
         this.storeClient = storeClient;
         this.converter = converter;
         this.indexedQueryEngine = indexedQueryEngine;
         this.indexerFactory = indexerFactory;
         this.eventPublisher = eventPublisher;
+        this.client = client;
     }
 
 
@@ -64,6 +72,29 @@ class IndexerInitializer {
     }
 
     private void createIndexerFor(Scheme scheme) {
+        // skip for user
+        if (Objects.equals(User.class, scheme.type())) {
+            // migrate it
+            var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
+            storeClient.listByNamePrefix(prefix)
+                .limitRate(100)
+                .flatMap(store -> {
+                    var user = converter.convertFrom(User.class, store);
+                    return client.create(user)
+                        // clear old data
+                        .flatMap(created ->
+                            storeClient.delete(store.getName(), store.getVersion())
+                        )
+                        .doOnSuccess(deleted ->
+                            log.info("Migrated user: {} to new store", deleted.getName())
+                        );
+                })
+                .then()
+                .block(Duration.ofMinutes(1));
+            return;
+        }
+
+
         var iterator = createExtensionIterator(scheme);
         indexerFactory.createIndexerFor(scheme.type(), iterator);
         // ensure data count matches index count

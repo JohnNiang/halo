@@ -1,5 +1,9 @@
 package run.halo.app.perf.adapter;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
@@ -16,11 +20,11 @@ import run.halo.app.extension.Extension;
 import run.halo.app.extension.GroupVersionKind;
 import run.halo.app.extension.JsonExtension;
 import run.halo.app.extension.ListOptions;
+import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Unstructured;
-import run.halo.app.extension.router.selector.EqualityMatcher;
 import run.halo.app.extension.router.selector.LabelSelector;
-import run.halo.app.extension.router.selector.SetMatcher;
+import run.halo.app.extension.router.selector.SelectorMatcher;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
@@ -44,6 +48,15 @@ class UserExtensionAdapter implements ExtensionAdapter {
     private final ReactiveTransactionManager txManager;
 
     private final R2dbcEntityTemplate entityTemplate;
+
+    private static final Map<String, String> FIELD_MAP = Map.of(
+        "spec.displayName", "displayName",
+        "spec.email", "email",
+        "spec.disabled", "disabled",
+        "metadata.name", "id",
+        "metadata.creationTimestamp", "createdDate",
+        "metadata.deletionTimestamp", "deletedDate"
+    );
 
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
                          LabelEntityRepository labelEntityRepository,
@@ -82,9 +95,13 @@ class UserExtensionAdapter implements ExtensionAdapter {
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
         var user = asUser(extension);
-        var entity = toEntity(user);
         var tx = TransactionalOperator.create(txManager);
-        return userEntityRepository.save(entity)
+        return userEntityRepository.findById(extension.getMetadata().getName())
+            .flatMap(entity -> {
+                // update entity
+                updateEntity(entity, user);
+                return userEntityRepository.save(entity);
+            })
             .flatMap(updated ->
                 saveLabels(updated.getId(), extension.getMetadata().getLabels()).thenReturn(updated)
             )
@@ -116,6 +133,18 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
+        // remap orders
+        var orders = sort.stream()
+            .map(order -> {
+                var mappedProperty = FIELD_MAP.get(order.getProperty());
+                if (mappedProperty == null) {
+                    return order;
+                }
+                return order.withProperty(mappedProperty);
+            })
+            .toList();
+        final Sort mappedSort = remapSort(sort);
+
         // spec.displayName
         // spec.email
         // roles
@@ -144,10 +173,14 @@ class UserExtensionAdapter implements ExtensionAdapter {
                     } else {
                         finalCriteria = finalCriteria.and("id").in(ids);
                     }
-                    return entityTemplate.select(Query.query(finalCriteria), UserEntity.class);
+                    return entityTemplate.select(
+                        Query.query(finalCriteria).sort(mappedSort), UserEntity.class
+                    );
                 });
         } else {
-            queryResult = entityTemplate.select(Query.query(criteria), UserEntity.class);
+            queryResult = entityTemplate.select(
+                Query.query(criteria).sort(mappedSort), UserEntity.class
+            );
         }
 
         return queryResult.collectList()
@@ -166,6 +199,69 @@ class UserExtensionAdapter implements ExtensionAdapter {
             });
     }
 
+    @Override
+    public <E extends Extension> Mono<ListResult<E>> pageBy(
+        ListOptions options, Pageable pageable
+    ) {
+        // remap sort
+        var sort = remapSort(pageable.getSort());
+        final Pageable mappedPageable =
+            PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        final Criteria criteria;
+        var fieldSelector = options.getFieldSelector();
+        if (fieldSelector != null) {
+
+            criteria = Criteria.empty().and(fieldSelector.query().toCriteria(FIELD_MAP));
+        } else {
+            criteria = Criteria.empty();
+        }
+
+        Mono<Page<UserEntity>> queryResult;
+        var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
+        if (matchingLabel != null) {
+            queryResult = matchingLabel.collectList()
+                .filter(ids -> !CollectionUtils.isEmpty(ids))
+                .flatMap(ids -> {
+                    var finalCriteria = criteria;
+                    if (ids.size() == 1) {
+                        finalCriteria = finalCriteria.and("id").is(ids.getFirst());
+                    } else {
+                        finalCriteria = finalCriteria.and("id").in(ids);
+                    }
+                    var query = Query.query(finalCriteria).with(mappedPageable);
+                    var countQuery = entityTemplate.count(query, UserEntity.class);
+                    var selectQuery = entityTemplate.select(query, UserEntity.class).collectList();
+                    return Mono.zip(countQuery, selectQuery, (count, result) ->
+                        new PageImpl<>(result, mappedPageable, count)
+                    );
+                });
+        } else {
+            var query = Query.query(criteria).with(mappedPageable);
+            var selectQuery = entityTemplate.select(query, UserEntity.class).collectList();
+            var countQuery = entityTemplate.count(query, UserEntity.class);
+            queryResult = Mono.zip(countQuery, selectQuery, (count, result) ->
+                new PageImpl<>(result, mappedPageable, count)
+            );
+        }
+        return queryResult.flatMap(page -> {
+            var ids = page.stream().map(UserEntity::getId).toList();
+            return getLabels(ids)
+                .map(labelsMap -> page.map(entity -> {
+                    var user = toUser(entity);
+                    var labels = labelsMap.get(entity.getId());
+                    if (labels != null) {
+                        user.getMetadata().setLabels(new HashMap<>(labels));
+                    }
+                    return (E) user;
+                }))
+                .map(p -> new ListResult<>(
+                    p.getNumber(), p.getSize(), p.getTotalElements(), p.getContent()
+                ));
+        });
+    }
+
+
     @Nullable
     private Flux<String> findEntityIdsByLabelSelector(
         String entityType, LabelSelector labelSelector) {
@@ -178,50 +274,14 @@ class UserExtensionAdapter implements ExtensionAdapter {
         }
         var criteria = labelSelector.getMatchers()
             .stream()
-            .map(matcher -> {
-                if (matcher instanceof EqualityMatcher em) {
-                    switch (em.getOperator()) {
-                        case EQUAL, DOUBLE_EQUAL: {
-                            return Criteria.where("labelKey").is(em.getKey())
-                                .and("labelValue").is(em.getValue());
-                        }
-                        case NOT_EQUAL: {
-                            return Criteria.where("labelKey").is(em.getKey())
-                                .and("labelValue").not(em.getValue());
-                        }
-                        default: {
-                            // do nothing
-                        }
-                    }
-                } else if (matcher instanceof SetMatcher sm) {
-                    switch (sm.getOperator()) {
-                        case IN: {
-                            return Criteria.where("labelKey").is(sm.getKey())
-                                .and("labelValue").in(List.of(sm.getValues()));
-                        }
-                        case NOT_IN: {
-                            return Criteria.where("labelKey").is(sm.getKey())
-                                .and("labelValue").notIn(List.of(sm.getValues()));
-                        }
-                        case EXISTS: {
-                            return Criteria.where("labelKey").is(sm.getKey());
-                        }
-                        case NOT_EXISTS: {
-                            return Criteria.where("labelKey").not(sm.getKey());
-                        }
-                        default: {
-                        }
-                    }
-                }
-                return null;
-            })
-            .filter(Objects::nonNull)
+            .map(SelectorMatcher::toCriteria)
             .toList();
         if (criteria.isEmpty()) {
             return null;
         }
-        var labelQuery = Query.query(Criteria.from(criteria).and("entityType").is(entityType));
-        labelQuery.columns("entityId");
+        var labelQuery = Query.query(
+            Criteria.where("entityType").is(entityType).and(Criteria.from(criteria))
+        ).columns("entityId");
         return entityTemplate.select(LabelEntity.class)
             .as(String.class)
             .matching(labelQuery)
@@ -267,11 +327,7 @@ class UserExtensionAdapter implements ExtensionAdapter {
             .then();
     }
 
-    private UserEntity toEntity(User user) {
-        var entity = new UserEntity();
-
-        user.getMetadata().getName();
-
+    private void updateEntity(UserEntity entity, User user) {
         entity.setId(user.getMetadata().getName());
         entity.setEmail(user.getSpec().getEmail());
         entity.setDisplayName(user.getSpec().getDisplayName());
@@ -286,6 +342,12 @@ class UserExtensionAdapter implements ExtensionAdapter {
         entity.setDisabled(Boolean.TRUE.equals(user.getSpec().getDisabled()));
         entity.setAnnotations(user.getMetadata().getAnnotations());
         entity.setFinalizers(user.getMetadata().getFinalizers());
+        entity.setVersion(user.getMetadata().getVersion());
+    }
+
+    private UserEntity toEntity(User user) {
+        var entity = new UserEntity();
+        updateEntity(entity, user);
         return entity;
     }
 
@@ -334,4 +396,17 @@ class UserExtensionAdapter implements ExtensionAdapter {
                 "Unsupported extension type: " + extension.getClass());
         }
     }
+
+    private static Sort remapSort(Sort sort) {
+        return Sort.by(sort.stream()
+            .map(order -> {
+                var mappedProperty = FIELD_MAP.get(order.getProperty());
+                if (mappedProperty == null) {
+                    return order;
+                }
+                return order.withProperty(mappedProperty);
+            })
+            .toList());
+    }
+
 }

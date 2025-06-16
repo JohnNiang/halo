@@ -59,20 +59,20 @@ public class SetMatcher implements SelectorMatcher {
         switch (operator) {
             case IN -> {
                 if (values != null && values.length > 0) {
-                    return Criteria.where("labelKey").is(key).and("labelValue").in(List.of(values));
+                    return Criteria.where("labelName").is(key).and("labelValue").in(List.of(values));
                 }
             }
             case NOT_IN -> {
                 if (values != null && values.length > 0) {
-                    return Criteria.where("labelKey").is(key)
+                    return Criteria.where("labelName").is(key)
                         .and("labelValue").notIn(List.of(values));
                 }
             }
             case EXISTS -> {
-                return Criteria.where("labelKey").is(key);
+                return Criteria.where("labelName").is(key);
             }
             case NOT_EXISTS -> {
-                return Criteria.where("labelKey").not(key);
+                return Criteria.where("labelName").not(key);
             }
             default -> {
             }

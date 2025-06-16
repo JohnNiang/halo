@@ -1,5 +1,8 @@
 package run.halo.app.extension;
 
+import static org.springframework.data.domain.PageRequest.of;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.util.Assert;
 
@@ -61,5 +64,9 @@ public interface PageRequest {
     default Sort getSortOr(Sort sort) {
         Assert.notNull(sort, "Fallback Sort must not be null");
         return getSort().isSorted() ? getSort() : sort;
+    }
+
+    default Pageable toPageable() {
+        return of(getPageNumber() - 1, getPageSize(), getSort());
     }
 }

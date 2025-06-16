@@ -61,10 +61,12 @@ public class EqualityMatcher implements SelectorMatcher {
     public Criteria toCriteria() {
         switch (operator) {
             case EQUAL, DOUBLE_EQUAL -> {
-                return Criteria.where("labelKey").is(key).and("labelValue").is(value);
+                return Criteria.where("labelName").is(key).and("labelValue").is(value);
             }
             case NOT_EQUAL -> {
-                return Criteria.where("labelKey").is(key).and("labelValue").not(value);
+                var not = Criteria.where("labelName").not(key);
+                var notEqual = Criteria.where("labelName").is(key).and("labelValue").not(value);
+                return Criteria.empty().and(not.or(notEqual));
             }
             default -> {
             }

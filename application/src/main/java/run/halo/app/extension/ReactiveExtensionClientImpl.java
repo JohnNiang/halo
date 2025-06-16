@@ -134,55 +134,66 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                 return Sort.unsorted();
             });
         var scheme = schemeManager.get(type);
-        return Mono.fromSupplier(
-                () -> indexedQueryEngine.retrieveAll(scheme.groupVersionKind(), options,
-                    nullSafeSort))
-            .doOnSuccess(objectKeys -> {
-                if (log.isDebugEnabled()) {
-                    if (objectKeys.size() > 500) {
-                        log.warn("The number of objects retrieved by listAll is too large ({}) "
-                                + "and it is recommended to use paging query.",
-                            objectKeys.size());
+        return adapters.stream()
+            .filter(adapter -> adapter.support(scheme.groupVersionKind()))
+            .findFirst()
+            .map(adapter -> adapter.<E>findAll(options, sort))
+            .orElseGet(() -> Mono.fromSupplier(
+                    () -> indexedQueryEngine.retrieveAll(scheme.groupVersionKind(), options,
+                        nullSafeSort))
+                .doOnSuccess(objectKeys -> {
+                    if (log.isDebugEnabled()) {
+                        if (objectKeys.size() > 500) {
+                            log.warn(
+                                "The number of objects retrieved by listAll is too large ({}) "
+                                    + "and it is recommended to use paging query.",
+                                objectKeys.size());
+                        }
                     }
-                }
-            })
-            .flatMapMany(objectKeys -> {
-                var storeNames = objectKeys.stream()
-                    .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
-                    .toList();
-                final long startTimeMs = System.currentTimeMillis();
-                return client.listByNames(storeNames)
-                    .map(extensionStore -> converter.convertFrom(type, extensionStore))
-                    .doOnComplete(() -> log.debug(
-                        "Successfully retrieved all by names from db for {} in {}ms",
-                        scheme.groupVersionKind(), System.currentTimeMillis() - startTimeMs)
-                    );
-            });
+                })
+                .flatMapMany(objectKeys -> {
+                    var storeNames = objectKeys.stream()
+                        .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
+                        .toList();
+                    final long startTimeMs = System.currentTimeMillis();
+                    return client.listByNames(storeNames)
+                        .map(extensionStore -> converter.convertFrom(type, extensionStore))
+                        .doOnComplete(() -> log.debug(
+                            "Successfully retrieved all by names from db for {} in {}ms",
+                            scheme.groupVersionKind(), System.currentTimeMillis() - startTimeMs)
+                        );
+                }));
     }
 
     @Override
     public <E extends Extension> Mono<ListResult<E>> listBy(Class<E> type, ListOptions options,
         PageRequest page) {
         var scheme = schemeManager.get(type);
-        return Mono.fromSupplier(
-                () -> indexedQueryEngine.retrieve(scheme.groupVersionKind(), options, page)
-            )
-            .flatMap(objectKeys -> {
-                var storeNames = objectKeys.get()
-                    .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
-                    .toList();
-                final long startTimeMs = System.currentTimeMillis();
-                return client.listByNames(storeNames)
-                    .map(extensionStore -> converter.convertFrom(type, extensionStore))
-                    .doOnComplete(() -> log.debug(
-                        "Successfully retrieved by names from db for {} in {}ms",
-                        scheme.groupVersionKind(), System.currentTimeMillis() - startTimeMs)
-                    )
-                    .collectList()
-                    .map(result -> new ListResult<>(page.getPageNumber(), page.getPageSize(),
-                        objectKeys.getTotal(), result));
-            })
-            .defaultIfEmpty(ListResult.emptyResult());
+
+        return adapters.stream()
+            .filter(adapter -> adapter.support(scheme.groupVersionKind()))
+            .findFirst()
+            .map(adapter -> adapter.<E>pageBy(options, page.toPageable()))
+            .orElseGet(() -> Mono.fromSupplier(
+                    () -> indexedQueryEngine.retrieve(scheme.groupVersionKind(), options, page)
+                )
+                .flatMap(objectKeys -> {
+                    var storeNames = objectKeys.get()
+                        .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
+                        .toList();
+                    final long startTimeMs = System.currentTimeMillis();
+                    return client.listByNames(storeNames)
+                        .map(extensionStore -> converter.convertFrom(type, extensionStore))
+                        .doOnComplete(() -> log.debug(
+                            "Successfully retrieved by names from db for {} in {}ms",
+                            scheme.groupVersionKind(), System.currentTimeMillis() - startTimeMs)
+                        )
+                        .collectList()
+                        .map(
+                            result -> new ListResult<>(page.getPageNumber(), page.getPageSize(),
+                                objectKeys.getTotal(), result));
+                })
+                .defaultIfEmpty(ListResult.emptyResult()));
     }
 
     @Override
@@ -284,7 +295,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                         );
                     }
                     extension.setMetadata(metadata);
-                    checkClientWritable(extension);
                     return extension;
                 })
             // the method secureStrong() may invoke blocking SecureRandom, so we need to
@@ -295,6 +305,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                 .findFirst()
                 .map(adapter -> adapter.create(ext))
                 .orElseGet(() -> {
+                    checkClientWritable(extension);
                     var extStore = converter.convertTo(ext);
                     return doCreate(ext, extStore.getName(), extStore.getData())
                         .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)));
@@ -309,7 +320,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
-        checkClientWritable(extension);
         // Refactor the atomic reference if we have a better solution.
         return getLatest(extension).flatMap(old -> {
             var oldJsonExt = new JsonExtension(objectMapper, old);
@@ -338,6 +348,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                 .findFirst()
                 .map(adapter -> adapter.update(extension))
                 .orElseGet(() -> {
+                    checkClientWritable(extension);
                     var store = this.converter.convertTo(newJsonExt);
                     return doUpdate(
                         extension, store.getName(), store.getVersion(), store.getData()
