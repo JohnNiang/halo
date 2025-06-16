@@ -338,11 +338,14 @@ class UserExtensionAdapter implements ExtensionAdapter {
         entity.setEmailVerified(user.getSpec().isEmailVerified());
         entity.setTotpEncryptedSecret(user.getSpec().getTotpEncryptedSecret());
         entity.setTwoFactorAuthEnabled(
-            Boolean.TRUE.equals(user.getSpec().getTwoFactorAuthEnabled()));
+            Boolean.TRUE.equals(user.getSpec().getTwoFactorAuthEnabled())
+        );
         entity.setDisabled(Boolean.TRUE.equals(user.getSpec().getDisabled()));
         entity.setAnnotations(user.getMetadata().getAnnotations());
         entity.setFinalizers(user.getMetadata().getFinalizers());
         entity.setVersion(user.getMetadata().getVersion());
+        entity.setCreatedDate(user.getMetadata().getCreationTimestamp());
+        entity.setDeletedDate(user.getMetadata().getDeletionTimestamp());
     }
 
     private UserEntity toEntity(User user) {
