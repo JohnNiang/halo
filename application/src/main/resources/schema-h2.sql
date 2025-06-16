@@ -41,5 +41,3 @@ create table if not exists labels (
     UNIQUE (entity_type, entity_id, label_name),
     index idx_entity(entity_type, entity_id)
 );
-
-alter table users alter column encoded_password varchar(255) null;
