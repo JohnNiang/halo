@@ -213,10 +213,6 @@ class UserExtensionAdapter implements ExtensionAdapter {
         } else {
             criteria = Criteria.empty();
         }
-        Query.query(Criteria.empty()).limit(1);
-
-        entityTemplate.getDatabaseClient().sql("")
-        ;
 
         Mono<Page<UserEntity>> queryResult;
         var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
