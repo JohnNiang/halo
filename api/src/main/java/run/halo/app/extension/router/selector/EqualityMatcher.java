@@ -65,7 +65,7 @@ public class EqualityMatcher implements SelectorMatcher {
             }
             case NOT_EQUAL -> {
                 return Criteria.empty().and(
-                    Criteria.where("labelName").not(key).or("labelValue").not(value)
+                    Criteria.where("labelName").notIn(key).or("labelValue").not(value)
                 );
             }
             default -> {
