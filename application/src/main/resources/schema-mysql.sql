@@ -39,5 +39,5 @@ create table if not exists labels (
     label_value varchar(1023) not null,
     primary key (id),
     UNIQUE (entity_type, entity_id, label_name),
-    INDEX idx_entity(entity_type, entity_id),
-)
+    INDEX idx_entity(entity_type, entity_id)
+);

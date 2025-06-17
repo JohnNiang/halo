@@ -88,11 +88,11 @@ public class UserEntity implements Auditable<String, String, Instant> {
 
     @Override
     public Optional<String> getCreatedBy() {
-        return createdBy.describeConstable();
+        return Optional.ofNullable(createdBy);
     }
 
     @Override
     public Optional<String> getLastModifiedBy() {
-        return lastModifiedBy.describeConstable();
+        return Optional.ofNullable(lastModifiedBy);
     }
 }

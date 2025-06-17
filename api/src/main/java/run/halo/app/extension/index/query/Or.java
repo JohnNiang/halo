@@ -31,8 +31,9 @@ public class Or extends LogicalQuery {
         }
         var criteria = childQueries.stream()
             .map(query -> query.toCriteria(fieldNameMap))
-            .collect(Collectors.toList());
-        return Criteria.empty().or(criteria);
+            .reduce(Criteria::or)
+            .orElse(Criteria.empty());
+        return Criteria.from(criteria);
     }
 
     @Override

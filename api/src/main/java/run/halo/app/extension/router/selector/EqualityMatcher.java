@@ -64,9 +64,9 @@ public class EqualityMatcher implements SelectorMatcher {
                 return Criteria.where("labelName").is(key).and("labelValue").is(value);
             }
             case NOT_EQUAL -> {
-                var not = Criteria.where("labelName").not(key);
-                var notEqual = Criteria.where("labelName").is(key).and("labelValue").not(value);
-                return Criteria.empty().and(not.or(notEqual));
+                return Criteria.empty().and(
+                    Criteria.where("labelName").not(key).or("labelValue").not(value)
+                );
             }
             default -> {
             }

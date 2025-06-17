@@ -82,6 +82,7 @@ tasks.named('jar') {
 
 dependencies {
     implementation project(':api')
+    implementation 'org.postgresql:r2dbc-postgresql'
     annotationProcessor platform(project(':platform:application'))
 
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"

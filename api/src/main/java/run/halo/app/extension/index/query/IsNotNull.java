@@ -3,6 +3,7 @@ package run.halo.app.extension.index.query;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.lang.NonNull;
 
 public class IsNotNull extends SimpleQuery {
 
@@ -16,6 +17,7 @@ public class IsNotNull extends SimpleQuery {
     }
 
     @Override
+    @NonNull
     public Criteria toCriteria(Map<String, String> fieldNameMap) {
         var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
         return Criteria.where(columnName).isNotNull();

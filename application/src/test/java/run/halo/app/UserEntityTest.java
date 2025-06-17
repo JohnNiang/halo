@@ -1,5 +1,10 @@
 package run.halo.app;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,20 +13,16 @@ import org.springframework.data.domain.Example;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
+import org.springframework.test.context.ActiveProfiles;
 import reactor.test.StepVerifier;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
 
-import java.util.Map;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 @SpringBootTest
-//@ActiveProfiles("mysql")
+// @ActiveProfiles("mysql")
+@ActiveProfiles("postgresql")
 class UserEntityTest {
 
     @Autowired
@@ -94,5 +95,19 @@ class UserEntityTest {
         Query query = Query.query(criteria);
         template.select(UserEntity.class)
             .matching(query);
+    }
+
+    @Test
+    void queryWithSql(@Autowired R2dbcEntityTemplate template) {
+        template.getDatabaseClient().sql("""
+                select users.* from users left join labels on users.id = labels.entity_id where labels.entity_type = 'user'\
+                """)
+            .mapProperties(UserEntity.class)
+            .all()
+            .doOnNext(System.out::println)
+            .as(StepVerifier::create)
+            .expectNextCount(1)
+            .verifyComplete()
+        ;
     }
 }

@@ -59,9 +59,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
     );
 
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
-                         LabelEntityRepository labelEntityRepository,
-                         ReactiveTransactionManager txManager,
-                         R2dbcEntityTemplate entityTemplate) {
+        LabelEntityRepository labelEntityRepository,
+        ReactiveTransactionManager txManager,
+        R2dbcEntityTemplate entityTemplate) {
         this.userEntityRepository = userEntityRepository;
         this.labelEntityRepository = labelEntityRepository;
         this.txManager = txManager;
@@ -153,10 +153,7 @@ class UserExtensionAdapter implements ExtensionAdapter {
         final Criteria criteria;
         var fieldSelector = options.getFieldSelector();
         if (fieldSelector != null) {
-            var fieldMap = Map.of("spec.displayName", "displayName",
-                "spec.email", "email",
-                "spec.disabled", "disabled");
-            criteria = Criteria.empty().and(fieldSelector.query().toCriteria(fieldMap));
+            criteria = Criteria.empty().and(fieldSelector.query().toCriteria(FIELD_MAP));
         } else {
             criteria = Criteria.empty();
         }
@@ -216,6 +213,10 @@ class UserExtensionAdapter implements ExtensionAdapter {
         } else {
             criteria = Criteria.empty();
         }
+        Query.query(Criteria.empty()).limit(1);
+
+        entityTemplate.getDatabaseClient().sql("")
+        ;
 
         Mono<Page<UserEntity>> queryResult;
         var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
@@ -344,7 +345,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
         entity.setAnnotations(user.getMetadata().getAnnotations());
         entity.setFinalizers(user.getMetadata().getFinalizers());
         entity.setVersion(user.getMetadata().getVersion());
-        entity.setCreatedDate(user.getMetadata().getCreationTimestamp());
+        if (user.getMetadata().getCreationTimestamp() != null) {
+            entity.setCreatedDate(user.getMetadata().getCreationTimestamp());
+        }
         entity.setDeletedDate(user.getMetadata().getDeletionTimestamp());
     }
 
