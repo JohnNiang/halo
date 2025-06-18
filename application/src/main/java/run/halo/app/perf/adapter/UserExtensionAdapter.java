@@ -1,5 +1,10 @@
 package run.halo.app.perf.adapter;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -29,12 +34,6 @@ import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 @Component
 class UserExtensionAdapter implements ExtensionAdapter {
@@ -133,23 +132,8 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
-        // remap orders
-        var orders = sort.stream()
-            .map(order -> {
-                var mappedProperty = FIELD_MAP.get(order.getProperty());
-                if (mappedProperty == null) {
-                    return order;
-                }
-                return order.withProperty(mappedProperty);
-            })
-            .toList();
         final Sort mappedSort = remapSort(sort);
 
-        // spec.displayName
-        // spec.email
-        // roles
-        // spec.disabled
-        // build the field query
         final Criteria criteria;
         var fieldSelector = options.getFieldSelector();
         if (fieldSelector != null) {
@@ -159,6 +143,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
         }
 
         Flux<UserEntity> queryResult;
+
+        // TODO Refactor this with SQL
+        // because the labels might not exist.
         var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
         if (matchingLabel != null) {
             queryResult = matchingLabel.collectList()

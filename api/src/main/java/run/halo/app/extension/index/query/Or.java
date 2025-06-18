@@ -6,7 +6,11 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.stream.Collectors;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public class Or extends LogicalQuery {
 
@@ -34,6 +38,17 @@ public class Or extends LogicalQuery {
             .reduce(Criteria::or)
             .orElse(Criteria.empty());
         return Criteria.from(criteria);
+    }
+
+    @Override
+    public Condition toCondition(Map<String, String> fieldNameMap, TableLike table,
+        MutableBindings bindings) {
+        return Conditions.nest(childQueries.stream()
+            .map(query -> query.toCondition(fieldNameMap, table, bindings))
+            .reduce(Condition::or)
+            .orElseThrow(() -> new IllegalStateException(
+                "At least one child query is required for an 'Or' query"
+            )));
     }
 
     @Override

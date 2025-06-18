@@ -4,7 +4,12 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.SQL;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public class EqualityMatcher implements SelectorMatcher {
     @Getter
@@ -64,14 +69,45 @@ public class EqualityMatcher implements SelectorMatcher {
                 return Criteria.where("labelName").is(key).and("labelValue").is(value);
             }
             case NOT_EQUAL -> {
-                return Criteria.empty().and(
-                    Criteria.where("labelName").notIn(key).or("labelValue").not(value)
-                );
+                return Criteria.empty()
+                    .and(Criteria.where("labelName").is(key).and("labelValue").not(value));
             }
             default -> {
             }
         }
         return Criteria.empty();
+    }
+
+    @Override
+    public Condition toCondition(TableLike table, MutableBindings bindings) {
+        switch (operator) {
+            case EQUAL, DOUBLE_EQUAL -> {
+                return Conditions.nest(
+                    table.column("label_name").isEqualTo(
+                        SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                    ).and(table.column("label_value").isEqualTo(
+                        SQL.bindMarker(bindings.bind(value).getPlaceholder())
+                    ))
+                );
+            }
+            case NOT_EQUAL -> {
+                return Conditions.nest(table.column("label_name").isNull()
+                    .or(table.column("label_name").isNotEqualTo(
+                        SQL.bindMarker(bindings.bind(key).getPlaceholder()))
+                    )
+                    .or(Conditions.nest(table.column("label_name").isEqualTo(
+                                SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                            )
+                            .and(table.column("label_value").isNotEqualTo(
+                                SQL.bindMarker(bindings.bind(value).getPlaceholder())
+                            ))
+                    ))
+                );
+            }
+            default -> throw new IllegalArgumentException(
+                "Cannot build condition for operator: " + operator
+            );
+        }
     }
 
     @Override

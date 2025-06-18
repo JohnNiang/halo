@@ -3,7 +3,12 @@ package run.halo.app.extension.index.query;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.SQL;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public class Between extends SimpleQuery {
     private final String lowerValue;
@@ -32,6 +37,17 @@ public class Between extends SimpleQuery {
         var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
         // TODO Handle inclusive and exclusive cases
         return Criteria.where(columnName).between(lowerValue, upperValue);
+    }
+
+    @Override
+    public Condition toCondition(Map<String, String> fieldNameMap, TableLike table,
+        MutableBindings bindings) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        return Conditions.between(
+            table.column(columnName),
+            SQL.bindMarker(bindings.bind(lowerValue).getPlaceholder()),
+            SQL.bindMarker(bindings.bind(upperValue).getPlaceholder())
+        );
     }
 
     @Override

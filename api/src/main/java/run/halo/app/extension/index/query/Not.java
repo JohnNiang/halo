@@ -7,7 +7,11 @@ import java.util.Map;
 import java.util.NavigableSet;
 import lombok.Getter;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 
 @Getter
 public class Not extends LogicalQuery {
@@ -34,6 +38,12 @@ public class Not extends LogicalQuery {
         throw new UnsupportedOperationException(
             "The 'NOT' query cannot be converted to Criteria directly. "
                 + "Consider using a different query structure.");
+    }
+
+    @Override
+    public Condition toCondition(Map<String, String> fieldNameMap, TableLike table,
+        MutableBindings bindings) {
+        return Conditions.not(negatedQuery.toCondition(fieldNameMap, table, bindings));
     }
 
     @Override

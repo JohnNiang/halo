@@ -7,7 +7,14 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.BindMarker;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.SQL;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
+import org.springframework.util.Assert;
 
 public class SetMatcher implements SelectorMatcher {
     @Getter
@@ -22,16 +29,19 @@ public class SetMatcher implements SelectorMatcher {
     }
 
     SetMatcher(String key, SetMatcher.Operator operator, String[] values) {
+        Assert.hasText(key, "Key must not be empty");
         this.key = key;
         this.operator = operator;
         this.values = values;
     }
 
     public static SetMatcher in(String key, String... values) {
+        Assert.notEmpty(values, "Values must not be empty");
         return new SetMatcher(key, Operator.IN, values);
     }
 
     public static SetMatcher notIn(String key, String... values) {
+        Assert.notEmpty(values, "Values must not be empty");
         return new SetMatcher(key, Operator.NOT_IN, values);
     }
 
@@ -59,7 +69,8 @@ public class SetMatcher implements SelectorMatcher {
         switch (operator) {
             case IN -> {
                 if (values != null && values.length > 0) {
-                    return Criteria.where("labelName").is(key).and("labelValue").in(List.of(values));
+                    return Criteria.where("labelName").is(key).and("labelValue")
+                        .in(List.of(values));
                 }
             }
             case NOT_IN -> {
@@ -78,6 +89,43 @@ public class SetMatcher implements SelectorMatcher {
             }
         }
         return Criteria.empty();
+    }
+
+    @Override
+    public Condition toCondition(TableLike table, MutableBindings bindings) {
+        switch (operator) {
+            case IN -> {
+                var inValues = Arrays.stream(values)
+                    .map(value -> SQL.bindMarker(bindings.bind(value).getPlaceholder()))
+                    .toArray(BindMarker[]::new);
+                return Conditions.nest(table.column("label_name").isEqualTo(
+                        SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                    ).and(table.column("label_value").in(inValues))
+                );
+            }
+            case NOT_IN -> {
+                var inValues = Arrays.stream(values)
+                    .map(value -> SQL.bindMarker(bindings.bind(value).getPlaceholder()))
+                    .toArray(BindMarker[]::new);
+                return Conditions.nest(table.column("label_name").isEqualTo(
+                        SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                    ).and(table.column("label_value").notIn(inValues))
+                );
+            }
+            case EXISTS -> {
+                return Conditions.nest(table.column("label_name").isEqualTo(
+                    SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                ));
+            }
+            case NOT_EXISTS -> {
+                return Conditions.nest(table.column("label_name").isNotEqualTo(
+                    SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                ));
+            }
+            default -> throw new IllegalArgumentException(
+                "Cannot build condition for operator: " + operator
+            );
+        }
     }
 
     @Override

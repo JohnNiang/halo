@@ -3,7 +3,10 @@ package run.halo.app.extension.index.query;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 import run.halo.app.extension.Metadata;
 
 /**
@@ -25,5 +28,7 @@ public interface Query {
 
     @NonNull
     Criteria toCriteria(Map<String, String> fieldNameMap);
+
+    Condition toCondition(Map<String, String> fieldNameMap, TableLike table, MutableBindings bindings);
 
 }
