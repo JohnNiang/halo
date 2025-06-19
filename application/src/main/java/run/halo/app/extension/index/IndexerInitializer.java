@@ -10,11 +10,14 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.User;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.ExtensionConverter;
 import run.halo.app.extension.ExtensionStoreUtil;
 import run.halo.app.extension.ListOptions;
+import run.halo.app.extension.ListResult;
+import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.event.IndexerBuiltEvent;
@@ -74,26 +77,33 @@ class IndexerInitializer {
     private void createIndexerFor(Scheme scheme) {
         // skip for user
         if (Objects.equals(User.class, scheme.type())) {
+            // TODO Check if the user entity is empty
             // migrate it
             var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
-            storeClient.listByNamePrefix(prefix)
-                .limitRate(100)
-                .flatMap(store -> {
-                    var user = converter.convertFrom(User.class, store);
-                    return client.create(user)
-                        // clear old data
-                        .flatMap(created ->
-                            storeClient.delete(store.getName(), store.getVersion())
-                        )
-                        .doOnSuccess(deleted ->
-                            log.info("Migrated user: {} to new store", deleted.getName())
+            client.listBy(User.class, ListOptions.builder().build(), PageRequestImpl.of(1, 1))
+                .map(ListResult::getTotal)
+                .filter(total -> total == 0)
+                .switchIfEmpty(
+                    Mono.fromRunnable(() -> log.info(
+                            "Already migrated users to new store, skip migration for scheme: "
+                                + "{}",
+                            scheme.groupVersionKind()
+                        ))
+                        .then(Mono.empty())
+                )
+                .flatMap(zero -> storeClient.listByNamePrefix(prefix)
+                    .limitRate(100)
+                    .flatMap(store -> {
+                        var user = converter.convertFrom(User.class, store);
+                        return client.create(user).doOnSuccess(deleted ->
+                            log.info("Migrated user: {} to new store",
+                                deleted.getMetadata().getName())
                         );
-                })
-                .then()
+                    })
+                    .then())
                 .block(Duration.ofMinutes(1));
             return;
         }
-
 
         var iterator = createExtensionIterator(scheme);
         indexerFactory.createIndexerFor(scheme.type(), iterator);

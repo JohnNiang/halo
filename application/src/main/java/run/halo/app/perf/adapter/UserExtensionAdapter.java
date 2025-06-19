@@ -1,19 +1,24 @@
 package run.halo.app.perf.adapter;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.data.r2dbc.dialect.R2dbcDialect;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.Conditions;
+import org.springframework.data.relational.core.sql.Functions;
+import org.springframework.data.relational.core.sql.OrderByField;
+import org.springframework.data.relational.core.sql.SQL;
+import org.springframework.data.relational.core.sql.Select;
+import org.springframework.data.relational.core.sql.SelectBuilder;
+import org.springframework.data.relational.core.sql.SimpleFunction;
+import org.springframework.data.relational.core.sql.Table;
+import org.springframework.data.relational.core.sql.TrueCondition;
 import org.springframework.lang.Nullable;
+import org.springframework.r2dbc.core.PreparedOperation;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -30,10 +35,19 @@ import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Unstructured;
 import run.halo.app.extension.router.selector.LabelSelector;
 import run.halo.app.extension.router.selector.SelectorMatcher;
+import run.halo.app.perf.config.HaloPreparedOperation;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import static org.springframework.data.support.ReactivePageableExecutionUtils.getPage;
 
 @Component
 class UserExtensionAdapter implements ExtensionAdapter {
@@ -49,18 +63,18 @@ class UserExtensionAdapter implements ExtensionAdapter {
     private final R2dbcEntityTemplate entityTemplate;
 
     private static final Map<String, String> FIELD_MAP = Map.of(
-        "spec.displayName", "displayName",
+        "spec.displayName", "display_name",
         "spec.email", "email",
         "spec.disabled", "disabled",
         "metadata.name", "id",
-        "metadata.creationTimestamp", "createdDate",
-        "metadata.deletionTimestamp", "deletedDate"
+        "metadata.creationTimestamp", "created_date",
+        "metadata.deletionTimestamp", "deleted_date"
     );
 
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
-        LabelEntityRepository labelEntityRepository,
-        ReactiveTransactionManager txManager,
-        R2dbcEntityTemplate entityTemplate) {
+                         LabelEntityRepository labelEntityRepository,
+                         ReactiveTransactionManager txManager,
+                         R2dbcEntityTemplate entityTemplate) {
         this.userEntityRepository = userEntityRepository;
         this.labelEntityRepository = labelEntityRepository;
         this.txManager = txManager;
@@ -121,52 +135,15 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Flux<E> findAll() {
-        return userEntityRepository.findAll()
-            .flatMap(entity -> {
-                var user = toUser(entity);
-                return getLabels(entity.getId())
-                    .doOnNext(labels -> user.getMetadata().setLabels(new HashMap<>(labels)))
-                    .thenReturn((E) user);
-            });
+        return findAll(new ListOptions(), Sort.unsorted());
     }
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
-        final Sort mappedSort = remapSort(sort);
-
-        final Criteria criteria;
-        var fieldSelector = options.getFieldSelector();
-        if (fieldSelector != null) {
-            criteria = Criteria.empty().and(fieldSelector.query().toCriteria(FIELD_MAP));
-        } else {
-            criteria = Criteria.empty();
-        }
-
-        Flux<UserEntity> queryResult;
-
-        // TODO Refactor this with SQL
-        // because the labels might not exist.
-        var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
-        if (matchingLabel != null) {
-            queryResult = matchingLabel.collectList()
-                .filter(ids -> !CollectionUtils.isEmpty(ids))
-                .flatMapMany(ids -> {
-                    var finalCriteria = criteria;
-                    if (ids.size() == 1) {
-                        finalCriteria = finalCriteria.and("id").is(ids.getFirst());
-                    } else {
-                        finalCriteria = finalCriteria.and("id").in(ids);
-                    }
-                    return entityTemplate.select(
-                        Query.query(finalCriteria).sort(mappedSort), UserEntity.class
-                    );
-                });
-        } else {
-            queryResult = entityTemplate.select(
-                Query.query(criteria).sort(mappedSort), UserEntity.class
-            );
-        }
-
+        var queryResult = entityTemplate.query(prepareFind(
+                options, Pageable.unpaged(sort)), UserEntity.class
+            )
+            .all();
         return queryResult.collectList()
             .flatMapMany(list -> {
                 var ids = list.stream().map(UserEntity::getId).toList();
@@ -183,51 +160,141 @@ class UserExtensionAdapter implements ExtensionAdapter {
             });
     }
 
+    private PreparedOperation<Select> prepareCount(ListOptions listOptions) {
+        var dataAccessStrategy = entityTemplate.getDataAccessStrategy();
+        var usersTable = Table.create(dataAccessStrategy.getTableName(UserEntity.class));
+        var distinctId = SimpleFunction.create("DISTINCT", List.of(usersTable.column("id")));
+        var dialect = (R2dbcDialect) dataAccessStrategy.getDialect();
+        var bindMarkers = dialect.getBindMarkersFactory().create();
+        var bindings = new MutableBindings(bindMarkers);
+        var labelSelector = listOptions.getLabelSelector();
+        var fieldSelector = listOptions.getFieldSelector();
+
+        Condition whereCondition = TrueCondition.INSTANCE;
+        if (fieldSelector != null) {
+            var fieldCondition = fieldSelector.query().toCondition(FIELD_MAP, usersTable, bindings);
+            whereCondition = whereCondition.and(Conditions.nest(fieldCondition));
+        }
+
+        final Select select;
+        if (labelSelector != null && !CollectionUtils.isEmpty(labelSelector.getMatchers())) {
+            var labelsTable = Table.create(dataAccessStrategy.getTableName(LabelEntity.class));
+            var labelsCondition = labelSelector.getMatchers().stream()
+                .map(matcher -> matcher.toCondition(labelsTable, bindings))
+                .reduce(Condition::and)
+                .orElse(null);
+            if (labelsCondition != null) {
+                whereCondition = whereCondition.and(Conditions.nest(labelsCondition));
+            }
+            select = Select.builder().select(Functions.count(distinctId))
+                .from(usersTable)
+                .leftOuterJoin(labelsTable)
+                .on(usersTable.column("id"))
+                .equals(labelsTable.column("entity_id"))
+                .and(labelsTable.column("entity_type"))
+                .equals(SQL.bindMarker(bindings.bind("user").getPlaceholder()))
+                .where(whereCondition)
+                .build(true);
+        } else {
+            select = Select.builder()
+                .select(Functions.count(distinctId))
+                .from(usersTable)
+                .where(whereCondition)
+                .build(true);
+        }
+        return new HaloPreparedOperation(
+            select, dataAccessStrategy.getStatementMapper().getRenderContext(), bindings
+        );
+    }
+
+    private PreparedOperation<Select> prepareFind(ListOptions listOptions, Pageable pageable) {
+        var dataAccessStrategy = entityTemplate.getDataAccessStrategy();
+        var usersTable = Table.create(dataAccessStrategy.getTableName(UserEntity.class));
+        var dialect = (R2dbcDialect) dataAccessStrategy.getDialect();
+        var bindMarkers = dialect.getBindMarkersFactory().create();
+        var bindings = new MutableBindings(bindMarkers);
+        var labelSelector = listOptions.getLabelSelector();
+        var fieldSelector = listOptions.getFieldSelector();
+
+        var orderByFields = remapSort(pageable.getSort())
+            .stream()
+            .map(order -> OrderByField.from(
+                        usersTable.column(order.getProperty()), order.getDirection()
+                    )
+                    .withNullHandling(order.getNullHandling())
+            )
+            .toList();
+
+        Condition whereCondition = TrueCondition.INSTANCE;
+        if (fieldSelector != null) {
+            var fieldCondition = fieldSelector.query().toCondition(FIELD_MAP, usersTable, bindings);
+            whereCondition = whereCondition.and(Conditions.nest(fieldCondition));
+        }
+
+        final Select select;
+        if (labelSelector != null && !CollectionUtils.isEmpty(labelSelector.getMatchers())) {
+            var labelsTable = Table.create(dataAccessStrategy.getTableName(LabelEntity.class));
+            var labelsCondition = labelSelector.getMatchers().stream()
+                .map(matcher -> matcher.toCondition(labelsTable, bindings))
+                .reduce(Condition::and)
+                .orElse(null);
+            if (labelsCondition != null) {
+                whereCondition = whereCondition.and(Conditions.nest(labelsCondition));
+            }
+
+            SelectBuilder.SelectFromAndJoinCondition builder = Select.builder().select(usersTable.asterisk())
+                .from(usersTable)
+                .leftOuterJoin(labelsTable)
+                .on(usersTable.column("id"))
+                .equals(labelsTable.column("entity_id"))
+                .and(labelsTable.column("entity_type"))
+                .equals(SQL.bindMarker(bindings.bind("user").getPlaceholder()));
+
+            if (pageable.isUnpaged()) {
+                select = builder.where(whereCondition)
+                    .orderBy(orderByFields)
+                    .build(true);
+            } else {
+                select = builder
+                    .limitOffset(pageable.getPageSize(), pageable.getOffset())
+                    .where(whereCondition)
+                    .orderBy(orderByFields)
+                    .build(true);
+            }
+        } else {
+            var fromBuilder = Select.builder()
+                .select(usersTable.asterisk())
+                .from(usersTable);
+            if (pageable.isUnpaged()) {
+                select = fromBuilder.where(whereCondition)
+                    .orderBy(orderByFields)
+                    .build(true);
+            } else {
+                select = fromBuilder
+                    .limitOffset(pageable.getPageSize(), pageable.getOffset())
+                    .where(whereCondition)
+                    .orderBy(orderByFields)
+                    .build(true);
+            }
+        }
+
+        return new HaloPreparedOperation(
+            select, dataAccessStrategy.getStatementMapper().getRenderContext(), bindings
+        );
+    }
+
+    private Mono<Long> count(ListOptions options) {
+        return entityTemplate.query(prepareCount(options), UserEntity.class, Long.class).one();
+    }
+
     @Override
     public <E extends Extension> Mono<ListResult<E>> pageBy(
         ListOptions options, Pageable pageable
     ) {
-        // remap sort
-        var sort = remapSort(pageable.getSort());
-        final Pageable mappedPageable =
-            PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-
-        final Criteria criteria;
-        var fieldSelector = options.getFieldSelector();
-        if (fieldSelector != null) {
-
-            criteria = Criteria.empty().and(fieldSelector.query().toCriteria(FIELD_MAP));
-        } else {
-            criteria = Criteria.empty();
-        }
-
-        Mono<Page<UserEntity>> queryResult;
-        var matchingLabel = findEntityIdsByLabelSelector("user", options.getLabelSelector());
-        if (matchingLabel != null) {
-            queryResult = matchingLabel.collectList()
-                .filter(ids -> !CollectionUtils.isEmpty(ids))
-                .flatMap(ids -> {
-                    var finalCriteria = criteria;
-                    if (ids.size() == 1) {
-                        finalCriteria = finalCriteria.and("id").is(ids.getFirst());
-                    } else {
-                        finalCriteria = finalCriteria.and("id").in(ids);
-                    }
-                    var query = Query.query(finalCriteria).with(mappedPageable);
-                    var countQuery = entityTemplate.count(query, UserEntity.class);
-                    var selectQuery = entityTemplate.select(query, UserEntity.class).collectList();
-                    return Mono.zip(countQuery, selectQuery, (count, result) ->
-                        new PageImpl<>(result, mappedPageable, count)
-                    );
-                });
-        } else {
-            var query = Query.query(criteria).with(mappedPageable);
-            var selectQuery = entityTemplate.select(query, UserEntity.class).collectList();
-            var countQuery = entityTemplate.count(query, UserEntity.class);
-            queryResult = Mono.zip(countQuery, selectQuery, (count, result) ->
-                new PageImpl<>(result, mappedPageable, count)
-            );
-        }
+        var queryResult = entityTemplate.query(prepareFind(options, pageable), UserEntity.class)
+            .all()
+            .collectList()
+            .flatMap(items -> getPage(items, pageable, count(options)));
         return queryResult.flatMap(page -> {
             var ids = page.stream().map(UserEntity::getId).toList();
             return getLabels(ids)
@@ -387,6 +454,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
     }
 
     private static Sort remapSort(Sort sort) {
+        if (sort == null || sort.isUnsorted()) {
+            return Sort.unsorted();
+        }
         return Sort.by(sort.stream()
             .map(order -> {
                 var mappedProperty = FIELD_MAP.get(order.getProperty());

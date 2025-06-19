@@ -5,7 +5,11 @@ import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.sql.Condition;
+import org.springframework.data.relational.core.sql.SQL;
+import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public class StringContains extends SimpleQuery {
     public StringContains(String fieldName, String value) {
@@ -39,6 +43,15 @@ public class StringContains extends SimpleQuery {
         }
         var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
         return Criteria.where(columnName).like("%" + value + "%");
+    }
+
+    @Override
+    public Condition toCondition(Map<String, String> fieldNameMap, TableLike table,
+        MutableBindings bindings) {
+        var columnName = fieldNameMap.getOrDefault(this.fieldName, this.fieldName);
+        return table.column(columnName).like(SQL.bindMarker(
+            bindings.bind("%" + value + "%").getPlaceholder()
+        ));
     }
 
     @Override

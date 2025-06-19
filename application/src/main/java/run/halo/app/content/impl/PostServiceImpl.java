@@ -155,7 +155,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
     }
 
     private Flux<Tag> listTags(List<String> tagNames) {
-        if (tagNames == null) {
+        if (tagNames == null || tagNames.isEmpty()) {
             return Flux.empty();
         }
         var listOptions = new ListOptions();
@@ -165,7 +165,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
 
     @Override
     public Flux<Category> listCategories(List<String> categoryNames) {
-        if (categoryNames == null) {
+        if (categoryNames == null || categoryNames.isEmpty()) {
             return Flux.empty();
         }
         ToIntFunction<Category> comparator =

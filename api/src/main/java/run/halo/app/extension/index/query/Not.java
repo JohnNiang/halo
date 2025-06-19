@@ -8,7 +8,6 @@ import java.util.NavigableSet;
 import lombok.Getter;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.sql.Condition;
-import org.springframework.data.relational.core.sql.Conditions;
 import org.springframework.data.relational.core.sql.TableLike;
 import org.springframework.lang.NonNull;
 import org.springframework.r2dbc.core.binding.MutableBindings;
@@ -43,7 +42,7 @@ public class Not extends LogicalQuery {
     @Override
     public Condition toCondition(Map<String, String> fieldNameMap, TableLike table,
         MutableBindings bindings) {
-        return Conditions.not(negatedQuery.toCondition(fieldNameMap, table, bindings));
+        return negatedQuery.toCondition(fieldNameMap, table, bindings).not();
     }
 
     @Override
