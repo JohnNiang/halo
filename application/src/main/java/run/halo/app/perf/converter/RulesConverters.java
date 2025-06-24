@@ -9,31 +9,28 @@ import java.util.Set;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
-import org.springframework.lang.NonNull;
+import run.halo.app.core.extension.Role;
 
 /**
- * Converters for finalizers.
+ * Converters for {@link Role.PolicyRule} set.
  *
- * @deprecated Use {@link run.halo.app.perf.converter.SetConverters} instead.
+ * @deprecated use {@link run.halo.app.perf.converter.SetConverters} instead.
  */
 @Deprecated(forRemoval = true)
-public enum FinalizersConverters {
+public enum RulesConverters {
     ;
 
-    private static final ObjectMapper MAPPER = JsonMapper.builder()
-        .build();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     @ReadingConverter
-    public enum FinalizersReadingConverter implements Converter<String, Set<String>> {
+    public enum RulesReadingConverter implements Converter<String, Set<Role.PolicyRule>> {
         INSTANCE;
 
-
         @Override
-        public Set<String> convert(String source) {
-            if (source == null || source.isEmpty()) {
+        public Set<Role.PolicyRule> convert(String source) {
+            if (source.isBlank()) {
                 return null;
             }
-
             try {
                 return MAPPER.readValue(source, new TypeReference<>() {
                 });
@@ -44,41 +41,36 @@ public enum FinalizersConverters {
     }
 
     @WritingConverter
-    public enum FinalizersWritingConverter implements Converter<Set<String>, String> {
-
+    public enum RulesWritingConverter implements Converter<Set<Role.PolicyRule>, String> {
         INSTANCE;
 
         @Override
-        public String convert(Set<String> source) {
-            if (source == null) {
-                return null;
-            }
+        public String convert(Set<Role.PolicyRule> source) {
             try {
                 return MAPPER.writeValueAsString(source);
             } catch (JsonProcessingException e) {
-                // should never happen
                 throw new RuntimeException(e);
             }
         }
-
     }
 
     @ReadingConverter
-    public enum FinalizersReadingPostgresConverter implements Converter<Json, Set<String>> {
+    public enum RulesReadingPostgresConverter implements Converter<Json, Set<Role.PolicyRule>> {
         INSTANCE;
 
         @Override
-        public Set<String> convert(@NonNull Json source) {
-            return FinalizersReadingConverter.INSTANCE.convert(source.asString());
+        public Set<Role.PolicyRule> convert(Json source) {
+            return RulesReadingConverter.INSTANCE.convert(source.asString());
         }
     }
 
-    public enum FinalizersWritingPostgresConverter implements Converter<Set<String>, Json> {
+    @WritingConverter
+    public enum RulesWritingPostgresConverter implements Converter<Set<Role.PolicyRule>, Json> {
         INSTANCE;
 
         @Override
-        public Json convert(Set<String> source) {
-            var json = FinalizersWritingConverter.INSTANCE.convert(source);
+        public Json convert(Set<Role.PolicyRule> source) {
+            var json = RulesWritingConverter.INSTANCE.convert(source);
             return json == null ? null : Json.of(json);
         }
     }

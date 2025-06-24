@@ -16,7 +16,7 @@ import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import reactor.core.publisher.Mono;
 import run.halo.app.perf.converter.AnnotationsConverters;
-import run.halo.app.perf.converter.FinalizersConverters;
+import run.halo.app.perf.converter.SetConverters;
 
 @EnableR2dbcAuditing
 @Configuration(proxyBeanMethods = false)
@@ -42,13 +42,23 @@ public class R2dbcConfiguration extends AbstractR2dbcConfiguration {
         if (dialect instanceof PostgresDialect) {
             converters.add(AnnotationsConverters.AnnotationsReadingPostgresConverter.INSTANCE);
             converters.add(AnnotationsConverters.AnnotationsWritingPostgresConverter.INSTANCE);
-            converters.add(FinalizersConverters.FinalizersReadingPostgresConverter.INSTANCE);
-            converters.add(FinalizersConverters.FinalizersWritingPostgresConverter.INSTANCE);
+            // converters.add(FinalizersConverters.FinalizersReadingPostgresConverter.INSTANCE);
+            // converters.add(FinalizersConverters.FinalizersWritingPostgresConverter.INSTANCE);
+            // converters.add(RulesConverters.RulesReadingPostgresConverter.INSTANCE);
+            // converters.add(RulesConverters.RulesWritingPostgresConverter.INSTANCE);
+
+            converters.add(SetConverters.SetReadingPostgresConverter.INSTANCE);
+            converters.add(SetConverters.SetWritingPostgresConverter.INSTANCE);
         } else {
             converters.add(AnnotationsConverters.AnnotationsWritingConverter.INSTANCE);
             converters.add(AnnotationsConverters.AnnotationsReadingConverter.INSTANCE);
-            converters.add(FinalizersConverters.FinalizersWritingConverter.INSTANCE);
-            converters.add(FinalizersConverters.FinalizersReadingConverter.INSTANCE);
+            // converters.add(FinalizersConverters.FinalizersWritingConverter.INSTANCE);
+            // converters.add(FinalizersConverters.FinalizersReadingConverter.INSTANCE);
+            // converters.add(RulesConverters.RulesReadingConverter.INSTANCE);
+            // converters.add(RulesConverters.RulesWritingConverter.INSTANCE);
+
+            converters.add(SetConverters.SetReadingConverter.INSTANCE);
+            converters.add(SetConverters.SetWritingConverter.INSTANCE);
         }
         return converters;
     }
@@ -65,7 +75,7 @@ public class R2dbcConfiguration extends AbstractR2dbcConfiguration {
                     .map(SecurityContext::getAuthentication)
                     .filter(trustResolver::isAuthenticated)
                     .map(Authentication::getName)
-                    .defaultIfEmpty("halo_system");
+                    .defaultIfEmpty("system@halo");
             }
 
         };

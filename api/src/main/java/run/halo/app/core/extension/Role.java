@@ -29,8 +29,11 @@ import run.halo.app.extension.GVK;
     plural = "roles",
     singular = "role")
 public class Role extends AbstractExtension {
+
+    @Deprecated(since = "2.21")
     public static final String ROLE_DEPENDENCY_RULES =
         "rbac.authorization.halo.run/dependency-rules";
+
     public static final String ROLE_AGGREGATE_LABEL_PREFIX =
         "rbac.authorization.halo.run/aggregate-to-";
     public static final String ROLE_DEPENDENCIES_ANNO = "rbac.authorization.halo.run/dependencies";
@@ -40,8 +43,12 @@ public class Role extends AbstractExtension {
         "rbac.authorization.halo.run/system-reserved";
     public static final String HIDDEN_LABEL_NAME = "halo.run/hidden";
     public static final String TEMPLATE_LABEL_NAME = "halo.run/role-template";
+
+    @Deprecated(since = "2.21")
     public static final String UI_PERMISSIONS_AGGREGATED_ANNO =
         "rbac.authorization.halo.run/ui-permissions-aggregated";
+    public static final String DISPLAY_NAME_ANNO = "rbac.authorization.halo.run/display-name";
+    public static final String MODULE_ANNO = "rbac.authorization.halo.run/module";
 
     public static final String GROUP = "";
     public static final String VERSION = "v1alpha1";

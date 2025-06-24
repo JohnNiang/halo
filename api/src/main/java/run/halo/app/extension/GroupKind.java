@@ -8,4 +8,12 @@ package run.halo.app.extension;
  * @author johnniang
  */
 public record GroupKind(String group, String kind) {
+
+    @Override
+    public String toString() {
+        if (group == null || group.isBlank()) {
+            return kind;
+        }
+        return group + "/" + kind;
+    }
 }

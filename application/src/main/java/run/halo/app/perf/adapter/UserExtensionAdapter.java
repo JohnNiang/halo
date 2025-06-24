@@ -4,8 +4,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.r2dbc.dialect.R2dbcDialect;
-import org.springframework.data.relational.core.query.Criteria;
-import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.data.relational.core.sql.Conditions;
 import org.springframework.data.relational.core.sql.Functions;
@@ -16,7 +14,6 @@ import org.springframework.data.relational.core.sql.SelectBuilder;
 import org.springframework.data.relational.core.sql.SimpleFunction;
 import org.springframework.data.relational.core.sql.Table;
 import org.springframework.data.relational.core.sql.TrueCondition;
-import org.springframework.lang.Nullable;
 import org.springframework.r2dbc.core.PreparedOperation;
 import org.springframework.r2dbc.core.binding.MutableBindings;
 import org.springframework.stereotype.Component;
@@ -33,19 +30,19 @@ import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Unstructured;
-import run.halo.app.extension.router.selector.LabelSelector;
-import run.halo.app.extension.router.selector.SelectorMatcher;
 import run.halo.app.perf.config.HaloPreparedOperation;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
+import run.halo.app.perf.service.LabelService;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.springframework.data.support.ReactivePageableExecutionUtils.getPage;
 
@@ -62,6 +59,8 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     private final R2dbcEntityTemplate entityTemplate;
 
+    private final LabelService labelService;
+
     private static final Map<String, String> FIELD_MAP = Map.of(
         "spec.displayName", "display_name",
         "spec.email", "email",
@@ -74,11 +73,12 @@ class UserExtensionAdapter implements ExtensionAdapter {
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
                          LabelEntityRepository labelEntityRepository,
                          ReactiveTransactionManager txManager,
-                         R2dbcEntityTemplate entityTemplate) {
+                         R2dbcEntityTemplate entityTemplate, LabelService labelService) {
         this.userEntityRepository = userEntityRepository;
         this.labelEntityRepository = labelEntityRepository;
         this.txManager = txManager;
         this.entityTemplate = entityTemplate;
+        this.labelService = labelService;
     }
 
     @Override
@@ -94,8 +94,10 @@ class UserExtensionAdapter implements ExtensionAdapter {
         var tx = TransactionalOperator.create(txManager);
         userEntity.markAsNew();
         return userEntityRepository.save(userEntity)
-            .flatMap(created ->
-                saveLabels(created.getId(), extension.getMetadata().getLabels()).thenReturn(created)
+            .flatMap(created -> labelService.saveLabels(
+                        GVK.groupKind(), created.getId(), extension.getMetadata().getLabels()
+                    )
+                    .thenReturn(created)
             )
             .as(tx::transactional)
             .doOnNext(created -> {
@@ -115,8 +117,10 @@ class UserExtensionAdapter implements ExtensionAdapter {
                 updateEntity(entity, user);
                 return userEntityRepository.save(entity);
             })
-            .flatMap(updated ->
-                saveLabels(updated.getId(), extension.getMetadata().getLabels()).thenReturn(updated)
+            .flatMap(updated -> labelService.saveLabels(
+                        GVK.groupKind(), updated.getId(), extension.getMetadata().getLabels()
+                    )
+                    .thenReturn(updated)
             )
             .as(tx::transactional)
             .doOnNext(updated -> extension.getMetadata().setVersion(updated.getVersion()))
@@ -126,7 +130,7 @@ class UserExtensionAdapter implements ExtensionAdapter {
     @Override
     public <E extends Extension> Mono<E> findById(String id) {
         return userEntityRepository.findById(id)
-            .zipWith(getLabels(id), (entity, labels) -> {
+            .zipWith(labelService.getLabels(GVK.groupKind(), id), (entity, labels) -> {
                 var user = toUser(entity);
                 user.getMetadata().setLabels(new HashMap<>(labels));
                 return (E) user;
@@ -146,10 +150,10 @@ class UserExtensionAdapter implements ExtensionAdapter {
             .all();
         return queryResult.collectList()
             .flatMapMany(list -> {
-                var ids = list.stream().map(UserEntity::getId).toList();
-                return getLabels(ids)
+                var ids = list.stream().map(UserEntity::getId).collect(Collectors.toSet());
+                return labelService.getLabels(GVK.groupKind(), ids)
                     .map(labelsMap -> list.stream().map(entity -> {
-                        User user = toUser(entity);
+                        var user = toUser(entity);
                         var labels = labelsMap.get(entity.getId());
                         if (labels != null) {
                             user.getMetadata().setLabels(labels);
@@ -242,7 +246,8 @@ class UserExtensionAdapter implements ExtensionAdapter {
                 whereCondition = whereCondition.and(Conditions.nest(labelsCondition));
             }
 
-            SelectBuilder.SelectFromAndJoinCondition builder = Select.builder().select(usersTable.asterisk())
+            SelectBuilder.SelectFromAndJoinCondition builder = Select.builder()
+                .select(usersTable.asterisk())
                 .from(usersTable)
                 .leftOuterJoin(labelsTable)
                 .on(usersTable.column("id"))
@@ -297,7 +302,7 @@ class UserExtensionAdapter implements ExtensionAdapter {
             .flatMap(items -> getPage(items, pageable, count(options)));
         return queryResult.flatMap(page -> {
             var ids = page.stream().map(UserEntity::getId).toList();
-            return getLabels(ids)
+            return labelService.getLabels(GVK.groupKind(), ids)
                 .map(labelsMap -> page.map(entity -> {
                     var user = toUser(entity);
                     var labels = labelsMap.get(entity.getId());
@@ -310,72 +315,6 @@ class UserExtensionAdapter implements ExtensionAdapter {
                     p.getNumber(), p.getSize(), p.getTotalElements(), p.getContent()
                 ));
         });
-    }
-
-
-    @Nullable
-    private Flux<String> findEntityIdsByLabelSelector(
-        String entityType, LabelSelector labelSelector) {
-        if (labelSelector == null) {
-            return null;
-        }
-        var matchers = labelSelector.getMatchers();
-        if (matchers == null || matchers.isEmpty()) {
-            return null;
-        }
-        var criteria = labelSelector.getMatchers()
-            .stream()
-            .map(SelectorMatcher::toCriteria)
-            .toList();
-        if (criteria.isEmpty()) {
-            return null;
-        }
-        var labelQuery = Query.query(
-            Criteria.where("entityType").is(entityType).and(Criteria.from(criteria))
-        ).columns("entityId");
-        return entityTemplate.select(LabelEntity.class)
-            .as(String.class)
-            .matching(labelQuery)
-            .all();
-    }
-
-    private Mono<Map<String, String>> getLabels(String userId) {
-        return labelEntityRepository.findByEntityTypeAndEntityId("user", userId)
-            .collectMap(LabelEntity::getLabelName, LabelEntity::getLabelValue);
-    }
-
-    private Mono<Map<String, Map<String, String>>> getLabels(List<String> userIds) {
-        if (CollectionUtils.isEmpty(userIds)) {
-            return Mono.just(Map.of());
-        }
-        return labelEntityRepository.findByEntityTypeAndEntityIdIn("user", userIds)
-            .collectMap(LabelEntity::getEntityId, labelEntity ->
-                Map.of(labelEntity.getLabelName(), labelEntity.getLabelValue())
-            );
-    }
-
-    private Mono<Void> saveLabels(String userId, Map<String, String> labels) {
-        if (labels == null || labels.isEmpty()) {
-            return Mono.empty();
-        }
-        return labelEntityRepository.findByEntityTypeAndEntityId("user", userId)
-            .collectList()
-            .flatMap(labelEntityRepository::deleteAll)
-            .then(Mono.fromSupplier(() -> labels.keySet()
-                .stream()
-                .map(labelKey -> {
-                    var labelValue = labels.get(labelKey);
-                    var labelEntity = new LabelEntity();
-                    labelEntity.setLabelName(labelKey);
-                    labelEntity.setLabelValue(labelValue);
-                    labelEntity.setEntityType("user");
-                    labelEntity.setEntityId(userId);
-                    return labelEntity;
-                })
-                .toList()
-            ))
-            .flatMapMany(labelEntityRepository::saveAll)
-            .then();
     }
 
     private void updateEntity(UserEntity entity, User user) {

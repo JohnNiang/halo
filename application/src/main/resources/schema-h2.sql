@@ -42,37 +42,39 @@ create table if not exists labels (
     index idx_entity(entity_type, entity_id)
 );
 
-create table if not exists roles (
-    id varchar(255) not null,
-    display_name varchar(255) not null,
-    description varchar(1023) null,
-    reserved boolean default false not null,
-    created_by varchar(255) not null,
-    last_modified_by varchar(255) not null,
-    deleted_date timestamp with time zone null,
-    created_date timestamp with time zone default current_timestamp not null,
-    last_modified_date timestamp with time zone default current_timestamp not null,
-    annotations varchar(4095) null,
-    version bigint default 0 not null,
-
-    primary key(id)
-);
-
-create table if not exists permissions (
-    id varchar(255) not null,
-    display_name varchar(255) not null,
-    description varchar(1023) null,
-    category varchar(255) null,
-    ui_permissions varchar(1023) null, -- JSON array of UI permissions
-    rules varchar(2043) null, -- JSON array of rules
-    dependencies varchar(1023) null, -- JSON array of permission IDs that this permission depends on
-    created_date timestamp with time zone default current_timestamp not null,
-    deleted_date timestamp with time zone null,
-    annotations varchar(4095) null,
-    version bigint default 0 not null,
-
-    primary key(id)
-);
+--create table if not exists roles (
+--    id varchar(255) not null,
+--    display_name varchar(255) not null,
+--    description varchar(1023) null,
+--    reserved boolean default false not null,
+--    created_by varchar(255) not null,
+--    last_modified_by varchar(255) not null,
+--    deleted_date timestamp with time zone null,
+--    created_date timestamp with time zone default current_timestamp not null,
+--    last_modified_date timestamp with time zone default current_timestamp not null,
+--    annotations varchar(4095) null,
+--    finalizers varchar(4095) null,
+--    version bigint default 0 not null,
+--
+--    primary key(id)
+--);
+--
+--create table if not exists permissions (
+--    id varchar(255) not null,
+--    display_name varchar(255) not null,
+--    description varchar(1023) null,
+--    category varchar(255) null,
+--    ui_permissions varchar(1023) null, -- JSON array of UI permissions
+--    rules varchar(2043) null, -- JSON array of rules
+--    dependencies varchar(1023) null, -- JSON array of permission IDs that this permission depends on
+--    created_date timestamp with time zone default current_timestamp not null,
+--    deleted_date timestamp with time zone null,
+--    annotations varchar(4095) null,
+--    finalizers varchar(4095) null,
+--    version bigint default 0 not null,
+--
+--    primary key(id)
+--);
 
 create table if not exists user_roles (
     id bigint auto_increment not null,
@@ -86,14 +88,15 @@ create table if not exists user_roles (
     unique (user_id, role_id)
 );
 
-create table if not exists role_permissions (
-    id bigint auto_increment not null,
-    role_id varchar(255) not null,
-    permission_id varchar(255) not null,
-    created_date timestamp with time zone default current_timestamp not null,
-    deleted_date timestamp with time zone null,
-    version bigint default 0 not null,
+--create table if not exists role_permissions (
+--    id bigint auto_increment not null,
+--    role_id varchar(255) not null,
+--    permission_id varchar(255) not null,
+--    created_date timestamp with time zone default current_timestamp not null,
+--    deleted_date timestamp with time zone null,
+--    version bigint default 0 not null,
+--
+--    primary key (id),
+--    unique (role_id, permission_id)
+--);
 
-    primary key (id),
-    unique (role_id, permission_id)
-);

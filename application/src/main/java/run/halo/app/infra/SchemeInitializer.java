@@ -7,9 +7,7 @@ import static run.halo.app.core.extension.Role.ROLE_AGGREGATE_LABEL_PREFIX;
 import static run.halo.app.extension.index.IndexAttributeFactory.multiValueAttribute;
 import static run.halo.app.extension.index.IndexAttributeFactory.simpleAttribute;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -54,7 +52,6 @@ import run.halo.app.core.extension.notification.Reason;
 import run.halo.app.core.extension.notification.ReasonType;
 import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.extension.ConfigMap;
-import run.halo.app.extension.MetadataOperator;
 import run.halo.app.extension.MetadataUtil;
 import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.Secret;
@@ -159,37 +156,7 @@ class SchemeInitializer implements SmartLifecycle {
                 )
             );
         });
-        schemeManager.register(User.class, indexSpecs -> {
-            indexSpecs.add(new IndexSpec()
-                .setName("spec.displayName")
-                .setIndexFunc(
-                    simpleAttribute(User.class, user -> user.getSpec().getDisplayName())));
-            indexSpecs.add(new IndexSpec()
-                .setName("spec.email")
-                .setIndexFunc(simpleAttribute(User.class, user -> {
-                    var email = user.getSpec().getEmail();
-                    return StringUtils.isBlank(email) ? null : email;
-                })));
-            indexSpecs.add(new IndexSpec()
-                .setName(User.USER_RELATED_ROLES_INDEX)
-                .setIndexFunc(multiValueAttribute(User.class, user ->
-                    Optional.ofNullable(user.getMetadata())
-                        .map(MetadataOperator::getAnnotations)
-                        .map(annotations -> annotations.get(User.ROLE_NAMES_ANNO))
-                        .filter(StringUtils::isNotBlank)
-                        .map(rolesJson -> JsonUtils.jsonToObject(rolesJson,
-                            new TypeReference<Set<String>>() {
-                            })
-                        )
-                        .orElseGet(Set::of))));
-            indexSpecs.add(new IndexSpec()
-                .setName("spec.disabled")
-                .setIndexFunc(simpleAttribute(User.class, user ->
-                    Objects.requireNonNullElse(user.getSpec().getDisabled(), Boolean.FALSE)
-                        .toString())
-                )
-            );
-        });
+        schemeManager.register(User.class);
         schemeManager.register(ReverseProxy.class);
         schemeManager.register(Setting.class);
         schemeManager.register(AnnotationSetting.class);
