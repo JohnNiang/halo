@@ -2,6 +2,7 @@
 import PostContributorList from "@/components/user/PostContributorList.vue";
 import { formatDatetime, relativeTimeTo } from "@/utils/date";
 import { usePermission } from "@/utils/permission";
+import { generateThumbnailUrl } from "@/utils/thumbnail";
 import type { ListedSinglePage, SinglePage } from "@halo-dev/api-client";
 import { consoleApiClient, coreApiClient } from "@halo-dev/api-client";
 import {
@@ -204,24 +205,22 @@ watch(
 <template>
   <VPageHeader :title="$t('core.deleted_page.title')">
     <template #icon>
-      <IconDeleteBin class="mr-2 self-center text-green-600" />
+      <IconDeleteBin class="text-green-600" />
     </template>
     <template #actions>
-      <VSpace>
-        <VButton :route="{ name: 'SinglePages' }" size="sm">
-          {{ $t("core.common.buttons.back") }}
-        </VButton>
-        <VButton
-          v-permission="['system:singlepages:manage']"
-          :route="{ name: 'SinglePageEditor' }"
-          type="secondary"
-        >
-          <template #icon>
-            <IconAddCircle />
-          </template>
-          {{ $t("core.common.buttons.new") }}
-        </VButton>
-      </VSpace>
+      <VButton :route="{ name: 'SinglePages' }" size="sm">
+        {{ $t("core.common.buttons.back") }}
+      </VButton>
+      <VButton
+        v-permission="['system:singlepages:manage']"
+        :route="{ name: 'SinglePageEditor' }"
+        type="secondary"
+      >
+        <template #icon>
+          <IconAddCircle />
+        </template>
+        {{ $t("core.common.buttons.new") }}
+      </VButton>
     </template>
   </VPageHeader>
   <div class="m-0 md:m-4">
@@ -308,7 +307,24 @@ watch(
               />
             </template>
             <template #start>
-              <VEntityField :title="singlePage.page.spec.title">
+              <VEntityField v-if="singlePage.page.spec.cover">
+                <template #description>
+                  <div
+                    class="aspect-h-2 rounded-md overflow-hidden aspect-w-3 w-20"
+                  >
+                    <img
+                      class="object-cover w-full h-full"
+                      :src="
+                        generateThumbnailUrl(singlePage.page.spec.cover, 's')
+                      "
+                    />
+                  </div>
+                </template>
+              </VEntityField>
+              <VEntityField
+                :title="singlePage.page.spec.title"
+                max-width="30rem"
+              >
                 <template #description>
                   <VSpace>
                     <span class="text-xs text-gray-500">

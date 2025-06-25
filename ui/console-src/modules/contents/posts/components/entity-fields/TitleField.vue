@@ -33,7 +33,7 @@ const externalUrl = computed(() => {
       name: 'PostEditor',
       query: { name: post.post.metadata.name },
     }"
-    width="27rem"
+    max-width="30rem"
   >
     <template #extra>
       <VSpace>
