@@ -89,6 +89,7 @@ import run.halo.app.infra.ValidationUtils;
 import run.halo.app.infra.exception.RateLimitExceededException;
 import run.halo.app.infra.exception.UnsatisfiedAttributeValueException;
 import run.halo.app.infra.utils.JsonUtils;
+import run.halo.app.security.authorization.AuthorityUtils;
 
 @Component
 @RequiredArgsConstructor
@@ -652,7 +653,7 @@ public class UserEndpoint implements CustomEndpoint {
                     .map(auth -> authoritiesToRoles(auth.getAuthorities()));
             }
             return roleService.getRolesByUsername(username)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+                .collect(Collectors.toSet());
         }).flatMap(roleNames -> {
             var up = new UserPermission();
             var setRoles = roleService.list(roleNames)

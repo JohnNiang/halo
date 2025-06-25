@@ -42,6 +42,7 @@ import run.halo.app.perf.repository.UserRoleEntityRepository;
 import run.halo.app.perf.service.LabelService;
 import run.halo.app.perf.util.QueryUtils;
 import run.halo.app.security.SuperAdminInitializer;
+import run.halo.app.security.authorization.AuthorityUtils;
 
 /**
  * @author guqing
@@ -240,6 +241,10 @@ class DefaultRoleService implements RoleService {
 
     private Flux<PermissionEntity> populatePermissionsByRoleIds(Collection<String> roleIds) {
         var visited = new HashSet<String>();
+        if (roleIds.contains(AuthorityUtils.SUPER_ROLE_NAME)) {
+            // find all permission entities
+            return permissionEntityRepository.findAll();
+        }
         return rolePermissionEntityRepository.findByRoleIdIn(roleIds)
             .map(RolePermissionEntity::getPermissionId)
             .collect(Collectors.toSet())
