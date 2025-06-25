@@ -21,7 +21,7 @@ public interface RoleService {
 
     Mono<Map<String, Collection<String>>> getRolesByUsernames(Collection<String> usernames);
 
-    Mono<Boolean> contains(Collection<String> source, Collection<String> candidates);
+    Mono<Boolean> contains(Collection<String> roleNames, Collection<String> permissionNames);
 
     /**
      * This method lists all role templates as permissions recursively according to given role
@@ -48,6 +48,8 @@ public interface RoleService {
      * @param roleNames role names
      * @param excludeHidden should exclude hidden roles
      * @return roles
+     * @deprecated Use {@code list#Set<String>} instead. Exclude hidden won't be supported.
      */
+    @Deprecated(since = "2.22")
     Flux<Role> list(Set<String> roleNames, boolean excludeHidden);
 }

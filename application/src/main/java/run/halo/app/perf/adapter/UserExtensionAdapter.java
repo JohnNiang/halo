@@ -1,5 +1,13 @@
 package run.halo.app.perf.adapter;
 
+import static org.springframework.data.support.ReactivePageableExecutionUtils.getPage;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -33,18 +41,8 @@ import run.halo.app.extension.Unstructured;
 import run.halo.app.perf.config.HaloPreparedOperation;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
-import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
 import run.halo.app.perf.service.LabelService;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import static org.springframework.data.support.ReactivePageableExecutionUtils.getPage;
 
 @Component
 class UserExtensionAdapter implements ExtensionAdapter {
@@ -52,8 +50,6 @@ class UserExtensionAdapter implements ExtensionAdapter {
     private static final GroupVersionKind GVK = GroupVersionKind.fromExtension(User.class);
 
     private final UserEntityRepository userEntityRepository;
-
-    private final LabelEntityRepository labelEntityRepository;
 
     private final ReactiveTransactionManager txManager;
 
@@ -71,11 +67,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
     );
 
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
-                         LabelEntityRepository labelEntityRepository,
-                         ReactiveTransactionManager txManager,
+        ReactiveTransactionManager txManager,
                          R2dbcEntityTemplate entityTemplate, LabelService labelService) {
         this.userEntityRepository = userEntityRepository;
-        this.labelEntityRepository = labelEntityRepository;
         this.txManager = txManager;
         this.entityTemplate = entityTemplate;
         this.labelService = labelService;

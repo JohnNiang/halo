@@ -1,5 +1,10 @@
 package run.halo.app;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +28,6 @@ import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.LabelEntityRepository;
 import run.halo.app.perf.repository.UserEntityRepository;
-
-import java.util.Map;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 // @ActiveProfiles("mysql")

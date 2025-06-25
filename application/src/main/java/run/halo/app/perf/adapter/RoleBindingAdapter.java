@@ -13,7 +13,6 @@ import run.halo.app.extension.JsonExtension;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Unstructured;
-import run.halo.app.perf.entity.UserRoleEntity;
 import run.halo.app.perf.repository.UserRoleEntityRepository;
 
 @Component
@@ -34,44 +33,53 @@ class RoleBindingAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
-        var roleBinding = asRoleBinding(extension);
-
-        var userRoleEntity = new UserRoleEntity();
-        updateEntity(userRoleEntity, roleBinding);
-
-
-        // convert
-        return null;
-    }
-
-    private void updateEntity(UserRoleEntity entity, RoleBinding rb) {
-        rb.getSubjects();
+        return Mono.error(new UnsupportedOperationException(
+            "Create operation is not supported for RoleBinding: "
+                + extension.getMetadata().getName()
+        ));
     }
 
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
-        return null;
+        return Mono.error(new UnsupportedOperationException(
+            "Update operation is not supported for RoleBinding: "
+                + extension.getMetadata().getName()
+        ));
     }
 
     @Override
     public <E extends Extension> Mono<E> findById(String id) {
-        return null;
+        return Mono.error(new UnsupportedOperationException(
+            "Find by ID operation is not supported for RoleBinding: " + id
+        ));
     }
 
     @Override
     public <E extends Extension> Flux<E> findAll() {
-        return null;
+        return Flux.error(new UnsupportedOperationException(
+            "Find all operation is not supported for RoleBinding"
+        ));
     }
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
-        return null;
+        return Flux.error(
+            new UnsupportedOperationException(
+                "Find all with options and sort is not supported for RoleBinding: "
+                    + options + ", " + sort
+            )
+        );
     }
 
     @Override
     public <E extends Extension> Mono<ListResult<E>> pageBy(ListOptions options,
         Pageable pageable) {
-        return null;
+        return Mono.error(
+            new UnsupportedOperationException(
+                "Page by options and pageable is not supported for RoleBinding: "
+                    + options + ", " + pageable
+            )
+        );
     }
 
     private RoleBinding asRoleBinding(Extension e) {

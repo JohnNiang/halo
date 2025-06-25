@@ -191,4 +191,10 @@ public class Role extends AbstractExtension {
             }
         }
     }
+
+    public static boolean isRoleTemplate(Role role) {
+        var labels = role.getMetadata().getLabels();
+        return labels != null && Boolean.parseBoolean(labels.get(Role.TEMPLATE_LABEL_NAME));
+    }
+
 }

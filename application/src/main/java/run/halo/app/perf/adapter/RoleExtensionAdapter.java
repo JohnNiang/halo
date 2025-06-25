@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
-import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
@@ -34,7 +34,7 @@ import run.halo.app.perf.repository.PermissionEntityRepository;
 import run.halo.app.perf.repository.RoleEntityRepository;
 import run.halo.app.perf.service.LabelService;
 
-// @Component
+@Component
 class RoleExtensionAdapter implements ExtensionAdapter {
 
     private static final GroupVersionKind ROLE_GVK = GroupVersionKind.fromExtension(Role.class);
@@ -65,118 +65,134 @@ class RoleExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
-        var role = asRole(extension);
-        var labels = role.getMetadata().getLabels();
-        var tx = TransactionalOperator.create(txManager);
-        var isRoleTemplate = Boolean.parseBoolean(labels.get(Role.TEMPLATE_LABEL_NAME));
-        if (isRoleTemplate) {
-            // create permission
-            var permissionEntity = toPermission(role);
-            permissionEntity.markAsNew();
-            return permissionEntityRepository.save(permissionEntity)
-                .flatMap(created -> labelService.saveLabels(
-                            PERMISSION_GK, created.getId(), extension.getMetadata().getLabels()
-                        )
-                        .thenReturn(created)
-                )
-                .as(tx::transactional)
-                .doOnNext(created -> {
-                    extension.getMetadata().setCreationTimestamp(created.getCreatedDate());
-                    extension.getMetadata().setVersion(created.getVersion());
-                })
-                .thenReturn(extension);
-        }
-        // create role
-        var roleEntity = toRoleEntity(role);
-        roleEntity.markAsNew();
-        return roleEntityRepository.save(roleEntity)
-            .flatMap(created -> labelService.saveLabels(
-                        ROLE_GVK.groupKind(), created.getId(),
-                        extension.getMetadata().getLabels()
-                    )
-                    .thenReturn(created)
-            )
-            .as(tx::transactional)
-            .doOnNext(created -> {
-                extension.getMetadata().setCreationTimestamp(created.getCreatedDate().orElse(null));
-                extension.getMetadata().setVersion(created.getVersion());
-            })
-            .thenReturn(extension);
+        return Mono.error(new UnsupportedOperationException(
+            "Creating role is not supported: " + extension.getMetadata().getName()
+        ));
+
+        // var role = asRole(extension);
+        // var labels = role.getMetadata().getLabels();
+        // var tx = TransactionalOperator.create(txManager);
+        // if (isRoleTemplate(role)) {
+        //     // create permission
+        //     var permissionEntity = toPermission(role);
+        //     permissionEntity.markAsNew();
+        //     return permissionEntityRepository.save(permissionEntity)
+        //         .flatMap(created -> labelService.saveLabels(
+        //                     PERMISSION_GK, created.getId(), extension.getMetadata().getLabels()
+        //                 )
+        //                 .thenReturn(created)
+        //         )
+        //         .as(tx::transactional)
+        //         .doOnNext(created -> {
+        //             extension.getMetadata().setCreationTimestamp(created.getCreatedDate());
+        //             extension.getMetadata().setVersion(created.getVersion());
+        //         })
+        //         .thenReturn(extension);
+        // }
+        // // create role
+        // var roleEntity = toRoleEntity(role);
+        // roleEntity.markAsNew();
+        // return roleEntityRepository.save(roleEntity)
+        //     .flatMap(created -> labelService.saveLabels(
+        //                 ROLE_GVK.groupKind(), created.getId(),
+        //                 extension.getMetadata().getLabels()
+        //             )
+        //             .thenReturn(created)
+        //     )
+        //     .as(tx::transactional)
+        //     .doOnNext(created -> {
+        //         extension.getMetadata().setCreationTimestamp(created.getCreatedDate().orElse
+        //         (null));
+        //         extension.getMetadata().setVersion(created.getVersion());
+        //     })
+        //     .thenReturn(extension);
     }
 
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
-        var role = asRole(extension);
-        var labels = role.getMetadata().getLabels();
-        var tx = TransactionalOperator.create(txManager);
-        var isRoleTemplate = Boolean.parseBoolean(labels.get(Role.TEMPLATE_LABEL_NAME));
-        if (isRoleTemplate) {
-            // update permission
-            return permissionEntityRepository.findById(extension.getMetadata().getName())
-                .doOnNext(permissionToUpdate -> {
-                    updatePermissionEntity(permissionToUpdate, role);
-                })
-                .flatMap(permissionEntityRepository::save)
-                .flatMap(updated -> labelService.saveLabels(
-                            PERMISSION_GK, updated.getId(), role.getMetadata().getLabels()
-                        )
-                        .thenReturn(updated)
-                )
-                .as(tx::transactional)
-                .doOnNext(updated -> extension.getMetadata().setVersion(updated.getVersion()))
-                .thenReturn(extension);
-        }
+        return Mono.error(new UnsupportedOperationException(
+            "Updating role is not supported: " + extension.getMetadata().getName()
+        ));
 
-        // update role
-        return roleEntityRepository.findById(extension.getMetadata().getName())
-            .doOnNext(roleToUpdate -> {
-                updateRoleEntity(roleToUpdate, role);
-            })
-            .flatMap(roleEntityRepository::save)
-            .flatMap(updated -> labelService.saveLabels(
-                        ROLE_GVK.groupKind(), updated.getId(), role.getMetadata().getLabels()
-                    )
-                    .thenReturn(updated)
-            )
-            .as(tx::transactional)
-            .doOnNext(updated -> extension.getMetadata().setVersion(updated.getVersion()))
-            .thenReturn(extension);
+        // var role = asRole(extension);
+        // var labels = role.getMetadata().getLabels();
+        // var tx = TransactionalOperator.create(txManager);
+        // var isRoleTemplate = Boolean.parseBoolean(labels.get(Role.TEMPLATE_LABEL_NAME));
+        // if (isRoleTemplate) {
+        //     // update permission
+        //     return permissionEntityRepository.findById(extension.getMetadata().getName())
+        //         .doOnNext(permissionToUpdate -> {
+        //             updatePermissionEntity(permissionToUpdate, role);
+        //         })
+        //         .flatMap(permissionEntityRepository::save)
+        //         .flatMap(updated -> labelService.saveLabels(
+        //                     PERMISSION_GK, updated.getId(), role.getMetadata().getLabels()
+        //                 )
+        //                 .thenReturn(updated)
+        //         )
+        //         .as(tx::transactional)
+        //         .doOnNext(updated -> extension.getMetadata().setVersion(updated.getVersion()))
+        //         .thenReturn(extension);
+        // }
+        //
+        // // update role
+        // return roleEntityRepository.findById(extension.getMetadata().getName())
+        //     .doOnNext(roleToUpdate -> {
+        //         updateRoleEntity(roleToUpdate, role);
+        //     })
+        //     .flatMap(roleEntityRepository::save)
+        //     .flatMap(updated -> labelService.saveLabels(
+        //                 ROLE_GVK.groupKind(), updated.getId(), role.getMetadata().getLabels()
+        //             )
+        //             .thenReturn(updated)
+        //     )
+        //     .as(tx::transactional)
+        //     .doOnNext(updated -> extension.getMetadata().setVersion(updated.getVersion()))
+        //     .thenReturn(extension);
     }
 
     @Override
     public <E extends Extension> Mono<E> findById(String id) {
-        // TODO Only find permission
-        return permissionEntityRepository.findById(id)
-            .zipWith(labelService.getLabels(PERMISSION_GK, id), (permission, labels) -> {
-                var role = permissionToRole(permission);
-                if (!CollectionUtils.isEmpty(labels)) {
-                    if (role.getMetadata().getLabels() == null) {
-                        role.getMetadata().setLabels(new HashMap<>());
-                    }
-                    role.getMetadata().getLabels().putAll(labels);
-                }
-                return (E) role;
-            });
+        return Mono.error(new UnsupportedOperationException(
+            "Finding role by ID is not supported: " + id
+        ));
+        // // TODO Only find permission
+        // return permissionEntityRepository.findById(id)
+        //     .zipWith(labelService.getLabels(PERMISSION_GK, id), (permission, labels) -> {
+        //         var role = permissionToRole(permission);
+        //         if (!CollectionUtils.isEmpty(labels)) {
+        //             if (role.getMetadata().getLabels() == null) {
+        //                 role.getMetadata().setLabels(new HashMap<>());
+        //             }
+        //             role.getMetadata().getLabels().putAll(labels);
+        //         }
+        //         return (E) role;
+        //     });
     }
 
     @Override
     public <E extends Extension> Flux<E> findAll() {
-        // TODO Only find permissions
-        return null;
+        return Flux.error(new UnsupportedOperationException(
+            "Finding all roles is not supported."
+        ));
     }
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
-        return null;
+        return Flux.error(new UnsupportedOperationException(
+            "Finding all roles with options is not supported: " + options + ", " + sort
+        ));
     }
 
     @Override
     public <E extends Extension> Mono<ListResult<E>> pageBy(ListOptions options,
         Pageable pageable) {
-        return null;
+        return Mono.error(new UnsupportedOperationException(
+            "Paging roles is not supported: " + options + ", " + pageable
+        ));
     }
 
-    private static boolean isRoleTemplate(Role role) {
+    public static boolean isRoleTemplate(Role role) {
         var labels = role.getMetadata().getLabels();
         return labels != null && Boolean.parseBoolean(labels.get(Role.TEMPLATE_LABEL_NAME));
     }
@@ -190,7 +206,7 @@ class RoleExtensionAdapter implements ExtensionAdapter {
         return entity;
     }
 
-    private Role permissionToRole(PermissionEntity entity) {
+    public static Role permissionToRole(PermissionEntity entity) {
         var role = new Role();
         role.setMetadata(new Metadata());
         role.getMetadata().setAnnotations(new HashMap<>());

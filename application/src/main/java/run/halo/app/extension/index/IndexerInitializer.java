@@ -1,9 +1,9 @@
 package run.halo.app.extension.index;
 
 import java.time.Duration;
-import java.util.Objects;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
@@ -24,6 +24,7 @@ import run.halo.app.extension.event.IndexerBuiltEvent;
 import run.halo.app.extension.event.SchemeAddedEvent;
 import run.halo.app.extension.event.SchemeRemovedEvent;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
+import run.halo.app.perf.migration.ExtensionMigration;
 
 /**
  * Build indexer for each scheme. When a scheme is added, an indexer will be created for it.
@@ -46,12 +47,15 @@ class IndexerInitializer {
 
     private final ReactiveExtensionClient client;
 
+    private final ObjectProvider<ExtensionMigration> migrations;
+
     IndexerInitializer(ReactiveExtensionStoreClient storeClient,
         ExtensionConverter converter,
         IndexedQueryEngine indexedQueryEngine,
         IndexerFactory indexerFactory,
         ApplicationEventPublisher eventPublisher,
-        ReactiveExtensionClient client
+        ReactiveExtensionClient client,
+        ObjectProvider<ExtensionMigration> migrations
     ) {
         this.storeClient = storeClient;
         this.converter = converter;
@@ -59,6 +63,7 @@ class IndexerInitializer {
         this.indexerFactory = indexerFactory;
         this.eventPublisher = eventPublisher;
         this.client = client;
+        this.migrations = migrations;
     }
 
 
@@ -75,9 +80,18 @@ class IndexerInitializer {
     }
 
     private void createIndexerFor(Scheme scheme) {
+        var migrationOpt = migrations.stream()
+            .filter(migration -> migration.support(scheme))
+            .findFirst();
+        if (migrationOpt.isPresent()) {
+            log.info("Migrating scheme: {}", scheme.groupVersionKind());
+            migrationOpt.get().migrate(scheme)
+                .block(Duration.ofHours(1));
+            log.info("Migrated scheme: {}", scheme.groupVersionKind());
+            return;
+        }
         // skip for user
-        if (Objects.equals(User.class, scheme.type())) {
-            // TODO Check if the user entity is empty
+        if (User.class == scheme.type()) {
             // migrate it
             var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
             client.listBy(User.class, ListOptions.builder().build(), PageRequestImpl.of(1, 1))

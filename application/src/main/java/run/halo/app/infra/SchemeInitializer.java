@@ -3,14 +3,12 @@ package run.halo.app.infra;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.BooleanUtils.toStringTrueFalse;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
-import static run.halo.app.core.extension.Role.ROLE_AGGREGATE_LABEL_PREFIX;
 import static run.halo.app.extension.index.IndexAttributeFactory.multiValueAttribute;
 import static run.halo.app.extension.index.IndexAttributeFactory.simpleAttribute;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.SmartLifecycle;
@@ -79,23 +77,7 @@ class SchemeInitializer implements SmartLifecycle {
             return;
         }
         running = true;
-        schemeManager.register(Role.class, is -> {
-            is.add(new IndexSpec()
-                .setName("labels.aggregateToRoles")
-                .setIndexFunc(multiValueAttribute(Role.class,
-                    role -> Optional.ofNullable(role.getMetadata().getLabels())
-                        .map(labels -> labels.keySet()
-                            .stream()
-                            .filter(key -> key.startsWith(ROLE_AGGREGATE_LABEL_PREFIX))
-                            .filter(key -> Boolean.parseBoolean(labels.get(key)))
-                            .map(
-                                key -> StringUtils.removeStart(key, ROLE_AGGREGATE_LABEL_PREFIX)
-                            )
-                            .collect(Collectors.toSet())
-                        )
-                        .orElseGet(Set::of)))
-            );
-        });
+        schemeManager.register(Role.class);
 
         // plugin.halo.run
         schemeManager.register(Plugin.class, is -> {
@@ -140,22 +122,7 @@ class SchemeInitializer implements SmartLifecycle {
                 ));
         });
 
-        schemeManager.register(RoleBinding.class, is -> {
-            is.add(new IndexSpec()
-                .setName("roleRef.name")
-                .setIndexFunc(simpleAttribute(RoleBinding.class,
-                    roleBinding -> roleBinding.getRoleRef().getName())
-                )
-            );
-            is.add(new IndexSpec()
-                .setName("subjects")
-                .setIndexFunc(multiValueAttribute(RoleBinding.class,
-                    roleBinding -> roleBinding.getSubjects().stream()
-                        .map(RoleBinding.Subject::toString)
-                        .collect(Collectors.toSet()))
-                )
-            );
-        });
+        schemeManager.register(RoleBinding.class);
         schemeManager.register(User.class);
         schemeManager.register(ReverseProxy.class);
         schemeManager.register(Setting.class);

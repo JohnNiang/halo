@@ -8,20 +8,18 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("user_roles")
-public class UserRoleEntity {
+@Table("role_permissions")
+public class RolePermissionEntity {
 
     @Id
     private Long id;
 
-    private String userId;
-
     private String roleId;
+
+    private String permissionId;
 
     @CreatedDate
     private Instant createdDate;
-
-    private Instant deletedDate;
 
     @Version
     private Long version;

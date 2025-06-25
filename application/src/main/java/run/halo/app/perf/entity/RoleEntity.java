@@ -10,10 +10,13 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.domain.Auditable;
 import org.springframework.data.relational.core.mapping.Table;
+import run.halo.app.extension.GroupKind;
 
 @Data
 @Table("roles")
 public class RoleEntity implements Auditable<String, String, Instant> {
+
+    public static final GroupKind GK = new GroupKind("", "Role");
 
     @Transient
     private boolean isNew;
