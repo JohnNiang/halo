@@ -44,8 +44,6 @@ public class R2dbcConfiguration extends AbstractR2dbcConfiguration {
         if (dialect instanceof PostgresDialect) {
             converters.add(AnnotationsConverters.AnnotationsReadingPostgresConverter.INSTANCE);
             converters.add(AnnotationsConverters.AnnotationsWritingPostgresConverter.INSTANCE);
-            // converters.add(FinalizersConverters.FinalizersReadingPostgresConverter.INSTANCE);
-            // converters.add(FinalizersConverters.FinalizersWritingPostgresConverter.INSTANCE);
             converters.add(RulesConverters.RulesReadingPostgresConverter.INSTANCE);
             converters.add(RulesConverters.RulesWritingPostgresConverter.INSTANCE);
 
@@ -55,8 +53,6 @@ public class R2dbcConfiguration extends AbstractR2dbcConfiguration {
         } else {
             converters.add(AnnotationsConverters.AnnotationsWritingConverter.INSTANCE);
             converters.add(AnnotationsConverters.AnnotationsReadingConverter.INSTANCE);
-            // converters.add(FinalizersConverters.FinalizersWritingConverter.INSTANCE);
-            // converters.add(FinalizersConverters.FinalizersReadingConverter.INSTANCE);
             converters.add(RulesConverters.RulesReadingConverter.INSTANCE);
             converters.add(RulesConverters.RulesWritingConverter.INSTANCE);
 

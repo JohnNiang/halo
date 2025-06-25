@@ -60,8 +60,6 @@ create table if not exists roles (
     primary key(id)
 );
 
-alter table roles add column if not exists hidden boolean default false not null;
-
 create table if not exists permissions (
     id varchar(255) not null,
     display_name varchar(255) null,
@@ -80,9 +78,6 @@ create table if not exists permissions (
     primary key(id)
 );
 
-alter table permissions add column if not exists hidden boolean default false not null;
-alter table permissions alter column if exists display_name set null;
-
 create table if not exists user_roles (
     id bigint auto_increment not null,
     user_id varchar(255) not null,
@@ -99,10 +94,8 @@ create table if not exists role_permissions (
     role_id varchar(255) not null,
     permission_id varchar(255) not null,
     created_date timestamp with time zone default current_timestamp not null,
---    deleted_date timestamp with time zone null,
     version bigint default 0 not null,
 
     primary key (id),
     unique (role_id, permission_id)
 );
-

@@ -191,6 +191,7 @@ public class UserReconciler implements Reconciler<Request> {
     public Controller setupWith(ControllerBuilder builder) {
         return builder
             .extension(new User())
+            .syncAllOnStart(false)
             .build();
     }
 
