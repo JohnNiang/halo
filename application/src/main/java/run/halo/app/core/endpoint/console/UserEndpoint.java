@@ -455,7 +455,7 @@ public class UserEndpoint implements CustomEndpoint {
         return userService.getUser(name)
             .flatMap(user -> roleService.getRolesByUsername(name)
                 .collectList()
-                .flatMap(roleNames -> roleService.list(new HashSet<>(roleNames), true)
+                .flatMap(roleNames -> roleService.list(new HashSet<>(roleNames))
                     .collectList()
                     .map(roles -> new DetailedUser(user, roles))
                 )
