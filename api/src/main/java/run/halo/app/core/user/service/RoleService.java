@@ -15,6 +15,7 @@ import run.halo.app.core.extension.RoleBinding.Subject;
  */
 public interface RoleService {
 
+    @Deprecated
     Flux<RoleBinding> listRoleBindings(Subject subject);
 
     Flux<String> getRolesByUsername(String username);

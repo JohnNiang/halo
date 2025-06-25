@@ -1,18 +1,15 @@
 package run.halo.app.extension.router.selector;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.sql.BindMarker;
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.data.relational.core.sql.Conditions;
 import org.springframework.data.relational.core.sql.SQL;
 import org.springframework.data.relational.core.sql.TableLike;
-import org.springframework.lang.NonNull;
 import org.springframework.r2dbc.core.binding.MutableBindings;
 import org.springframework.util.Assert;
 
@@ -61,34 +58,6 @@ public class SetMatcher implements SelectorMatcher {
     @Override
     public boolean test(String s) {
         return operator.with(values).test(s);
-    }
-
-    @Override
-    @NonNull
-    public Criteria toCriteria() {
-        switch (operator) {
-            case IN -> {
-                if (values != null && values.length > 0) {
-                    return Criteria.where("labelName").is(key).and("labelValue")
-                        .in(List.of(values));
-                }
-            }
-            case NOT_IN -> {
-                if (values != null && values.length > 0) {
-                    return Criteria.where("labelName").is(key)
-                        .and("labelValue").notIn(List.of(values));
-                }
-            }
-            case EXISTS -> {
-                return Criteria.where("labelName").is(key);
-            }
-            case NOT_EXISTS -> {
-                return Criteria.where("labelName").not(key);
-            }
-            default -> {
-            }
-        }
-        return Criteria.empty();
     }
 
     @Override

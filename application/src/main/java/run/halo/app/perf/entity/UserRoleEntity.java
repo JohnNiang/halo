@@ -21,8 +21,6 @@ public class UserRoleEntity {
     @CreatedDate
     private Instant createdDate;
 
-    private Instant deletedDate;
-
     @Version
     private Long version;
 

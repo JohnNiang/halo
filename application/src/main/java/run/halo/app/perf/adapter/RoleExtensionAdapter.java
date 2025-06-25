@@ -248,16 +248,29 @@ public class RoleExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
-        return Mono.error(new UnsupportedOperationException(
-            "Creating role is not supported: " + extension.getMetadata().getName()
-        ));
+        var role = asRole(extension);
+        if (Role.isRoleTemplate(role)) {
+            return Mono.error(
+                new UnsupportedOperationException("Creating role template is not supported: "
+                    + extension.getMetadata().getName()
+                )
+            );
+        }
+        return createRole(extension);
     }
 
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
-        return Mono.error(new UnsupportedOperationException(
-            "Updating role is not supported: " + extension.getMetadata().getName()
-        ));
+        var role = asRole(extension);
+
+        if (Role.isRoleTemplate(role)) {
+            return Mono.error(
+                new UnsupportedOperationException("Updating role template is not supported: "
+                    + extension.getMetadata().getName()
+                )
+            );
+        }
+        return updateRole(extension);
     }
 
     @Override
@@ -299,8 +312,6 @@ public class RoleExtensionAdapter implements ExtensionAdapter {
         }
         var matchers =
             Objects.requireNonNullElse(labelSelector.getMatchers(), Set.<SelectorMatcher>of());
-        // labelSelector=!halo.run/role-template
-        // labelSelector=halo.run/role-template=true
 
         boolean queryPermission = false;
         for (var matcher : matchers) {

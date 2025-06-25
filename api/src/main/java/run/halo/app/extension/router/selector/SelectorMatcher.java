@@ -1,9 +1,7 @@
 package run.halo.app.extension.router.selector;
 
-import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.data.relational.core.sql.TableLike;
-import org.springframework.lang.NonNull;
 import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public interface SelectorMatcher {
@@ -17,9 +15,6 @@ public interface SelectorMatcher {
      * @return the boolean
      */
     boolean test(String s);
-
-    @NonNull
-    Criteria toCriteria();
 
     Condition toCondition(TableLike table, MutableBindings bindings);
 

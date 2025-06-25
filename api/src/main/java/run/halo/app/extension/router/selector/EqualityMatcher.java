@@ -3,12 +3,10 @@ package run.halo.app.extension.router.selector;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.data.relational.core.sql.Conditions;
 import org.springframework.data.relational.core.sql.SQL;
 import org.springframework.data.relational.core.sql.TableLike;
-import org.springframework.lang.NonNull;
 import org.springframework.r2dbc.core.binding.MutableBindings;
 
 public class EqualityMatcher implements SelectorMatcher {
@@ -59,23 +57,6 @@ public class EqualityMatcher implements SelectorMatcher {
     @Override
     public boolean test(String s) {
         return operator.with(value).test(s);
-    }
-
-    @Override
-    @NonNull
-    public Criteria toCriteria() {
-        switch (operator) {
-            case EQUAL, DOUBLE_EQUAL -> {
-                return Criteria.where("labelName").is(key).and("labelValue").is(value);
-            }
-            case NOT_EQUAL -> {
-                return Criteria.empty()
-                    .and(Criteria.where("labelName").is(key).and("labelValue").not(value));
-            }
-            default -> {
-            }
-        }
-        return Criteria.empty();
     }
 
     @Override

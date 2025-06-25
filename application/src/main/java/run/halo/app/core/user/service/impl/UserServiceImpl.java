@@ -5,10 +5,8 @@ import static run.halo.app.extension.index.query.QueryFactory.equal;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,14 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import run.halo.app.core.extension.Role;
-import run.halo.app.core.extension.RoleBinding;
 import run.halo.app.core.extension.User;
 import run.halo.app.core.user.service.EmailVerificationService;
 import run.halo.app.core.user.service.RoleService;
@@ -47,6 +43,8 @@ import run.halo.app.infra.exception.EmailAlreadyTakenException;
 import run.halo.app.infra.exception.EmailVerificationFailed;
 import run.halo.app.infra.exception.UnsatisfiedAttributeValueException;
 import run.halo.app.infra.exception.UserNotFoundException;
+import run.halo.app.perf.entity.UserRoleEntity;
+import run.halo.app.perf.repository.UserRoleEntityRepository;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 import run.halo.app.security.device.DeviceService;
 
@@ -73,6 +71,8 @@ public class UserServiceImpl implements UserService {
     private final DeviceService deviceService;
 
     private final ReactiveTransactionManager transactionManager;
+
+    private final UserRoleEntityRepository userRoleEntityRepository;
 
     private Clock clock = Clock.systemUTC();
 
@@ -126,48 +126,40 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Mono<User> grantRoles(String username, Set<String> roles) {
-        return client.get(User.class, username)
-            .flatMap(user -> {
-                var bindingsToUpdate = new HashSet<RoleBinding>();
-                var bindingsToDelete = new HashSet<RoleBinding>();
-                var existingRoles = new HashSet<String>();
-                var subject = new RoleBinding.Subject();
-                subject.setKind(User.KIND);
-                subject.setApiGroup(User.GROUP);
-                subject.setName(username);
-                return roleService.listRoleBindings(subject)
-                    .doOnNext(binding -> {
-                        var roleName = binding.getRoleRef().getName();
-                        if (roles.contains(roleName)) {
-                            existingRoles.add(roleName);
-                            return;
-                        }
-                        binding.getSubjects().removeIf(RoleBinding.Subject.isUser(username));
-                        if (CollectionUtils.isEmpty(binding.getSubjects())) {
-                            // remove it if subjects is empty
-                            bindingsToDelete.add(binding);
-                        } else {
-                            bindingsToUpdate.add(binding);
-                        }
-                    })
-                    .thenMany(Flux.fromIterable(bindingsToUpdate).flatMap(client::update))
-                    .thenMany(Flux.fromIterable(bindingsToDelete).flatMap(client::delete))
-                    .thenMany(Flux.fromStream(() -> {
-                        var mutableRoles = new HashSet<>(roles);
-                        mutableRoles.removeAll(existingRoles);
-                        return mutableRoles.stream()
-                            .filter(StringUtils::hasText)
-                            .map(roleName -> RoleBinding.create(username, roleName));
-                    }).flatMap(client::create))
-                    .then(Mono.defer(() -> {
-                        var annotations = Optional.ofNullable(user.getMetadata().getAnnotations())
-                            .orElseGet(HashMap::new);
-                        user.getMetadata().setAnnotations(annotations);
-                        annotations.put(User.REQUEST_TO_UPDATE, clock.instant().toString());
-                        return client.update(user);
-                    }));
-            });
+    public Mono<User> grantRoles(String username, Set<String> roleIds) {
+        var tx = TransactionalOperator.create(transactionManager);
+        return roleService.getRolesByUsername(username)
+            .collectList()
+            .flatMap(existingRoleIds -> {
+                var toDelete = new HashSet<>(existingRoleIds);
+                var toAdd = new HashSet<String>();
+                roleIds.forEach(roleId -> {
+                    if (!toDelete.remove(roleId)) {
+                        toAdd.add(roleId);
+                    }
+                });
+                var delete = Mono.just(toDelete)
+                    .filter(c -> !c.isEmpty())
+                    .flatMap(
+                        ids -> userRoleEntityRepository.deleteByUserIdAndRoleIdIn(username, ids)
+                    );
+                var add = Mono.just(toAdd)
+                    .filter(c -> !c.isEmpty())
+                    .map(ids -> ids.stream()
+                        .map(roleId -> {
+                            var entity = new UserRoleEntity();
+                            entity.setUserId(username);
+                            entity.setRoleId(roleId);
+                            return entity;
+                        })
+                        .toList()
+                    )
+                    .flatMapMany(userRoleEntityRepository::saveAll)
+                    .then();
+                return Mono.when(delete, add);
+            })
+            .as(tx::transactional)
+            .then(client.get(User.class, username));
     }
 
     @Override

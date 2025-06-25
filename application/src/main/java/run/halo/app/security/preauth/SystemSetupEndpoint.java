@@ -43,6 +43,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.util.InMemoryResource;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.ReactiveTransactionManager;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.PropertyPlaceholderHelper;
 import org.springframework.util.StreamUtils;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -93,6 +95,7 @@ public class SystemSetupEndpoint {
     private final ObjectProvider<R2dbcConnectionDetails> connectionDetails;
     private final ExternalUrlSupplier externalUrl;
     private final ApplicationEventPublisher eventPublisher;
+    private final ReactiveTransactionManager txManager;
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 100)
@@ -200,6 +203,7 @@ public class SystemSetupEndpoint {
                 );
                 return null;
             }));
+        var tx = TransactionalOperator.create(txManager);
         return Mono.when(
                 basicConfigMono,
                 superUserMono,
@@ -207,7 +211,8 @@ public class SystemSetupEndpoint {
                 pluginService.installPresetPlugins(),
                 themeService.installPresetTheme()
             )
-            .then(SystemState.upsetSystemState(client, state -> state.setIsSetup(true)));
+            .then(SystemState.upsetSystemState(client, state -> state.setIsSetup(true)))
+            .as(tx::transactional);
     }
 
     private Mono<Void> initializeNecessaryData(String username) {
