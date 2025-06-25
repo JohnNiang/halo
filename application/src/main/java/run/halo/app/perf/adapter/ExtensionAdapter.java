@@ -25,4 +25,13 @@ public interface ExtensionAdapter {
 
     <E extends Extension> Mono<ListResult<E>> pageBy(ListOptions options, Pageable pageable);
 
+    /**
+     * Initialize an extension. This method is used to create or update an extension
+     *
+     * @param extension the extension to initialize
+     * @param <E> the type of the extension
+     * @return a Mono that emits the initialized extension
+     */
+    <E extends Extension> Mono<E> initialize(E extension);
+
 }

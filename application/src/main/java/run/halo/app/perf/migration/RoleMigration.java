@@ -4,9 +4,6 @@ import static java.util.Objects.requireNonNullElse;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.r2dbc.postgresql.util.Assert;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -24,9 +21,8 @@ import run.halo.app.extension.ExtensionStoreUtil;
 import run.halo.app.extension.GroupKind;
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
+import run.halo.app.perf.adapter.RoleExtensionAdapter;
 import run.halo.app.perf.converter.SetConverters;
-import run.halo.app.perf.entity.PermissionEntity;
-import run.halo.app.perf.entity.RoleEntity;
 import run.halo.app.perf.entity.RolePermissionEntity;
 import run.halo.app.perf.repository.PermissionEntityRepository;
 import run.halo.app.perf.repository.RoleEntityRepository;
@@ -95,7 +91,7 @@ class RoleMigration implements ExtensionMigration {
                     .flatMap(role -> {
                         if (Role.isRoleTemplate(role)) {
                             // convert it to a permission
-                            var permission = toPermission(role);
+                            var permission = RoleExtensionAdapter.toPermission(role);
                             permission.markAsNew();
                             return permissionEntityRepository.save(permission)
                                 .flatMap(created -> labelService.saveLabels(
@@ -110,14 +106,14 @@ class RoleMigration implements ExtensionMigration {
                                 ))
                                 .then();
                         }
-                        var roleEntity = toRoleEntity(role);
+                        var roleEntity = RoleExtensionAdapter.toRoleEntity(role);
                         roleEntity.markAsNew();
                         if (Objects.equals(
                             AuthorityUtils.SUPER_ROLE_NAME, role.getMetadata().getName()
                         )) {
                             // create role and permission
                             // bind role nad permission
-                            var superPermission = toPermission(role);
+                            var superPermission = RoleExtensionAdapter.toPermission(role);
                             superPermission.setId("super-permission");
                             superPermission.markAsNew();
                             // no need to save labels for the super permission
@@ -186,82 +182,4 @@ class RoleMigration implements ExtensionMigration {
             });
     }
 
-    private static RoleEntity toRoleEntity(Role role) {
-        Assert.isTrue(!Role.isRoleTemplate(role), "Role must not be a template: "
-            + role.getMetadata().getName()
-        );
-        var entity = new RoleEntity();
-        updateRoleEntity(entity, role);
-        return entity;
-    }
-
-    private static PermissionEntity toPermission(Role role) {
-        var entity = new PermissionEntity();
-        updatePermissionEntity(entity, role);
-        return entity;
-    }
-
-    private static void updateRoleEntity(RoleEntity entity, Role role) {
-        var metadata = role.getMetadata();
-        var annotations = new HashMap<>(requireNonNullElse(metadata.getAnnotations(), Map.of()));
-        var labels = requireNonNullElse(metadata.getLabels(), Map.<String, String>of());
-
-        entity.setId(metadata.getName());
-        entity.setDisplayName(annotations.get(Role.DISPLAY_NAME_ANNO));
-        entity.setFinalizers(metadata.getFinalizers());
-        entity.setAnnotations(annotations);
-        entity.setReserved(Boolean.parseBoolean(labels.get(Role.SYSTEM_RESERVED_LABELS)));
-        entity.setDeletedDate(metadata.getDeletionTimestamp());
-        if (metadata.getCreationTimestamp() != null) {
-            entity.setCreatedDate(metadata.getCreationTimestamp());
-        }
-    }
-
-    private static void updatePermissionEntity(PermissionEntity entity, Role role) {
-        var metadata = role.getMetadata();
-        var annotations =
-            new HashMap<>(requireNonNullElse(metadata.getAnnotations(), Map.of()));
-        entity.setId(metadata.getName());
-        entity.setDisplayName(annotations.get(Role.DISPLAY_NAME_ANNO));
-        entity.setCategory(annotations.get(Role.MODULE_ANNO));
-
-        var labels = requireNonNullElse(metadata.getLabels(), Map.<String, String>of());
-        var hiddenLabel = labels.get(Role.HIDDEN_LABEL_NAME);
-        entity.setHidden(Boolean.parseBoolean(hiddenLabel));
-
-        var uiPermissionsJson = annotations.get(Role.UI_PERMISSIONS_ANNO);
-        if (StringUtils.hasText(uiPermissionsJson)) {
-            try {
-                entity.setUiPermissions(
-                    SetConverters.MAPPER.readValue(uiPermissionsJson, new TypeReference<>() {
-                    })
-                );
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        var dependenciesJson = annotations.get(Role.ROLE_DEPENDENCIES_ANNO);
-        if (StringUtils.hasText(dependenciesJson)) {
-            try {
-                entity.setDependencies(
-                    SetConverters.MAPPER.readValue(dependenciesJson, new TypeReference<>() {
-                    })
-                );
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        entity.setAnnotations(annotations);
-        entity.setFinalizers(metadata.getFinalizers());
-        entity.setDeletedDate(metadata.getDeletionTimestamp());
-        if (metadata.getCreationTimestamp() != null) {
-            entity.setCreatedDate(metadata.getCreationTimestamp());
-        }
-        var rules = role.getRules();
-        if (rules != null) {
-            entity.setRules(new HashSet<>(rules));
-        }
-        metadata.setAnnotations(annotations);
-    }
 }

@@ -38,6 +38,7 @@ import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Unstructured;
+import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.perf.config.HaloPreparedOperation;
 import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
@@ -68,7 +69,7 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     UserExtensionAdapter(UserEntityRepository userEntityRepository,
         ReactiveTransactionManager txManager,
-                         R2dbcEntityTemplate entityTemplate, LabelService labelService) {
+        R2dbcEntityTemplate entityTemplate, LabelService labelService) {
         this.userEntityRepository = userEntityRepository;
         this.txManager = txManager;
         this.entityTemplate = entityTemplate;
@@ -106,6 +107,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
         var user = asUser(extension);
         var tx = TransactionalOperator.create(txManager);
         return userEntityRepository.findById(extension.getMetadata().getName())
+            .switchIfEmpty(Mono.error(() ->
+                new ExtensionNotFoundException(GVK, extension.getMetadata().getName())
+            ))
             .flatMap(entity -> {
                 // update entity
                 updateEntity(entity, user);
@@ -309,6 +313,12 @@ class UserExtensionAdapter implements ExtensionAdapter {
                     p.getNumber(), p.getSize(), p.getTotalElements(), p.getContent()
                 ));
         });
+    }
+
+    @Override
+    public <E extends Extension> Mono<E> initialize(E extension) {
+        return update(extension)
+            .onErrorResume(ExtensionNotFoundException.class, e -> create(extension));
     }
 
     private void updateEntity(UserEntity entity, User user) {

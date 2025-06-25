@@ -82,6 +82,12 @@ class RoleBindingAdapter implements ExtensionAdapter {
         );
     }
 
+    @Override
+    public <E extends Extension> Mono<E> initialize(E extension) {
+        // Just skip the initialization for RoleBinding
+        return Mono.just(extension);
+    }
+
     private RoleBinding asRoleBinding(Extension e) {
         if (e instanceof RoleBinding roleBinding) {
             return roleBinding;

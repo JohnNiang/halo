@@ -3,6 +3,8 @@ package run.halo.app.perf.service;
 import java.util.Collection;
 import java.util.Map;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.ReactiveTransactionManager;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import run.halo.app.extension.GroupKind;
@@ -14,13 +16,18 @@ class LabelServiceImpl implements LabelService {
 
     private final LabelEntityRepository labelEntityRepository;
 
-    public LabelServiceImpl(LabelEntityRepository labelEntityRepository) {
+    private final ReactiveTransactionManager txManager;
+
+    public LabelServiceImpl(LabelEntityRepository labelEntityRepository,
+        ReactiveTransactionManager txManager) {
         this.labelEntityRepository = labelEntityRepository;
+        this.txManager = txManager;
     }
 
     @Override
     public Mono<Void> saveLabels(GroupKind groupKind, String entityId, Map<String, String> labels) {
         var entityType = groupKind.toString();
+        var tx = TransactionalOperator.create(txManager);
         return labelEntityRepository.findByEntityTypeAndEntityId(entityType, entityId)
             .collectList()
             .flatMap(labelEntityRepository::deleteAll)
@@ -45,6 +52,7 @@ class LabelServiceImpl implements LabelService {
                 }
             ))
             .flatMapMany(labelEntityRepository::saveAll)
+            .as(tx::transactional)
             .then();
     }
 

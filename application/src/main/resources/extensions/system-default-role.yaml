@@ -21,6 +21,8 @@ metadata:
     rbac.authorization.halo.run/display-name: "超级管理员"
     rbac.authorization.halo.run/ui-permissions: |
       ["*"]
+    rbac.authorization.halo.run/dependencies: |
+      ["super-permission"]
 rules:
   - apiGroups: ["*"]
     resources: ["*"]

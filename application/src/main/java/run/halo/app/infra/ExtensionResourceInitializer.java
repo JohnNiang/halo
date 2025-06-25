@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.core.io.Resource;
@@ -19,6 +20,7 @@ import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Unstructured;
 import run.halo.app.infra.properties.HaloProperties;
 import run.halo.app.infra.utils.YamlUnstructuredLoader;
+import run.halo.app.perf.adapter.ExtensionAdapter;
 
 /**
  * <p>Extension resources initializer.</p>
@@ -41,12 +43,16 @@ public class ExtensionResourceInitializer implements SmartLifecycle {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final ObjectProvider<ExtensionAdapter> adapters;
+
     public ExtensionResourceInitializer(HaloProperties haloProperties,
         ReactiveExtensionClient extensionClient,
-        ApplicationEventPublisher eventPublisher) {
+        ApplicationEventPublisher eventPublisher,
+        ObjectProvider<ExtensionAdapter> adapters) {
         this.haloProperties = haloProperties;
         this.extensionClient = extensionClient;
         this.eventPublisher = eventPublisher;
+        this.adapters = adapters;
     }
 
     @Override
@@ -112,8 +118,13 @@ public class ExtensionResourceInitializer implements SmartLifecycle {
         return InitializationPhase.EXTENSION_RESOURCES.getPhase();
     }
 
-
     private Mono<Unstructured> createOrUpdate(Unstructured extension) {
+        var adapterOpt = adapters.stream()
+            .filter(adapter -> adapter.support(extension.groupVersionKind()))
+            .findFirst();
+        if (adapterOpt.isPresent()) {
+            return adapterOpt.get().initialize(extension);
+        }
         return Mono.just(extension)
             .flatMap(ext -> extensionClient.fetch(extension.groupVersionKind(),
                 extension.getMetadata().getName()))
