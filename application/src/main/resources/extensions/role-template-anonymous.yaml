@@ -1,11 +1,12 @@
 apiVersion: v1alpha1
 kind: "Role"
 metadata:
-  name: anonymous
+  name: anonymous-permission
   labels:
     halo.run/role-template: "true"
     halo.run/hidden: "true"
   annotations:
+    rbac.authorization.halo.run/display-name: "匿名权限"
     rbac.authorization.halo.run/dependencies: |
       [ "role-template-own-permissions", "role-template-public-apis" ]
 rules:
@@ -23,6 +24,17 @@ rules:
     verbs: [ "create" ]
   - nonResourceURLs: [ "/actuator/globalinfo", "/actuator/health", "/actuator/health/*", "/login/public-key" ]
     verbs: [ "get" ]
+---
+apiVersion: v1alpha1
+kind: "Role"
+metadata:
+  name: anonymous
+  labels:
+    halo.run/hidden: "true"
+  annotations:
+    rbac.authorization.halo.run/display-name: "匿名角色"
+    rbac.authorization.halo.run/dependencies: |
+      [ "anonymous-permission" ]
 ---
 apiVersion: v1alpha1
 kind: "Role"

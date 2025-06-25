@@ -10,6 +10,8 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.domain.Auditable;
 import org.springframework.data.relational.core.mapping.Table;
+import run.halo.app.core.extension.User;
+import run.halo.app.extension.GroupKind;
 
 /**
  * User entity representing a user in the system.
@@ -19,6 +21,8 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @Table("users")
 public class UserEntity implements Auditable<String, String, Instant> {
+
+    public static final GroupKind GK = new GroupKind(User.GROUP, User.KIND);
 
     @Transient
     private boolean isNew;

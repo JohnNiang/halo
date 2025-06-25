@@ -5,7 +5,6 @@ import static java.util.Objects.requireNonNullElse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +27,6 @@ import run.halo.app.perf.repository.PermissionEntityRepository;
 import run.halo.app.perf.repository.RoleEntityRepository;
 import run.halo.app.perf.repository.RolePermissionEntityRepository;
 import run.halo.app.perf.service.LabelService;
-import run.halo.app.security.authorization.AuthorityUtils;
 
 @Slf4j
 @Component
@@ -108,25 +106,6 @@ class RoleMigration implements ExtensionMigration {
                         }
                         var roleEntity = RoleExtensionAdapter.toRoleEntity(role);
                         roleEntity.markAsNew();
-                        if (Objects.equals(
-                            AuthorityUtils.SUPER_ROLE_NAME, role.getMetadata().getName()
-                        )) {
-                            // create role and permission
-                            // bind role nad permission
-                            var superPermission = RoleExtensionAdapter.toPermission(role);
-                            superPermission.setId("super-permission");
-                            superPermission.markAsNew();
-                            // no need to save labels for the super permission
-                            var savePermission = permissionEntityRepository.save(superPermission);
-                            // no need to save labels for the super role
-                            var saveRole = roleEntityRepository.save(roleEntity);
-
-                            var rp = new RolePermissionEntity();
-                            rp.setPermissionId("super-permission");
-                            rp.setRoleId(role.getMetadata().getName());
-                            var saveRolePermission = rolePermissionEntityRepository.save(rp);
-                            return Mono.when(savePermission, saveRole, saveRolePermission);
-                        }
                         return roleEntityRepository.save(roleEntity)
                             .flatMap(created -> labelService.saveLabels(
                                         ROLE_GK, created.getId(), role.getMetadata().getLabels()

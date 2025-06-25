@@ -6,6 +6,7 @@ import static run.halo.app.plugin.PluginExtensionLoaderUtils.lookupExtensions;
 
 import java.util.HashMap;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -14,6 +15,7 @@ import run.halo.app.core.extension.Plugin;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Unstructured;
 import run.halo.app.infra.utils.YamlUnstructuredLoader;
+import run.halo.app.perf.adapter.ExtensionAdapter;
 import run.halo.app.plugin.event.HaloPluginStartedEvent;
 
 /**
@@ -28,11 +30,21 @@ public class PluginStartedListener {
 
     private final ReactiveExtensionClient client;
 
-    public PluginStartedListener(ReactiveExtensionClient extensionClient) {
+    private final ObjectProvider<ExtensionAdapter> adapters;
+
+    public PluginStartedListener(ReactiveExtensionClient extensionClient,
+        ObjectProvider<ExtensionAdapter> adapters) {
         this.client = extensionClient;
+        this.adapters = adapters;
     }
 
     private Mono<Unstructured> createOrUpdate(Unstructured unstructured) {
+        var adapterOpt = adapters.stream()
+            .filter(adapter -> adapter.support(unstructured.groupVersionKind()))
+            .findFirst();
+        if (adapterOpt.isPresent()) {
+            return adapterOpt.get().initialize(unstructured);
+        }
         var name = unstructured.getMetadata().getName();
         return client.fetch(unstructured.groupVersionKind(), name)
             .doOnNext(old -> {

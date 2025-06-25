@@ -11,12 +11,6 @@ import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
 import run.halo.app.core.extension.Role;
 
-/**
- * Converters for {@link Role.PolicyRule} set.
- *
- * @deprecated use {@link run.halo.app.perf.converter.SetConverters} instead.
- */
-@Deprecated(forRemoval = true)
 public enum RulesConverters {
     ;
 

@@ -33,6 +33,8 @@ public class RoleEntity implements Auditable<String, String, Instant> {
 
     private boolean reserved;
 
+    private boolean hidden;
+
     private Instant deletedDate;
 
     private Instant createdDate;

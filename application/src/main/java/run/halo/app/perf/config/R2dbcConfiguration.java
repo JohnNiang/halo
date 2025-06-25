@@ -15,7 +15,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import reactor.core.publisher.Mono;
+import run.halo.app.core.extension.Role;
 import run.halo.app.perf.converter.AnnotationsConverters;
+import run.halo.app.perf.converter.RulesConverters;
 import run.halo.app.perf.converter.SetConverters;
 
 @EnableR2dbcAuditing
@@ -44,20 +46,22 @@ public class R2dbcConfiguration extends AbstractR2dbcConfiguration {
             converters.add(AnnotationsConverters.AnnotationsWritingPostgresConverter.INSTANCE);
             // converters.add(FinalizersConverters.FinalizersReadingPostgresConverter.INSTANCE);
             // converters.add(FinalizersConverters.FinalizersWritingPostgresConverter.INSTANCE);
-            // converters.add(RulesConverters.RulesReadingPostgresConverter.INSTANCE);
-            // converters.add(RulesConverters.RulesWritingPostgresConverter.INSTANCE);
+            converters.add(RulesConverters.RulesReadingPostgresConverter.INSTANCE);
+            converters.add(RulesConverters.RulesWritingPostgresConverter.INSTANCE);
 
-            converters.add(SetConverters.SetReadingPostgresConverter.INSTANCE);
+            converters.add(new SetConverters.SetReadingPostgresConverter<>(String.class));
+            converters.add(new SetConverters.SetReadingPostgresConverter<>(Role.PolicyRule.class));
             converters.add(SetConverters.SetWritingPostgresConverter.INSTANCE);
         } else {
             converters.add(AnnotationsConverters.AnnotationsWritingConverter.INSTANCE);
             converters.add(AnnotationsConverters.AnnotationsReadingConverter.INSTANCE);
             // converters.add(FinalizersConverters.FinalizersWritingConverter.INSTANCE);
             // converters.add(FinalizersConverters.FinalizersReadingConverter.INSTANCE);
-            // converters.add(RulesConverters.RulesReadingConverter.INSTANCE);
-            // converters.add(RulesConverters.RulesWritingConverter.INSTANCE);
+            converters.add(RulesConverters.RulesReadingConverter.INSTANCE);
+            converters.add(RulesConverters.RulesWritingConverter.INSTANCE);
 
-            converters.add(SetConverters.SetReadingConverter.INSTANCE);
+            converters.add(new SetConverters.SetReadingConverter<>(String.class));
+            converters.add(new SetConverters.SetReadingConverter<>(Role.PolicyRule.class));
             converters.add(SetConverters.SetWritingConverter.INSTANCE);
         }
         return converters;

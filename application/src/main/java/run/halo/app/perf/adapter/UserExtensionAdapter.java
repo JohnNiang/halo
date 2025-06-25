@@ -1,33 +1,18 @@
 package run.halo.app.perf.adapter;
 
-import static org.springframework.data.support.ReactivePageableExecutionUtils.getPage;
-
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
-import org.springframework.data.r2dbc.dialect.R2dbcDialect;
-import org.springframework.data.relational.core.sql.Condition;
-import org.springframework.data.relational.core.sql.Conditions;
-import org.springframework.data.relational.core.sql.Functions;
-import org.springframework.data.relational.core.sql.OrderByField;
-import org.springframework.data.relational.core.sql.SQL;
 import org.springframework.data.relational.core.sql.Select;
-import org.springframework.data.relational.core.sql.SelectBuilder;
-import org.springframework.data.relational.core.sql.SimpleFunction;
-import org.springframework.data.relational.core.sql.Table;
-import org.springframework.data.relational.core.sql.TrueCondition;
 import org.springframework.r2dbc.core.PreparedOperation;
-import org.springframework.r2dbc.core.binding.MutableBindings;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.User;
@@ -39,11 +24,10 @@ import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Unstructured;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
-import run.halo.app.perf.config.HaloPreparedOperation;
-import run.halo.app.perf.entity.LabelEntity;
 import run.halo.app.perf.entity.UserEntity;
 import run.halo.app.perf.repository.UserEntityRepository;
 import run.halo.app.perf.service.LabelService;
+import run.halo.app.perf.util.QueryUtils;
 
 @Component
 class UserExtensionAdapter implements ExtensionAdapter {
@@ -142,10 +126,10 @@ class UserExtensionAdapter implements ExtensionAdapter {
 
     @Override
     public <E extends Extension> Flux<E> findAll(ListOptions options, Sort sort) {
-        var queryResult = entityTemplate.query(prepareFind(
-                options, Pageable.unpaged(sort)), UserEntity.class
-            )
-            .all();
+        var queryResult = QueryUtils.findAllBy(
+            entityTemplate, options, sort, FIELD_MAP, GVK.groupKind(), UserEntity.class
+        );
+
         return queryResult.collectList()
             .flatMapMany(list -> {
                 var ids = list.stream().map(UserEntity::getId).collect(Collectors.toSet());
@@ -162,142 +146,19 @@ class UserExtensionAdapter implements ExtensionAdapter {
             });
     }
 
-    private PreparedOperation<Select> prepareCount(ListOptions listOptions) {
-        var dataAccessStrategy = entityTemplate.getDataAccessStrategy();
-        var usersTable = Table.create(dataAccessStrategy.getTableName(UserEntity.class));
-        var distinctId = SimpleFunction.create("DISTINCT", List.of(usersTable.column("id")));
-        var dialect = (R2dbcDialect) dataAccessStrategy.getDialect();
-        var bindMarkers = dialect.getBindMarkersFactory().create();
-        var bindings = new MutableBindings(bindMarkers);
-        var labelSelector = listOptions.getLabelSelector();
-        var fieldSelector = listOptions.getFieldSelector();
-
-        Condition whereCondition = TrueCondition.INSTANCE;
-        if (fieldSelector != null) {
-            var fieldCondition = fieldSelector.query().toCondition(FIELD_MAP, usersTable, bindings);
-            whereCondition = whereCondition.and(Conditions.nest(fieldCondition));
-        }
-
-        final Select select;
-        if (labelSelector != null && !CollectionUtils.isEmpty(labelSelector.getMatchers())) {
-            var labelsTable = Table.create(dataAccessStrategy.getTableName(LabelEntity.class));
-            var labelsCondition = labelSelector.getMatchers().stream()
-                .map(matcher -> matcher.toCondition(labelsTable, bindings))
-                .reduce(Condition::and)
-                .orElse(null);
-            if (labelsCondition != null) {
-                whereCondition = whereCondition.and(Conditions.nest(labelsCondition));
-            }
-            select = Select.builder().select(Functions.count(distinctId))
-                .from(usersTable)
-                .leftOuterJoin(labelsTable)
-                .on(usersTable.column("id"))
-                .equals(labelsTable.column("entity_id"))
-                .and(labelsTable.column("entity_type"))
-                .equals(SQL.bindMarker(bindings.bind("user").getPlaceholder()))
-                .where(whereCondition)
-                .build(true);
-        } else {
-            select = Select.builder()
-                .select(Functions.count(distinctId))
-                .from(usersTable)
-                .where(whereCondition)
-                .build(true);
-        }
-        return new HaloPreparedOperation(
-            select, dataAccessStrategy.getStatementMapper().getRenderContext(), bindings
-        );
-    }
-
     private PreparedOperation<Select> prepareFind(ListOptions listOptions, Pageable pageable) {
-        var dataAccessStrategy = entityTemplate.getDataAccessStrategy();
-        var usersTable = Table.create(dataAccessStrategy.getTableName(UserEntity.class));
-        var dialect = (R2dbcDialect) dataAccessStrategy.getDialect();
-        var bindMarkers = dialect.getBindMarkersFactory().create();
-        var bindings = new MutableBindings(bindMarkers);
-        var labelSelector = listOptions.getLabelSelector();
-        var fieldSelector = listOptions.getFieldSelector();
-
-        var orderByFields = remapSort(pageable.getSort())
-            .stream()
-            .map(order -> OrderByField.from(
-                        usersTable.column(order.getProperty()), order.getDirection()
-                    )
-                    .withNullHandling(order.getNullHandling())
-            )
-            .toList();
-
-        Condition whereCondition = TrueCondition.INSTANCE;
-        if (fieldSelector != null) {
-            var fieldCondition = fieldSelector.query().toCondition(FIELD_MAP, usersTable, bindings);
-            whereCondition = whereCondition.and(Conditions.nest(fieldCondition));
-        }
-
-        final Select select;
-        if (labelSelector != null && !CollectionUtils.isEmpty(labelSelector.getMatchers())) {
-            var labelsTable = Table.create(dataAccessStrategy.getTableName(LabelEntity.class));
-            var labelsCondition = labelSelector.getMatchers().stream()
-                .map(matcher -> matcher.toCondition(labelsTable, bindings))
-                .reduce(Condition::and)
-                .orElse(null);
-            if (labelsCondition != null) {
-                whereCondition = whereCondition.and(Conditions.nest(labelsCondition));
-            }
-
-            SelectBuilder.SelectFromAndJoinCondition builder = Select.builder()
-                .select(usersTable.asterisk())
-                .from(usersTable)
-                .leftOuterJoin(labelsTable)
-                .on(usersTable.column("id"))
-                .equals(labelsTable.column("entity_id"))
-                .and(labelsTable.column("entity_type"))
-                .equals(SQL.bindMarker(bindings.bind("user").getPlaceholder()));
-
-            if (pageable.isUnpaged()) {
-                select = builder.where(whereCondition)
-                    .orderBy(orderByFields)
-                    .build(true);
-            } else {
-                select = builder
-                    .limitOffset(pageable.getPageSize(), pageable.getOffset())
-                    .where(whereCondition)
-                    .orderBy(orderByFields)
-                    .build(true);
-            }
-        } else {
-            var fromBuilder = Select.builder()
-                .select(usersTable.asterisk())
-                .from(usersTable);
-            if (pageable.isUnpaged()) {
-                select = fromBuilder.where(whereCondition)
-                    .orderBy(orderByFields)
-                    .build(true);
-            } else {
-                select = fromBuilder
-                    .limitOffset(pageable.getPageSize(), pageable.getOffset())
-                    .where(whereCondition)
-                    .orderBy(orderByFields)
-                    .build(true);
-            }
-        }
-
-        return new HaloPreparedOperation(
-            select, dataAccessStrategy.getStatementMapper().getRenderContext(), bindings
+        return QueryUtils.prepareSelect(
+            entityTemplate, listOptions, pageable, FIELD_MAP, GVK.groupKind(), UserEntity.class
         );
-    }
-
-    private Mono<Long> count(ListOptions options) {
-        return entityTemplate.query(prepareCount(options), UserEntity.class, Long.class).one();
     }
 
     @Override
     public <E extends Extension> Mono<ListResult<E>> pageBy(
         ListOptions options, Pageable pageable
     ) {
-        var queryResult = entityTemplate.query(prepareFind(options, pageable), UserEntity.class)
-            .all()
-            .collectList()
-            .flatMap(items -> getPage(items, pageable, count(options)));
+        var queryResult = QueryUtils.pageBy(
+            entityTemplate, options, pageable, FIELD_MAP, UserEntity.GK, UserEntity.class
+        );
         return queryResult.flatMap(page -> {
             var ids = page.stream().map(UserEntity::getId).toList();
             return labelService.getLabels(GVK.groupKind(), ids)
@@ -337,7 +198,9 @@ class UserExtensionAdapter implements ExtensionAdapter {
         entity.setDisabled(Boolean.TRUE.equals(user.getSpec().getDisabled()));
         entity.setAnnotations(user.getMetadata().getAnnotations());
         entity.setFinalizers(user.getMetadata().getFinalizers());
-        entity.setVersion(user.getMetadata().getVersion());
+        if (user.getMetadata().getVersion() != null) {
+            entity.setVersion(user.getMetadata().getVersion());
+        }
         if (user.getMetadata().getCreationTimestamp() != null) {
             entity.setCreatedDate(user.getMetadata().getCreationTimestamp());
         }
@@ -394,21 +257,6 @@ class UserExtensionAdapter implements ExtensionAdapter {
             throw new IllegalArgumentException(
                 "Unsupported extension type: " + extension.getClass());
         }
-    }
-
-    private static Sort remapSort(Sort sort) {
-        if (sort == null || sort.isUnsorted()) {
-            return Sort.unsorted();
-        }
-        return Sort.by(sort.stream()
-            .map(order -> {
-                var mappedProperty = FIELD_MAP.get(order.getProperty());
-                if (mappedProperty == null) {
-                    return order;
-                }
-                return order.withProperty(mappedProperty);
-            })
-            .toList());
     }
 
 }

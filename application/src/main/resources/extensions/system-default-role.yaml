@@ -8,8 +8,22 @@ metadata:
     rbac.authorization.halo.run/display-name: "访客"
     rbac.authorization.halo.run/disallow-access-console: "true"
     rbac.authorization.halo.run/redirect-on-login: "/uc"
+    rbac.authorization.halo.run/dependencies: |
+      ["guest-permission"]
 rules: []
 
+---
+apiVersion: v1alpha1
+kind: Role
+metadata:
+  name: guest-permission
+  labels:
+    rbac.authorization.halo.run/system-reserved: "true"
+    halo.run/role-template: "true"
+    halo.run/hidden: "true"
+  annotations:
+    rbac.authorization.halo.run/display-name: "访客"
+rules: []
 ---
 apiVersion: v1alpha1
 kind: Role
@@ -19,10 +33,21 @@ metadata:
     rbac.authorization.halo.run/system-reserved: "true"
   annotations:
     rbac.authorization.halo.run/display-name: "超级管理员"
-    rbac.authorization.halo.run/ui-permissions: |
-      ["*"]
     rbac.authorization.halo.run/dependencies: |
       ["super-permission"]
+---
+apiVersion: v1alpha1
+kind: Role
+metadata:
+  name: super-permission
+  labels:
+    rbac.authorization.halo.run/system-reserved: "true"
+    halo.run/role-template: "true"
+    halo.run/hidden: "true"
+  annotations:
+    rbac.authorization.halo.run/display-name: "超级管理员"
+    rbac.authorization.halo.run/ui-permissions: |
+      ["*"]
 rules:
   - apiGroups: ["*"]
     resources: ["*"]

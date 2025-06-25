@@ -47,6 +47,7 @@ create table if not exists roles (
     display_name varchar(255) not null,
     description varchar(1023) null,
     reserved boolean default false not null,
+    hidden boolean default false not null,
     created_by varchar(255) not null,
     last_modified_by varchar(255) not null,
     deleted_date timestamp with time zone null,
@@ -58,6 +59,8 @@ create table if not exists roles (
 
     primary key(id)
 );
+
+alter table roles add column if not exists hidden boolean default false not null;
 
 create table if not exists permissions (
     id varchar(255) not null,
@@ -85,14 +88,11 @@ create table if not exists user_roles (
     user_id varchar(255) not null,
     role_id varchar(255) not null,
     created_date timestamp with time zone default current_timestamp not null,
---    deleted_date timestamp with time zone null,
     version bigint default 0 not null,
 
     primary key (id),
     unique (user_id, role_id)
 );
-
-alter table user_roles add column if not exists created_date timestamp with time zone default current_timestamp not null;
 
 create table if not exists role_permissions (
     id bigint auto_increment not null,

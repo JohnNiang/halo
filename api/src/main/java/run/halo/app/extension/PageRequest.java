@@ -67,6 +67,9 @@ public interface PageRequest {
     }
 
     default Pageable toPageable() {
+        if (getPageSize() == 0) {
+            return Pageable.unpaged();
+        }
         return of(getPageNumber() - 1, getPageSize(), getSort());
     }
 }

@@ -17,13 +17,21 @@ public enum SetConverters {
         .build();
 
     @ReadingConverter
-    public enum SetReadingConverter implements Converter<String, Set<?>> {
-        INSTANCE;
+    public static class SetReadingConverter<T> implements Converter<String, Set<T>> {
+
+        private final Class<T> elementType;
+
+        public SetReadingConverter(Class<T> elementType) {
+            this.elementType = elementType;
+        }
 
         @Override
-        public Set<?> convert(String source) {
+        public Set<T> convert(String source) {
             try {
-                return new ObjectMapper().readValue(source, new TypeReference<>() {
+                // var setType =
+                //     MAPPER.getTypeFactory().constructCollectionType(Set.class, elementType);
+                // return MAPPER.readValue(source, setType);
+                return MAPPER.readValue(source, new TypeReference<Set<T>>() {
                 });
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -47,12 +55,17 @@ public enum SetConverters {
     }
 
     @ReadingConverter
-    public enum SetReadingPostgresConverter implements Converter<Json, Set<?>> {
-        INSTANCE;
+    public static class SetReadingPostgresConverter<T> implements Converter<Json, Set<T>> {
+
+        private final SetReadingConverter<T> delegate;
+
+        public SetReadingPostgresConverter(Class<T> elementType) {
+            this.delegate = new SetReadingConverter<>(elementType);
+        }
 
         @Override
-        public Set<?> convert(Json source) {
-            return SetReadingConverter.INSTANCE.convert(source.asString());
+        public Set<T> convert(Json source) {
+            return delegate.convert(source.asString());
         }
     }
 

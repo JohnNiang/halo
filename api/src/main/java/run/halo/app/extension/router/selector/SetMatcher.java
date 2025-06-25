@@ -118,9 +118,10 @@ public class SetMatcher implements SelectorMatcher {
                 ));
             }
             case NOT_EXISTS -> {
-                return Conditions.nest(table.column("label_name").isNotEqualTo(
-                    SQL.bindMarker(bindings.bind(key).getPlaceholder())
-                ));
+                return null;
+                // return Conditions.nest(table.column("label_name").isNotEqualTo(
+                //     SQL.bindMarker(bindings.bind(key).getPlaceholder())
+                // ));
             }
             default -> throw new IllegalArgumentException(
                 "Cannot build condition for operator: " + operator

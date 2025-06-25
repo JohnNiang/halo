@@ -1,7 +1,7 @@
 apiVersion: v1alpha1
 kind: "Role"
 metadata:
-  name: authenticated
+  name: authenticated-permission
   labels:
     halo.run/role-template: "true"
     halo.run/hidden: "true"
@@ -35,6 +35,19 @@ rules:
   - apiGroups: [ "uc.api.halo.run" ]
     resources: [ "user-preferences" ]
     verbs: [ "get", "update" ]
+---
+apiVersion: v1alpha1
+kind: "Role"
+metadata:
+  name: authenticated
+  labels:
+    halo.run/hidden: "true"
+    rbac.authorization.halo.run/system-reserved: "true"
+  annotations:
+    rbac.authorization.halo.run/display-name: "已认证角色"
+    rbac.authorization.halo.run/dependencies: |
+      [ "authenticated-permission" ]
+
 ---
 apiVersion: v1alpha1
 kind: "Role"
