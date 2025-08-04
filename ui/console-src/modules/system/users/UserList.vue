@@ -24,6 +24,7 @@ import {
 } from "@halo-dev/components";
 import { useQuery } from "@tanstack/vue-query";
 import { useRouteQuery } from "@vueuse/router";
+import { chunk } from "lodash-es";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import UserCreationModal from "./components/UserCreationModal.vue";
@@ -137,6 +138,57 @@ const handleDeleteInBatch = async () => {
   });
 };
 
+function handleEnableOrDisableInBatch(operation: "enable" | "disable") {
+  const operations = {
+    enable: {
+      title: t("core.user.operations.enable_in_batch.title"),
+      description: t("core.user.operations.enable_in_batch.description"),
+      request: (name: string) =>
+        consoleApiClient.user.enableUser({ username: name }),
+      condition: (user: User) => user.spec.disabled,
+      message: t("core.common.toast.enable_success"),
+    },
+    disable: {
+      title: t("core.user.operations.disable_in_batch.title"),
+      description: t("core.user.operations.disable_in_batch.description"),
+      request: (name: string) =>
+        consoleApiClient.user.disableUser({ username: name }),
+      condition: (user: User) => !user.spec.disabled,
+      message: t("core.common.toast.disable_success"),
+    },
+  };
+
+  const operationConfig = operations[operation];
+
+  Dialog.warning({
+    title: operationConfig.title,
+    description: operationConfig.description,
+    confirmType: "danger",
+    confirmText: t("core.common.buttons.confirm"),
+    cancelText: t("core.common.buttons.cancel"),
+    onConfirm: async () => {
+      const filteredUserNames = selectedUserNames.value.filter((name) => {
+        if (name === userStore.currentUser?.metadata.name) return false;
+        const user = users.value?.find((u) => u.user.metadata.name === name);
+        return user && operationConfig.condition(user.user);
+      });
+
+      const chunks = chunk(filteredUserNames, 5);
+
+      for (const chunk of chunks) {
+        await Promise.all(chunk.map((name) => operationConfig.request(name)));
+      }
+
+      await refetch();
+
+      selectedUserNames.value.length = 0;
+      checkedAll.value = false;
+
+      Toast.success(operationConfig.message);
+    },
+  });
+}
+
 watch(selectedUserNames, (newValue) => {
   checkedAll.value =
     newValue.length ===
@@ -242,6 +294,12 @@ function onCreationModalClose() {
             <div class="flex w-full flex-1 items-center sm:w-auto">
               <SearchInput v-if="!selectedUserNames.length" v-model="keyword" />
               <VSpace v-else>
+                <VButton @click="handleEnableOrDisableInBatch('disable')">
+                  {{ $t("core.common.buttons.disable") }}
+                </VButton>
+                <VButton @click="handleEnableOrDisableInBatch('enable')">
+                  {{ $t("core.common.buttons.enable") }}
+                </VButton>
                 <VButton type="danger" @click="handleDeleteInBatch">
                   {{ $t("core.common.buttons.delete") }}
                 </VButton>

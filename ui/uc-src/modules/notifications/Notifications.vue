@@ -16,6 +16,7 @@ import {
 } from "@halo-dev/components";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useRouteQuery } from "@vueuse/router";
+import { chunk } from "lodash-es";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -78,12 +79,16 @@ function handleDeleteNotifications() {
         throw new Error("Current user is not found");
       }
 
-      for (const notification of notifications.value.items) {
-        await ucApiClient.notification.notification.deleteSpecifiedNotification(
-          {
-            username: currentUser.metadata.name,
-            name: notification.metadata.name,
-          }
+      const notificationChunks = chunk(notifications.value.items, 5);
+
+      for (const chunk of notificationChunks) {
+        await Promise.all(
+          chunk.map((notification) =>
+            ucApiClient.notification.notification.deleteSpecifiedNotification({
+              username: currentUser.metadata.name,
+              name: notification.metadata.name,
+            })
+          )
         );
       }
 
@@ -156,20 +161,20 @@ function handleMarkAllAsRead() {
             ></VTabbar>
 
             <div
-              class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2"
+              class="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2"
             >
               <button
                 v-if="activeTab === 'unread'"
-                class="flex items-center justify-center h-7 w-7 rounded-full cursor-pointer hover:bg-gray-200 disabled:pointer-events-none disabled:opacity-70"
+                class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200 disabled:pointer-events-none disabled:opacity-70"
                 :disabled="!notifications?.items.length"
                 @click="handleMarkAllAsRead"
               >
                 <IconCheckboxCircle
-                  class="w-4 h-4 text-gray-600 group-hover:text-gray-900"
+                  class="h-4 w-4 text-gray-600 group-hover:text-gray-900"
                 />
               </button>
               <button
-                class="flex items-center justify-center h-7 w-7 group rounded-full cursor-pointer hover:bg-gray-200 disabled:pointer-events-none disabled:opacity-70"
+                class="group flex h-7 w-7 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200 disabled:pointer-events-none disabled:opacity-70"
                 :disabled="!notifications?.items.length"
                 @click="handleDeleteNotifications"
               >

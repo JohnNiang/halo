@@ -1,11 +1,12 @@
 import type { EditorState, Rect, Selection, Transaction } from "@/tiptap/pm";
-import { CellSelection, Node, TableMap, selectedRect } from "@/tiptap/pm";
+import { CellSelection, Node, selectedRect, TableMap } from "@/tiptap/pm";
 import { findParentNode } from "@/tiptap/vue-3";
 
 export const selectTable = (tr: Transaction) => {
   const table = findTable(tr.selection);
   if (table) {
-    const { map } = TableMap.get(table.node);
+    const { node } = table;
+    const { map } = TableMap.get(node);
     if (map && map.length) {
       const head = table.start + map[0];
       const anchor = table.start + map[map.length - 1];
@@ -79,28 +80,31 @@ export const getCellsInColumn =
       const indexes = Array.isArray(columnIndex)
         ? columnIndex
         : Array.from([columnIndex]);
-      return indexes.reduce((acc, index) => {
-        if (index >= 0 && index <= map.width - 1) {
-          const cells = map.cellsInRect({
-            left: index,
-            right: index + 1,
-            top: 0,
-            bottom: map.height,
-          });
-          return acc.concat(
-            cells.map((nodePos: number) => {
-              const node = table.node.nodeAt(nodePos);
-              const pos = nodePos + table.start;
-              return { pos, start: pos + 1, node };
-            }) as unknown as {
-              pos: number;
-              start: number;
-              node: Node | null | undefined;
-            }[]
-          );
-        }
-        return acc;
-      }, [] as { pos: number; start: number; node: Node | null | undefined }[]);
+      return indexes.reduce(
+        (acc, index) => {
+          if (index >= 0 && index <= map.width - 1) {
+            const cells = map.cellsInRect({
+              left: index,
+              right: index + 1,
+              top: 0,
+              bottom: map.height,
+            });
+            return acc.concat(
+              cells.map((nodePos: number) => {
+                const node = table.node.nodeAt(nodePos);
+                const pos = nodePos + table.start;
+                return { pos, start: pos + 1, node };
+              }) as unknown as {
+                pos: number;
+                start: number;
+                node: Node | null | undefined;
+              }[]
+            );
+          }
+          return acc;
+        },
+        [] as { pos: number; start: number; node: Node | null | undefined }[]
+      );
     }
   };
 
@@ -112,28 +116,31 @@ export const getCellsInRow =
       const indexes = Array.isArray(rowIndex)
         ? rowIndex
         : Array.from([rowIndex]);
-      return indexes.reduce((acc, index) => {
-        if (index >= 0 && index <= map.height - 1) {
-          const cells = map.cellsInRect({
-            left: 0,
-            right: map.width,
-            top: index,
-            bottom: index + 1,
-          });
-          return acc.concat(
-            cells.map((nodePos) => {
-              const node = table.node.nodeAt(nodePos);
-              const pos = nodePos + table.start;
-              return { pos, start: pos + 1, node };
-            }) as unknown as {
-              pos: number;
-              start: number;
-              node: Node | null | undefined;
-            }[]
-          );
-        }
-        return acc;
-      }, [] as { pos: number; start: number; node: Node | null | undefined }[]);
+      return indexes.reduce(
+        (acc, index) => {
+          if (index >= 0 && index <= map.height - 1) {
+            const cells = map.cellsInRect({
+              left: 0,
+              right: map.width,
+              top: index,
+              bottom: index + 1,
+            });
+            return acc.concat(
+              cells.map((nodePos) => {
+                const node = table.node.nodeAt(nodePos);
+                const pos = nodePos + table.start;
+                return { pos, start: pos + 1, node };
+              }) as unknown as {
+                pos: number;
+                start: number;
+                node: Node | null | undefined;
+              }[]
+            );
+          }
+          return acc;
+        },
+        [] as { pos: number; start: number; node: Node | null | undefined }[]
+      );
     }
   };
 
