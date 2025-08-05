@@ -2,11 +2,13 @@ package run.halo.app.extension.gc;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import run.halo.app.core.extension.Role;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.ExtensionClient;
 import run.halo.app.extension.ExtensionConverter;

@@ -1,8 +1,12 @@
 package run.halo.app.extension.gc;
 
 import java.util.List;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationListener;
 import org.springframework.data.domain.Sort;
+import run.halo.app.core.extension.Role;
+import run.halo.app.core.extension.RoleBinding;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.ExtensionClient;
 import run.halo.app.extension.ListOptions;
@@ -15,7 +19,12 @@ import run.halo.app.extension.event.SchemeAddedEvent;
 import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 
+@Slf4j
 class GcSynchronizer implements Synchronizer<GcRequest>, ApplicationListener<SchemeAddedEvent> {
+
+    private static final Set<Class<?>> IGNORED_TYPES = Set.of(
+        Role.class, RoleBinding.class
+    );
 
     private final ExtensionClient client;
 
@@ -66,6 +75,7 @@ class GcSynchronizer implements Synchronizer<GcRequest>, ApplicationListener<Sch
         client.watch(watcher);
         schemeManager.schemes().stream()
             .map(Scheme::type)
+            .filter(type -> !IGNORED_TYPES.contains(type))
             .forEach(type -> listDeleted(type).forEach(watcher::onDelete));
     }
 
