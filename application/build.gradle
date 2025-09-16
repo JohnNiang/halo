@@ -201,7 +201,8 @@ tasks.named('generateOpenApiDocs') {
 
 def name = 'halo'
 def tagName = "${project.version}-cnb"
-if (!Objects.equals(project.findProperty('release'), 'true')) {
+def isRelease = Objects.equals(project.findProperty('release'), 'true')
+if (!isRelease) {
     name = 'halo-dev'
     tagName = "cnb-sha-${grgit.head().abbreviatedId}"
 }
@@ -209,8 +210,11 @@ if (!Objects.equals(project.findProperty('release'), 'true')) {
 tasks.register('publishToGhcr', BootBuildImage) {
     group = 'publishing'
     description = 'Build and publish the Docker image to GitHub Container Registry.'
-    imageName = "ghcr.io/johnniang/${name}:${tagName}"
+    imageName = "ghcr.io/halo/${name}:${tagName}"
     publish = StringUtils.hasText(System.getenv('GHCR_TOKEN'))
+    if (!isRelease) {
+        tags = ["ghcr.io/halo/${name}:main".toString()]
+    }
     docker {
         publishRegistry {
             username = System.getenv('GHCR_USERNAME')
@@ -225,6 +229,9 @@ tasks.register('publishToDockerHub', BootBuildImage) {
     description = 'Build and publish the Docker image to Docker Hub.'
     imageName = "halohub/${name}:${tagName}"
     publish = StringUtils.hasText(System.getenv('DOCKER_TOKEN'))
+    if (!isRelease) {
+        tags = ["halohub/${name}:main".toString()]
+    }
     docker {
         publishRegistry {
             username = System.getenv("DOCKER_USERNAME")
@@ -238,6 +245,9 @@ tasks.register('publishToFit2Cloud', BootBuildImage) {
     imageName = "registry.fit2cloud.com/${name}:${tagName}"
     description = 'Build and publish the Docker image to Fit2Cloud Container Registry.'
     publish = StringUtils.hasText(System.getenv('F2C_TOKEN'))
+    if (!isRelease) {
+        tags = ["registry.fit2cloud.com/${name}:main".toString()]
+    }
     docker {
         publishRegistry {
             username = System.getenv("F2C_USERNAME")
