@@ -95,35 +95,16 @@ jobs:
           version=${{ github.event.release.tag_name }}
           version=${version#v}
           sed -i "s/version=.*-SNAPSHOT$/version=$version/1" gradle.properties
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Login to DockerHub
+      - name: Publish To Container Registries
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        if: env.DOCKER_USERNAME != '' && github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-      - name: Login to Fit2Cloud Docker Registry
-        env:
-          F2C_REGISTRY_USER: ${{ secrets.F2C_REGISTRY_USER }}
-        if: env.F2C_REGISTRY_USER != '' && github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: registry.fit2cloud.com
-          username: ${{ secrets.F2C_REGISTRY_USER }}
-          password: ${{ secrets.F2C_REGISTRY_TOKEN }}
-      - name: Build Image
-        run: |
-          # Set the version with tag name when releasing
-          version=${{ github.event.release.tag_name }}
-          version=${version#v}
-          ./gradlew bootBuildImage --publishImage -Prelease=${{ github.event_name == 'release' && 'true' || 'false' }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+          F2C_USERNAME: ${{ secrets.F2C_REGISTRY_USER }}
+          F2C_TOKEN: ${{ secrets.F2C_REGISTRY_TOKEN }}
+          GHCR_USERNAME: ${{ github.repository_owner }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run:
+          ./gradlew publishToAllRegistries -Prelease=${{ github.event_name == 'release' && 'true' || 'false' }}
 
   docker-build-and-push:
     if: always() && needs.build.result == 'success' && (github.event_name == 'push' || github.event_name == 'release')

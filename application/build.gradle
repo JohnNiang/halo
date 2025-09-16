@@ -1,5 +1,7 @@
 import de.undercouch.gradle.tasks.download.Download
 import org.gradle.crypto.checksum.Checksum
+import org.springframework.boot.gradle.tasks.bundling.BootBuildImage
+import org.springframework.boot.gradle.tasks.bundling.BootJar
 
 plugins {
     id "checkstyle"
@@ -196,17 +198,56 @@ tasks.named('generateOpenApiDocs') {
     }
 }
 
-tasks.named('bootBuildImage') {
-    def name = 'halo'
-    def tagName = "${project.version}-cnb"
-    if (!Objects.equals(project.findProperty('release'), 'true')) {
-        name = 'halo-dev'
-        tagName = "cnb-sha-${grgit.head().abbreviatedId}"
+def name = 'halo'
+def tagName = "${project.version}-cnb"
+if (!Objects.equals(project.findProperty('release'), 'true')) {
+    name = 'halo-dev'
+    tagName = "cnb-sha-${grgit.head().abbreviatedId}"
+}
+
+tasks.register('publishToGhcr', BootBuildImage) {
+    group = 'publishing'
+    description = 'Build and publish the Docker image to GitHub Container Registry.'
+    imageName = "ghcr.io/johnniang/${name}:${tagName}"
+    publish = System.getenv("GHCR_TOKEN") != null
+    docker {
+        publishRegistry {
+            username = System.getenv("GHCR_USERNAME")
+            password = System.getenv("GHCR_TOKEN")
+        }
     }
+    archiveFile = tasks.named('bootJar', BootJar).get().archiveFile
+}
+
+tasks.register('publishToDockerHub', BootBuildImage) {
+    group = 'publishing'
+    description = 'Build and publish the Docker image to Docker Hub.'
     imageName = "halohub/${name}:${tagName}"
-    tags = [
-            // Additional tags for different registries
-            "ghcr.io/johnniang/${name}:${tagName}",
-            "registry.fit2cloud.com/${name}:${tagName}"
-    ]
+    publish = System.getenv("DOCKER_TOKEN") != null
+    docker {
+        publishRegistry {
+            username = System.getenv("DOCKER_USERNAME")
+            password = System.getenv("DOCKER_TOKEN")
+        }
+    }
+    archiveFile = tasks.named('bootJar', BootJar).get().archiveFile
+}
+
+tasks.register('publishToFit2Cloud', BootBuildImage) {
+    imageName = "registry.fit2cloud.com/${name}:${tagName}"
+    description = 'Build and publish the Docker image to Fit2Cloud Container Registry.'
+    publish = System.getenv('F2C_TOKEN') != null
+    docker {
+        publishRegistry {
+            username = System.getenv("F2C_USERNAME")
+            password = System.getenv("F2C_TOKEN")
+        }
+    }
+    archiveFile = tasks.named('bootJar', BootJar).get().archiveFile
+}
+
+tasks.register('publishToAllRegistries') {
+    group = 'publishing'
+    description = 'Build and publish the Docker image to all configured registries.'
+    dependsOn tasks.named('publishToGhcr'), tasks.named('publishToDockerHub'), tasks.named('publishToFit2Cloud')
 }
