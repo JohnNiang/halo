@@ -206,7 +206,7 @@ tasks.named('bootBuildImage') {
     imageName = "halohub/${name}:${tagName}"
     tags = [
             // Additional tags for different registries
-            "ghcr.io/halo-dev/${name}:${tagName}",
+            "ghcr.io/johnniang/${name}:${tagName}",
             "registry.fit2cloud.com/${name}:${tagName}"
     ]
 }
