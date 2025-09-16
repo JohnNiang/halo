@@ -112,7 +112,7 @@ public class UcAttachmentEndpoint implements CustomEndpoint {
             .POST("/attachments/-/upload-from-url", contentType(MediaType.APPLICATION_JSON),
                 this::uploadFromUrlForPost,
                 builder -> builder
-                    .operationId("ExternalTransferAttachment")
+                    .operationId("ExternalTransferAttachment_1")
                     .description("Upload attachment from the given URL.")
                     .tag(tag)
                     .parameter(parameterBuilder()
@@ -333,8 +333,9 @@ public class UcAttachmentEndpoint implements CustomEndpoint {
         return GroupVersion.parseAPIVersion("uc.api.storage.halo.run/v1alpha1");
     }
 
+    @Schema(name = "UcUploadFromUrlRequest")
     public record UploadFromUrlRequest(@Schema(requiredMode = REQUIRED) URL url,
-                                       String filename) {
+                                       @Schema(description = "Custom file name") String filename) {
         public UploadFromUrlRequest {
             if (Objects.isNull(url)) {
                 throw new ServerWebInputException("Required url is missing.");

@@ -7,7 +7,9 @@ import {
   Toast,
   VAlert,
   VButton,
+  VEmpty,
   VEntity,
+  VEntityContainer,
   VEntityField,
   VLoading,
   VTabItem,
@@ -61,7 +63,12 @@ const { isLoading: downloading, mutate: handleRemoteDownload } = useMutation({
   },
 });
 
-const { data: backupFiles } = useQuery({
+const {
+  data: backupFiles,
+  refetch: refetchBackupFiles,
+  isLoading: isLoadingBackupFiles,
+  isFetching: isFetchingBackupFiles,
+} = useQuery({
   queryKey: ["backup-files", activeTabId],
   queryFn: async () => {
     const { data } = await consoleApiClient.migration.getBackupFiles();
@@ -179,43 +186,57 @@ useQuery({
           id="backups"
           :label="$t('core.backup.restore.tabs.backup.label')"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100 overflow-hidden rounded-base border"
-            role="list"
+          <VLoading v-if="isLoadingBackupFiles" />
+          <VEntityContainer v-else-if="backupFiles?.length">
+            <VEntity
+              v-for="backupFile in backupFiles"
+              :key="backupFile.filename"
+            >
+              <template #start>
+                <VEntityField
+                  :title="backupFile.filename"
+                  :description="prettyBytes(backupFile.size || 0)"
+                >
+                </VEntityField>
+              </template>
+              <template #end>
+                <VEntityField v-if="backupFile.lastModifiedTime">
+                  <template #description>
+                    <span class="truncate text-xs tabular-nums text-gray-500">
+                      {{ formatDatetime(backupFile.lastModifiedTime) }}
+                    </span>
+                  </template>
+                </VEntityField>
+                <VEntityField v-permission="['system:migrations:manage']">
+                  <template #description>
+                    <VButton
+                      size="sm"
+                      @click="handleRestoreFromBackup(backupFile)"
+                    >
+                      {{
+                        $t("core.backup.operations.restore_by_backup.button")
+                      }}
+                    </VButton>
+                  </template>
+                </VEntityField>
+              </template>
+            </VEntity>
+          </VEntityContainer>
+
+          <VEmpty
+            v-else
+            :title="$t('core.backup.restore.tabs.backup.empty.title')"
+            :message="$t('core.backup.restore.tabs.backup.empty.message')"
           >
-            <li v-for="backupFile in backupFiles" :key="backupFile.filename">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="backupFile.filename"
-                    :description="prettyBytes(backupFile.size || 0)"
-                  >
-                  </VEntityField>
-                </template>
-                <template #end>
-                  <VEntityField v-if="backupFile.lastModifiedTime">
-                    <template #description>
-                      <span class="truncate text-xs tabular-nums text-gray-500">
-                        {{ formatDatetime(backupFile.lastModifiedTime) }}
-                      </span>
-                    </template>
-                  </VEntityField>
-                  <VEntityField v-permission="['system:migrations:manage']">
-                    <template #description>
-                      <VButton
-                        size="sm"
-                        @click="handleRestoreFromBackup(backupFile)"
-                      >
-                        {{
-                          $t("core.backup.operations.restore_by_backup.button")
-                        }}
-                      </VButton>
-                    </template>
-                  </VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
+            <template #actions>
+              <VButton
+                :loading="isFetchingBackupFiles"
+                @click="refetchBackupFiles"
+              >
+                {{ $t("core.common.buttons.refresh") }}
+              </VButton>
+            </template>
+          </VEmpty>
         </VTabItem>
       </VTabs>
     </div>

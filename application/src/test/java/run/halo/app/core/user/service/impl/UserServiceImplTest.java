@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.when;
 import static run.halo.app.extension.GroupVersionKind.fromExtension;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +32,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Flux;
@@ -39,17 +42,21 @@ import run.halo.app.core.extension.Role;
 import run.halo.app.core.extension.RoleBinding;
 import run.halo.app.core.extension.RoleBinding.Subject;
 import run.halo.app.core.extension.User;
+import run.halo.app.core.user.service.EmailVerificationService;
 import run.halo.app.core.user.service.RoleService;
 import run.halo.app.core.user.service.SignUpData;
 import run.halo.app.core.user.service.UserPostCreatingHandler;
 import run.halo.app.core.user.service.UserPreCreatingHandler;
+import run.halo.app.core.user.service.UserService;
 import run.halo.app.event.user.PasswordChangedEvent;
+import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.infra.SystemConfigurableEnvironmentFetcher;
 import run.halo.app.infra.SystemSetting;
 import run.halo.app.infra.exception.DuplicateNameException;
+import run.halo.app.infra.exception.EmailAlreadyTakenException;
 import run.halo.app.infra.exception.UnsatisfiedAttributeValueException;
 import run.halo.app.infra.exception.UserNotFoundException;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
@@ -75,6 +82,9 @@ class UserServiceImplTest {
     @Mock
     ExtensionGetter extensionGetter;
 
+    @Mock
+    EmailVerificationService emailVerificationService;
+
     @InjectMocks
     UserServiceImpl userService;
 
@@ -98,6 +108,19 @@ class UserServiceImplTest {
             .verifyComplete();
 
         verify(client, times(1)).get(eq(User.class), eq("faker"));
+    }
+
+    @Test
+    void shouldGetGhostsIfUsersContainDeleted() {
+        var fakeUser1 = createUser("fake-user1", "fake-password");
+        var fakeUser2 = createUser("fake-user2", "fake-password");
+        var ghost = createUser(UserService.GHOST_USER_NAME, "fake-password");
+        when(client.listAll(eq(User.class), any(ListOptions.class), any(Sort.class)))
+            .thenReturn(Flux.just(fakeUser1, fakeUser2, ghost));
+        userService.getUsersOrGhosts(List.of("fake-user1", "deleted-user", "fake-user2"))
+            .as(StepVerifier::create)
+            .expectNext(fakeUser1, ghost, fakeUser2)
+            .verifyComplete();
     }
 
     @Test
@@ -220,14 +243,18 @@ class UserServiceImplTest {
 
     }
 
-    User createUser(String password) {
+    User createUser(String username, String password) {
         var user = new User();
         Metadata metadata = new Metadata();
-        metadata.setName("fake-user");
+        metadata.setName(username);
         user.setMetadata(metadata);
         user.setSpec(new User.UserSpec());
         user.getSpec().setPassword(password);
         return user;
+    }
+
+    User createUser(String password) {
+        return createUser("fake-user", password);
     }
 
     @Nested
@@ -376,6 +403,36 @@ class UserServiceImplTest {
         }
 
         @Test
+        void signUpWhenEmailAlreadyTaken() {
+            SystemSetting.User userSetting = new SystemSetting.User();
+            userSetting.setAllowRegistration(true);
+            userSetting.setMustVerifyEmailOnRegistration(true);
+            userSetting.setDefaultRole("fake-role");
+            when(environmentFetcher.fetch(eq(SystemSetting.User.GROUP),
+                eq(SystemSetting.User.class)))
+                .thenReturn(Mono.just(userSetting));
+            when(passwordEncoder.encode(eq("fake-password"))).thenReturn("fake-password");
+            when(emailVerificationService.verifyRegisterVerificationCode("fake@example.com",
+                "fakeCode"))
+                .thenReturn(Mono.just(true));
+            when(client.listAll(same(User.class), any(ListOptions.class), any(Sort.class)))
+                .thenReturn(Flux.from(Mono.fromSupplier(() -> {
+                    var user = new User();
+                    user.setSpec(new User.UserSpec());
+                    user.getSpec().setEmailVerified(true);
+                    return user;
+                })));
+
+            var signUpData = createSignUpData("fake-user", "fake-password");
+            signUpData.setEmail("fake@example.com");
+            signUpData.setEmailCode("fakeCode");
+            userService.signUp(signUpData)
+                .as(StepVerifier::create)
+                .expectError(EmailAlreadyTakenException.class)
+                .verify();
+        }
+
+        @Test
         void signUpWhenRegistrationSuccessfully() {
             SystemSetting.User userSetting = new SystemSetting.User();
             userSetting.setAllowRegistration(true);
@@ -458,4 +515,5 @@ class UserServiceImplTest {
             .expectNext(true)
             .verifyComplete();
     }
+
 }

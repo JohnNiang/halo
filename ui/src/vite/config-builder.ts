@@ -7,7 +7,6 @@ import Icons from "unplugin-icons/vite";
 import { fileURLToPath } from "url";
 import { defineConfig, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import VueDevTools from "vite-plugin-vue-devtools";
 import { setupLibraryExternal } from "./library-external";
 
 interface Options {
@@ -44,7 +43,6 @@ export const sharedPlugins = [
     },
     disable: true,
   }),
-  VueDevTools(),
 ];
 
 export function createViteConfig(options: Options) {
@@ -57,6 +55,9 @@ export function createViteConfig(options: Options) {
 
   return defineConfig({
     base,
+    experimental: {
+      enableNativePlugin: isProduction,
+    },
     plugins: [
       ...sharedPlugins,
       ...setupLibraryExternal(isProduction, base, entryFile),
@@ -81,19 +82,22 @@ export function createViteConfig(options: Options) {
       chunkSizeWarningLimit: 2048,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: [
+          advancedChunks: {
+            groups: [
               "lodash-es",
               "vue-grid-layout",
               "transliteration",
               "vue-draggable-plus",
-              "emoji-mart",
               "colorjs.io",
-              "jsencrypt",
               "overlayscrollbars",
               "overlayscrollbars-vue",
               "floating-vue",
-            ],
+              "@he-tree/vue",
+              "pretty-bytes",
+            ].map((name) => ({
+              name: "vendor",
+              test: name,
+            })),
           },
         },
       },

@@ -22,6 +22,7 @@ core:
         overview: 概覽
         backup: 備份
         tools: 工具
+        home: 首页
     operations:
       logout:
         tooltip: 登出
@@ -31,6 +32,8 @@ core:
         tooltip: 個人中心
       visit_homepage:
         title: 訪問首頁
+    profile:
+      aggregate_role: 聚合角色
   uc_sidebar:
     menu:
       items:
@@ -40,14 +43,13 @@ core:
     operations:
       console:
         tooltip: 管理控制台
+    profile:
+      aggregate_role: 聚合角色
   dashboard:
-    title: 儀表板
+    title: 儀表盤
     actions:
       setting: 設置
-      done: 完成
-      add_widget: 添加組件
     widgets:
-      modal_title: 小組件
       groups:
         post: 文章
         page: 頁面
@@ -63,12 +65,14 @@ core:
           title: 最近文章
           visits: 訪問量 {visits}
           comments: 留言 {comments}
-          publishTime: 發佈日期 {publishTime}
+          empty:
+            title: 沒有已發布文章
+          comments-with-pending: " ({count} 條待審核)"
         notification:
           title: 通知
           empty:
             title: 當前沒有未讀的消息
-        quicklink:
+        quickaction:
           title: 快捷訪問
           actions:
             user_center:
@@ -92,12 +96,72 @@ core:
               dialog_title: 刷新搜尋引擎索引
               dialog_content: 此操作會對所有已發佈的文章重新創建本地搜尋引擎的索引。
               success_message: 刷新成功
+          config:
+            fields:
+              enabled_items:
+                label: 啟用的功能
         user_stats:
           title: 用戶
         comment_stats:
           title: 留言
         views_stats:
           title: 瀏覽量
+        pending_comments:
+          title: 新評論
+          empty:
+            title: 沒有待審核評論
+        iframe:
+          title: 網頁嵌入
+          empty:
+            title: 請在配置中輸入 URL
+          config:
+            fields:
+              title:
+                label: 標題
+        stack:
+          title: 堆疊部件
+          operations:
+            add_widget:
+              button: 添加部件
+          config_modal:
+            title: 堆疊部件配置
+            fields:
+              auto_play:
+                label: 自動切換
+              auto_play_interval:
+                label: 自動切換間隔
+              widgets:
+                label: 部件
+            toast:
+              nest_warning: 不能將堆疊部件添加到堆疊部件中
+      common_form:
+        fields:
+          enable_animation:
+            label: 啟用動畫
+  dashboard_designer:
+    title: 編輯儀表盤
+    actions:
+      add_widget: 添加部件
+    widgets_modal:
+      title: 小部件
+    config_modal:
+      title: 部件配置
+    operations:
+      back:
+        title: 佈局未儲存
+        description: 當前編輯的佈局還未儲存，放棄後，當前佈局將遺失，是否繼續？
+        confirm_text: 放棄
+      change_breakpoint:
+        tips_not_saved: 請先儲存當前佈局
+      copy_from_layout:
+        button: 從其他布局複製
+      open_widgets_hub:
+        button: 小部件中心
+    breakpoints:
+      lg: 桌面端
+      md: 平板端（橫向）
+      sm: 平板端
+      xs: 手機端
   post:
     title: 文章
     actions:
@@ -161,6 +225,7 @@ core:
         pinned: 已置頂
         schedule_publish:
           tooltip: 定時發佈
+        comments-with-pending: ({count} 條待審核)
     settings:
       title: 文章設置
       groups:
@@ -219,6 +284,15 @@ core:
         allow_comment_value: 選擇是否允許評論
         owner_group: 作者
         owner_value: 設置作者
+    tag:
+      filters:
+        sort:
+          items:
+            create_time_desc: 較近建立
+            create_time_asc: 較早建立
+            display_name_desc: 標籤名稱降序
+            display_name_asc: 標籤名稱升序
+            post_desc: 最多文章量
   deleted_post:
     title: 文章回收站
     empty:
@@ -267,7 +341,7 @@ core:
           label: 名稱
         slug:
           label: 別名
-          help: 通常用於生成分類的固定連結
+          help: 通常用於生成標籤的固定連結
           refresh_message: 根據名稱重新生成別名
         color:
           label: 顏色
@@ -302,7 +376,7 @@ core:
           label: 名稱
         slug:
           label: 別名
-          help: 通常用於生成標籤的固定連結
+          help: 通常用於生成分類的固定連結
           refresh_message: 根據名稱重新生成別名
         template:
           label: 自定義模板
@@ -312,7 +386,7 @@ core:
           help: 需要主題適配以支持
         description:
           label: 描述
-          help: 需要主題適配以支持
+          help: 描述會自動添加到頁面用於 SEO 的描述標籤中，其他顯示用途需要主題適配
         prevent_parent_post_cascade_query:
           label: 防止父級聯查詢
           help: 阻止父級分類在級聯文章查詢中包含此分類及其子分類
@@ -364,6 +438,7 @@ core:
       fields:
         visits: 訪問量 {visits}
         comments: 留言 {comments}
+        comments-with-pending: " ({count} 條待審核)"
     settings:
       title: 頁面設置
       groups:
@@ -440,10 +515,16 @@ core:
         title: 確定要審核通過該留言的所有回覆嗎？
       delete_reply:
         title: 刪除回覆
-      approve_reply:
-        button: 審核通過
+      review:
+        button: 審核
       reply:
         button: 回覆
+      approve:
+        button: 通過
+      reply_and_approve:
+        button: 回覆並通過
+      cancel_approve:
+        button: 取消通過
     filters:
       status:
         items:
@@ -465,6 +546,7 @@ core:
         reply_count: "{count} 條回覆"
         has_new_replies: 有新的回覆
         pending_review: 待審核
+        private: 私密
     subject_refs:
       post: 文章
       page: 頁面
@@ -477,6 +559,25 @@ core:
       operations:
         submit:
           toast_success: 回覆成功
+    text:
+      commented_on: 評論在
+      replied_below: 回覆：
+    detail_modal:
+      fields:
+        owner: 評論者
+        creation_time: 評論時間
+        commented_on: 評論在
+        new_reply: 新回覆
+        user_agent: 用戶代理（UA）
+    comment_detail_modal:
+      title: 評論詳情
+      fields:
+        content: 評論內容
+    reply_detail_modal:
+      title: 回覆詳情
+      fields:
+        original_comment: 原評論
+        content: 回覆內容
   attachment:
     title: 附件庫
     common:
@@ -484,6 +585,7 @@ core:
         ungrouped: 未分組
     actions:
       storage_policies: 存儲策略
+      thumbnails: 縮略圖
     empty:
       title: 當前分組沒有附件
       message: 當前分組沒有附件，你可以嘗試重整或者上傳附件
@@ -537,6 +639,7 @@ core:
         owner: 上傳者
         creation_time: 上傳時間
         permalink: 連結
+        thumbnails: 縮略圖
       preview:
         click_to_exit: 點擊離開預覽
         video_not_support: 當前瀏覽器不支援該影片播放
@@ -599,6 +702,15 @@ core:
             title: 沒有存儲策略
             description: 在上傳之前，需要新建一個存儲策略
           not_select: 請先選擇存儲策略
+      upload_options:
+        local_upload: 本地上傳
+        download: 通過鏈接下載
+      download_form:
+        fields:
+          url:
+            label: 鏈接地址
+        toast:
+          success: 下載成功
     select_modal:
       title: 選擇附件
       providers:
@@ -607,6 +719,24 @@ core:
       operations:
         select:
           result: （已選擇 {count} 項）
+    permalink_list:
+      relative: 相對路徑
+      absolute: 完整路徑
+    thumbnails_modal:
+      title: 縮略圖記錄
+      empty:
+        title: 沒有縮略圖記錄
+        message: 當前沒有縮略圖記錄，縮略圖會在上傳圖片附件後自動生成。
+      operations:
+        retry_all_failed:
+          button: 重試所有失敗記錄
+          tips_empty: 沒有失敗記錄
+          tips_success: 重試所有失敗記錄成功
+    thumbnails:
+      phase:
+        pending: 等待生成
+        succeeded: 生成成功
+        failed: 生成失敗
   uc_attachment:
     empty:
       title: 當前沒有附件
@@ -877,6 +1007,7 @@ core:
         repo: 源碼倉庫
         load_location: 存儲位置
         issues: 問題回饋
+        creation_time: 安裝時間
       operations:
         view_conditions:
           button: 查看最近狀態
@@ -903,6 +1034,9 @@ core:
       extension-definition:
         empty:
           title: 當前沒有擴展點實現
+        operation:
+          use:
+            button: 使用
     actions:
       extension-point-settings: 擴展配置
   user:
@@ -924,6 +1058,18 @@ core:
         title: 修改密碼
       grant_permission:
         title: 分配角色
+      enable:
+        title: 啟用
+        description: 確定要啟用該用戶嗎？啟用後該用戶將可以重新登入系統
+      enable_in_batch:
+        title: 启用
+        description: 確定要啟用所選用戶嗎？啟用後這些用戶將可以重新登入系統
+      disable:
+        title: 停用
+        description: 確定要停用該用戶嗎？停用後該用戶將無法登入系統
+      disable_in_batch:
+        title: 停用
+        description: 確定要停用所選用戶嗎？停用後這些用戶將無法登入系統
     filters:
       role:
         label: 角色
@@ -966,6 +1112,9 @@ core:
         role:
           label: 角色
           placeholder: 請選擇角色
+      roles_preview:
+        all: 目前所選角色包含所有權限
+        includes: 目前選定角色所包含的權限：
     detail:
       title: 用戶詳情
       tabs:
@@ -991,6 +1140,8 @@ core:
           tooltip: 已驗證
         email_not_verified:
           tooltip: 未驗證
+    fields:
+      disabled: 已停用
   role:
     title: 角色
     common:
@@ -1140,6 +1291,7 @@ core:
                 manual:
                   label: 如果您無法掃描二維碼，請按一下查看替代步驟。
                   help: 使用以下程式碼手動配置驗證器應用程式：
+              tips: 請妥善保管您的兩步驟驗證裝置，如果裝置遺失或損壞，您將無法登入系統。建議您在多個裝置上安裝驗證器應用程式，或保存好金鑰的備份，以防主要裝置無法使用。
     pat:
       operations:
         delete:
@@ -1239,6 +1391,7 @@ core:
       list:
         fields:
           last_accessed_time: 上次訪問：{time}
+          current: 目前設備
       detail_modal:
         title: 登入設備詳情
         fields:
@@ -1251,6 +1404,10 @@ core:
         revoke:
           title: 撤銷設備
           description: 確定要撤銷該設備嗎？撤銷之後，此裝置會退出登錄
+        revoke_others:
+          title: 撤銷其他所有設備
+          toast_success: 已撤銷其他設備的登入狀態
+          description: 確定要撤銷其他所有設備嗎？撤銷之後，其他設備會登出登入
   uc_notification:
     title: 訊息
     tabs:
@@ -1266,6 +1423,12 @@ core:
       delete:
         description: 確定要刪除該訊息嗎？
         title: 刪除訊息
+      delete_all:
+        title: 刪除目前所有通知
+        description: 確定要刪除目前所有通知嗎？刪除後將無法復原。
+      mark_all_as_read:
+        title: 將目前所有通知標示為已讀
+        description: 將目前所有通知標示為已讀，是否繼續？
   setting:
     title: 設置
   overview:
@@ -1301,6 +1464,13 @@ core:
       os: 操作系統：{os}
     alert:
       external_url_invalid: 檢測到外部訪問地址與當前訪問地址不一致，可能會導致部分連結無法正常跳轉，請檢查外部訪問地址設置。
+    external_url_form:
+      operations:
+        save:
+          title: 修改外部訪問地址
+          description: 修改外部訪問地址需要重啟 Halo 服務，修改完成之後會自動進行重啟，是否繼續？
+      tips:
+        restarting: 修改完成，等待重啟...
   backup:
     title: 備份與還原
     tabs:
@@ -1353,6 +1523,9 @@ core:
             url: 下載地址
         backup:
           label: 從備份檔案恢復
+          empty:
+            title: 沒有備份文件
+            message: 目前沒有掃描到備份文件，你可以手動將備份文件上傳到 Halo 工作目錄的 backups 目錄。
   exception:
     not_found:
       message: 沒有找到該頁面
@@ -1435,7 +1608,9 @@ core:
     Post Contributor: 允許投稿
     Post Publisher: 允許發布自己的文章
     UC Attachment Manage: 允許管理自己的附件
+    role-template-uc-attachment-manager: 允許管理自己的附件
     Recycle My Post: 允許刪除自己的文章
+    role-template-recycle-my-post: 允許刪除自己的文章
   components:
     submit_button:
       computed_text: "{text}（{shortcut}）"
@@ -1476,6 +1651,11 @@ core:
           operations:
             replace:
               button: 替換
+            transfer:
+              button: 轉存
+              tooltip: 偵測到此資源為外部資源，點擊此按鈕以轉存到附件庫
+            transfer_in_batch:
+              description: 檢測到具有外部連結，是否需要自動上傳到附件庫？
       toolbox:
         attachment: 選擇附件
         show_hide_sidebar: 顯示 / 隱藏側邊欄
@@ -1535,9 +1715,7 @@ core:
         aspect_ratio_portrait: 裁剪為縱向 (9:16)
     h2_warning_alert:
       title: 警告：正在使用 H2 資料庫
-      description: >-
-        H2 資料庫僅適用於開發環境和測試環境，不建議在生產環境中使用，H2
-        非常容易因為操作不當而導致資料檔案損壞。如果必須要使用，請按時進行資料備份。
+      description: H2 資料庫僅適用於開發環境和測試環境，不建議在生產環境中使用，H2 非常容易因為操作不當而導致資料檔案損壞。如果必須要使用，請按時進行資料備份。
   composables:
     content_cache:
       toast_recovered: 已從緩存中恢復未保存的內容
@@ -1621,6 +1799,7 @@ core:
       disable: 禁用
       enable: 启用
       continue: 繼續
+      retry: 重試
     radio:
       "yes": 是
       "no": 否
@@ -1689,12 +1868,17 @@ core:
       tip: 提示
       warning: 警告
       system_protection: 系統保留
+      all: 全部
+      detail: 詳情
     tooltips:
       unpublished_content_tip: 當前有內容已保存，但還未發布。
       publishing: 發布中
       recovering: 還原中
     fields:
       post_count: "{count} 篇文章"
+    form:
+      validation:
+        slug_unique: 當前別名已存在
   uc_post:
     creation_modal:
       title: 創建文章

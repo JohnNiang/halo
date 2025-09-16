@@ -10,12 +10,12 @@ inputs:
   pnpm-version:
     description: pnpm version.
     required: false
-    default: "9"
+    default: "10"
 
   java-version:
     description: Java version.
     required: false
-    default: "17"
+    default: "21"
 
 runs:
   using: "composite"

@@ -11,6 +11,7 @@ import {
   VButton,
   VCard,
   VEmpty,
+  VEntityContainer,
   VLoading,
   VPageHeader,
   VPagination,
@@ -163,7 +164,7 @@ watch(selectedTagNames, (newVal) => {
   />
   <VPageHeader :title="$t('core.post_tag.title')">
     <template #icon>
-      <IconBookRead class="mr-2 self-center" />
+      <IconBookRead />
     </template>
     <template #actions>
       <VButton
@@ -172,7 +173,7 @@ watch(selectedTagNames, (newVal) => {
         @click="editingModal = true"
       >
         <template #icon>
-          <IconAddCircle class="h-full w-full" />
+          <IconAddCircle />
         </template>
         {{ $t("core.common.buttons.new") }}
       </VButton>
@@ -238,6 +239,10 @@ watch(selectedTagNames, (newVal) => {
                     ),
                     value: 'spec.displayName,asc',
                   },
+                  {
+                    label: t('core.post.tag.filters.sort.items.post_desc'),
+                    value: 'status.postCount,desc',
+                  },
                 ]"
               />
               <div class="flex flex-row gap-2">
@@ -269,7 +274,7 @@ watch(selectedTagNames, (newVal) => {
               </VButton>
               <VButton type="secondary" @click="editingModal = true">
                 <template #icon>
-                  <IconAddCircle class="h-full w-full" />
+                  <IconAddCircle />
                 </template>
                 {{ $t("core.common.buttons.new") }}
               </VButton>
@@ -279,27 +284,24 @@ watch(selectedTagNames, (newVal) => {
       </Transition>
 
       <Transition appear name="fade">
-        <ul
-          class="box-border h-full w-full divide-y divide-gray-100"
-          role="list"
-        >
-          <li v-for="(tag, index) in tags" :key="index">
-            <TagListItem
-              :tag="tag"
-              :is-selected="selectedTag?.metadata.name === tag.metadata.name"
-              @editing="handleOpenEditingModal"
-              @delete="handleDelete"
-            >
-              <template #checkbox>
-                <input
-                  v-model="selectedTagNames"
-                  :value="tag.metadata.name"
-                  type="checkbox"
-                />
-              </template>
-            </TagListItem>
-          </li>
-        </ul>
+        <VEntityContainer>
+          <TagListItem
+            v-for="tag in tags"
+            :key="tag.metadata.name"
+            :tag="tag"
+            :is-selected="selectedTag?.metadata.name === tag.metadata.name"
+            @editing="handleOpenEditingModal"
+            @delete="handleDelete"
+          >
+            <template #checkbox>
+              <input
+                v-model="selectedTagNames"
+                :value="tag.metadata.name"
+                type="checkbox"
+              />
+            </template>
+          </TagListItem>
+        </VEntityContainer>
       </Transition>
       <template #footer>
         <VPagination

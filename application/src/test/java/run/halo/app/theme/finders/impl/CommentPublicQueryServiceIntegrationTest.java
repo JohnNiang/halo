@@ -35,6 +35,7 @@ import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.index.IndexerFactory;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
 import run.halo.app.infra.AnonymousUserConst;
+import run.halo.app.infra.exception.DuplicateNameException;
 import run.halo.app.infra.utils.JsonUtils;
 
 @DirtiesContext
@@ -288,11 +289,19 @@ class CommentPublicQueryServiceIntegrationTest {
     @Nested
     class ListReplyTest {
         private final List<Reply> storedReplies = mockRelies();
+
         @Autowired
         private CommentPublicQueryServiceImpl commentPublicQueryService;
 
         @BeforeEach
         void setUp() {
+            // create comment
+            var comment = createComment();
+            client.create(comment)
+                .onErrorResume(DuplicateNameException.class, e -> Mono.just(comment))
+                .as(StepVerifier::create)
+                .expectNextCount(1)
+                .verifyComplete();
             Flux.fromIterable(storedReplies)
                 .flatMap(reply -> client.create(reply))
                 .as(StepVerifier::create)
@@ -389,7 +398,8 @@ class CommentPublicQueryServiceIntegrationTest {
                                 "name":"",
                                 "displayName":"fake-display-name",
                                 "annotations":{
-                                    "email-hash": "4249f4df72b475e7894fabed1c5888cf"
+                                    "email-hash": \
+                    "79783106d88279c6c8f94f1f4dec22bdb9f90a8d14c9d6c6628a11430e236cbf"
                                 }
                             },
                             "creationTime": "2024-03-11T06:23:42.923294424Z",

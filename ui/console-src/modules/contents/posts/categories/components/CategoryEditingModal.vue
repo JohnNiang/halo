@@ -1,17 +1,13 @@
 <script lang="ts" setup>
-// core libs
-import { coreApiClient } from "@halo-dev/api-client";
-import { computed, nextTick, onMounted, ref } from "vue";
-
-// components
 import SubmitButton from "@/components/button/SubmitButton.vue";
 import AnnotationsForm from "@/components/form/AnnotationsForm.vue";
 import { setFocus } from "@/formkit/utils/focus";
 import { FormType } from "@/types/slug";
 import useSlugify from "@console/composables/use-slugify";
 import { useThemeCustomTemplates } from "@console/modules/interface/themes/composables/use-theme";
-import { reset, submitForm } from "@formkit/core";
+import { reset, submitForm, type FormKitNode } from "@formkit/core";
 import type { Category } from "@halo-dev/api-client";
+import { coreApiClient } from "@halo-dev/api-client";
 import {
   IconRefreshLine,
   Toast,
@@ -21,6 +17,7 @@ import {
 } from "@halo-dev/components";
 import { useQueryClient } from "@tanstack/vue-query";
 import { cloneDeep } from "lodash-es";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 const props = withDefaults(
@@ -184,9 +181,37 @@ const { handleGenerateSlug } = useSlugify(
   computed(() => !isUpdateMode),
   FormType.CATEGORY
 );
+
+// fixme: check if slug is unique
+// Finally, we need to check if the slug is unique in the database
+async function slugUniqueValidation(node: FormKitNode) {
+  const value = node.value;
+  if (!value) {
+    return true;
+  }
+
+  const fieldSelector = [`spec.slug=${value}`];
+
+  if (props.category) {
+    fieldSelector.push(`metadata.name!=${props.category.metadata.name}`);
+  }
+
+  const { data: categoriesWithSameSlug } =
+    await coreApiClient.content.category.listCategory({
+      fieldSelector,
+    });
+
+  return !categoriesWithSameSlug.total;
+}
 </script>
 <template>
-  <VModal ref="modal" :title="modalTitle" :width="700" @close="emit('close')">
+  <VModal
+    ref="modal"
+    mount-to-body
+    :title="modalTitle"
+    :width="700"
+    @close="emit('close')"
+  >
     <FormKit
       id="category-form"
       type="form"
@@ -228,7 +253,13 @@ const { handleGenerateSlug } = useSlugify(
               name="slug"
               :label="$t('core.post_category.editing_modal.fields.slug.label')"
               type="text"
-              validation="required|length:0,50"
+              validation="required|length:0,50|slugUniqueValidation"
+              :validation-rules="{ slugUniqueValidation }"
+              :validation-messages="{
+                slugUniqueValidation: $t(
+                  'core.common.form.validation.slug_unique'
+                ),
+              }"
             >
               <template #suffix>
                 <div

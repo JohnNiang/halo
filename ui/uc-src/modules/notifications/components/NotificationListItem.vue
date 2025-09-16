@@ -5,7 +5,8 @@ import type { Notification } from "@halo-dev/api-client";
 import { ucApiClient } from "@halo-dev/api-client";
 import { Dialog, Toast, VStatusDot } from "@halo-dev/components";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
-import { ref, watch } from "vue";
+import sanitize from "sanitize-html";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 const queryClient = useQueryClient();
@@ -47,6 +48,9 @@ function handleDelete() {
   Dialog.warning({
     title: t("core.uc_notification.operations.delete.title"),
     description: t("core.uc_notification.operations.delete.description"),
+    confirmText: t("core.common.buttons.confirm"),
+    cancelText: t("core.common.buttons.cancel"),
+    confirmType: "danger",
     async onConfirm() {
       await ucApiClient.notification.notification.deleteSpecifiedNotification({
         name: props.notification.metadata.name,
@@ -71,6 +75,14 @@ watch(
     immediate: true,
   }
 );
+
+const content = computed(() => {
+  // Clean html tags
+  return sanitize(props.notification.spec?.htmlContent || "", {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+});
 </script>
 <template>
   <div
@@ -96,10 +108,10 @@ watch(
       />
     </div>
     <div
-      v-if="notification.spec?.rawContent"
-      class="truncate text-xs text-gray-600"
+      v-if="notification.spec?.htmlContent"
+      class="line-clamp-1 text-xs text-gray-600"
     >
-      {{ notification.spec.rawContent }}
+      {{ content }}
     </div>
     <div class="flex h-6 items-end justify-between">
       <div class="text-xs text-gray-600">

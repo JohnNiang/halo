@@ -15,8 +15,9 @@ import {
   type EditorState,
   type NodeView,
   type Node as ProseMirrorNode,
+  type ViewMutationRecord,
 } from "@/tiptap/pm";
-import type { ExtensionOptions, NodeBubbleMenu } from "@/types";
+import type { ExtensionOptions, NodeBubbleMenuType } from "@/types";
 import TiptapTable, {
   createColGroup,
   type TableOptions,
@@ -53,6 +54,7 @@ function updateColumns(
   table: HTMLElement,
   cellMinWidth: number,
   overrideCol?: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   overrideValue?: any
 ) {
   let totalWidth = 0;
@@ -185,9 +187,7 @@ class TableView implements NodeView {
     }
   }
 
-  ignoreMutation(
-    mutation: MutationRecord | { type: "selection"; target: Element }
-  ) {
+  ignoreMutation(mutation: ViewMutationRecord) {
     return (
       mutation.type === "attributes" &&
       (mutation.target === this.table ||
@@ -256,7 +256,7 @@ const Table = TiptapTable.extend<ExtensionOptions & TableOptions>({
           },
         };
       },
-      getBubbleMenu({ editor }): NodeBubbleMenu {
+      getBubbleMenu({ editor }): NodeBubbleMenuType {
         return {
           pluginKey: "tableBubbleMenu",
           shouldShow: ({ state }: { state: EditorState }): boolean => {

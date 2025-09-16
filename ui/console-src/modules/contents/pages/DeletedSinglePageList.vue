@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import PostContributorList from "@/components/user/PostContributorList.vue";
-import { formatDatetime } from "@/utils/date";
+import { formatDatetime, relativeTimeTo } from "@/utils/date";
 import { usePermission } from "@/utils/permission";
+import { generateThumbnailUrl } from "@/utils/thumbnail";
 import type { ListedSinglePage, SinglePage } from "@halo-dev/api-client";
 import { consoleApiClient, coreApiClient } from "@halo-dev/api-client";
 import {
@@ -15,6 +16,7 @@ import {
   VDropdownItem,
   VEmpty,
   VEntity,
+  VEntityContainer,
   VEntityField,
   VLoading,
   VPageHeader,
@@ -203,24 +205,22 @@ watch(
 <template>
   <VPageHeader :title="$t('core.deleted_page.title')">
     <template #icon>
-      <IconDeleteBin class="mr-2 self-center text-green-600" />
+      <IconDeleteBin class="text-green-600" />
     </template>
     <template #actions>
-      <VSpace>
-        <VButton :route="{ name: 'SinglePages' }" size="sm">
-          {{ $t("core.common.buttons.back") }}
-        </VButton>
-        <VButton
-          v-permission="['system:singlepages:manage']"
-          :route="{ name: 'SinglePageEditor' }"
-          type="secondary"
-        >
-          <template #icon>
-            <IconAddCircle class="h-full w-full" />
-          </template>
-          {{ $t("core.common.buttons.new") }}
-        </VButton>
-      </VSpace>
+      <VButton :route="{ name: 'SinglePages' }" size="sm">
+        {{ $t("core.common.buttons.back") }}
+      </VButton>
+      <VButton
+        v-permission="['system:singlepages:manage']"
+        :route="{ name: 'SinglePageEditor' }"
+        type="secondary"
+      >
+        <template #icon>
+          <IconAddCircle />
+        </template>
+        {{ $t("core.common.buttons.new") }}
+      </VButton>
     </template>
   </VPageHeader>
   <div class="m-0 md:m-4">
@@ -290,98 +290,111 @@ watch(
         </VEmpty>
       </Transition>
       <Transition v-else appear name="fade">
-        <ul
-          class="box-border h-full w-full divide-y divide-gray-100"
-          role="list"
-        >
-          <li v-for="(singlePage, index) in singlePages" :key="index">
-            <VEntity :is-selected="checkSelection(singlePage.page)">
-              <template
-                v-if="currentUserHasPermission(['system:singlepages:manage'])"
-                #checkbox
+        <VEntityContainer>
+          <VEntity
+            v-for="singlePage in singlePages"
+            :key="singlePage.page.metadata.name"
+            :is-selected="checkSelection(singlePage.page)"
+          >
+            <template
+              v-if="currentUserHasPermission(['system:singlepages:manage'])"
+              #checkbox
+            >
+              <input
+                v-model="selectedPageNames"
+                :value="singlePage.page.metadata.name"
+                type="checkbox"
+              />
+            </template>
+            <template #start>
+              <VEntityField v-if="singlePage.page.spec.cover">
+                <template #description>
+                  <div
+                    class="aspect-h-2 aspect-w-3 w-20 overflow-hidden rounded-md"
+                  >
+                    <img
+                      class="h-full w-full object-cover"
+                      :src="
+                        generateThumbnailUrl(singlePage.page.spec.cover, 's')
+                      "
+                    />
+                  </div>
+                </template>
+              </VEntityField>
+              <VEntityField
+                :title="singlePage.page.spec.title"
+                max-width="30rem"
               >
-                <input
-                  v-model="selectedPageNames"
-                  :value="singlePage.page.metadata.name"
-                  type="checkbox"
-                />
-              </template>
-              <template #start>
-                <VEntityField :title="singlePage.page.spec.title">
-                  <template #description>
-                    <VSpace>
-                      <span class="text-xs text-gray-500">
-                        {{
-                          $t("core.page.list.fields.visits", {
-                            visits: singlePage.stats.visit || 0,
-                          })
-                        }}
-                      </span>
-                      <span class="text-xs text-gray-500">
-                        {{
-                          $t("core.page.list.fields.comments", {
-                            comments: singlePage.stats.totalComment || 0,
-                          })
-                        }}
-                      </span>
-                    </VSpace>
-                  </template>
-                </VEntityField>
-              </template>
-              <template #end>
-                <VEntityField>
-                  <template #description>
-                    <PostContributorList
-                      :owner="singlePage.owner"
-                      :contributors="singlePage.contributors"
-                    />
-                  </template>
-                </VEntityField>
-                <VEntityField v-if="!singlePage?.page?.spec.deleted">
-                  <template #description>
-                    <VStatusDot
-                      v-tooltip="$t('core.common.tooltips.recovering')"
-                      state="success"
-                      animate
-                    />
-                  </template>
-                </VEntityField>
-                <VEntityField
-                  v-if="singlePage?.page?.metadata.deletionTimestamp"
-                >
-                  <template #description>
-                    <VStatusDot
-                      v-tooltip="$t('core.common.status.deleting')"
-                      state="warning"
-                      animate
-                    />
-                  </template>
-                </VEntityField>
-                <VEntityField>
-                  <template #description>
-                    <span class="truncate text-xs tabular-nums text-gray-500">
-                      {{ formatDatetime(singlePage.page.spec.publishTime) }}
+                <template #description>
+                  <VSpace>
+                    <span class="text-xs text-gray-500">
+                      {{
+                        $t("core.page.list.fields.visits", {
+                          visits: singlePage.stats.visit || 0,
+                        })
+                      }}
                     </span>
-                  </template>
-                </VEntityField>
-              </template>
-              <template
-                v-if="currentUserHasPermission(['system:singlepages:manage'])"
-                #dropdownItems
+                    <span class="text-xs text-gray-500">
+                      {{
+                        $t("core.page.list.fields.comments", {
+                          comments: singlePage.stats.totalComment || 0,
+                        })
+                      }}
+                    </span>
+                  </VSpace>
+                </template>
+              </VEntityField>
+            </template>
+            <template #end>
+              <VEntityField>
+                <template #description>
+                  <PostContributorList
+                    :owner="singlePage.owner"
+                    :contributors="singlePage.contributors"
+                  />
+                </template>
+              </VEntityField>
+              <VEntityField v-if="!singlePage?.page?.spec.deleted">
+                <template #description>
+                  <VStatusDot
+                    v-tooltip="$t('core.common.tooltips.recovering')"
+                    state="success"
+                    animate
+                  />
+                </template>
+              </VEntityField>
+              <VEntityField v-if="singlePage?.page?.metadata.deletionTimestamp">
+                <template #description>
+                  <VStatusDot
+                    v-tooltip="$t('core.common.status.deleting')"
+                    state="warning"
+                    animate
+                  />
+                </template>
+              </VEntityField>
+              <VEntityField
+                v-if="singlePage.page.spec.publishTime"
+                v-tooltip="formatDatetime(singlePage.page.spec.publishTime)"
+                :description="relativeTimeTo(singlePage.page.spec.publishTime)"
               >
-                <VDropdownItem
-                  type="danger"
-                  @click="handleDeletePermanently(singlePage.page)"
-                >
-                  {{ $t("core.common.buttons.delete_permanently") }}
-                </VDropdownItem>
-                <VDropdownItem @click="handleRecovery(singlePage.page)">
-                  {{ $t("core.common.buttons.recovery") }}
-                </VDropdownItem>
-              </template>
-            </VEntity>
-          </li>
-        </ul>
+              </VEntityField>
+            </template>
+            <template
+              v-if="currentUserHasPermission(['system:singlepages:manage'])"
+              #dropdownItems
+            >
+              <VDropdownItem
+                type="danger"
+                @click="handleDeletePermanently(singlePage.page)"
+              >
+                {{ $t("core.common.buttons.delete_permanently") }}
+              </VDropdownItem>
+              <VDropdownItem @click="handleRecovery(singlePage.page)">
+                {{ $t("core.common.buttons.recovery") }}
+              </VDropdownItem>
+            </template>
+          </VEntity>
+        </VEntityContainer>
       </Transition>
 
       <template #footer>

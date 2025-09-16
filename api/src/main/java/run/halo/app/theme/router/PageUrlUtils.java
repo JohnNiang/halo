@@ -1,5 +1,6 @@
 package run.halo.app.theme.router;
 
+import java.util.Objects;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -83,7 +84,7 @@ public class PageUrlUtils {
                 return PathUtils.combinePath(segments);
             }
         }
-        return StringUtils.defaultString(path, "/");
+        return Objects.toString(path, "/");
     }
 
     private static String appendPagePart(String path, long page) {

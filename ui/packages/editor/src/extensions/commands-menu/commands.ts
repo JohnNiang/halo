@@ -5,7 +5,7 @@ import {
   type Editor,
   type Range,
 } from "@/tiptap/vue-3";
-import type { CommandMenuItem } from "@/types";
+import type { CommandMenuItemType } from "@/types";
 import Suggestion from "@tiptap/suggestion";
 import type { Instance } from "tippy.js";
 import tippy from "tippy.js";
@@ -31,7 +31,7 @@ export default Extension.create({
         }: {
           editor: Editor;
           range: Range;
-          props: CommandMenuItem;
+          props: CommandMenuItemType;
         }) => {
           props.command({ editor, range });
         },
@@ -47,6 +47,7 @@ export default Extension.create({
           let popup: Instance[];
 
           return {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onStart: (props: Record<string, any>) => {
               component = new VueRenderer(CommandsView, {
                 props,
@@ -68,6 +69,7 @@ export default Extension.create({
               });
             },
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onUpdate(props: Record<string, any>) {
               component.updateProps(props);
 
@@ -80,6 +82,7 @@ export default Extension.create({
               });
             },
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onKeyDown(props: Record<string, any>) {
               if (props.event.key === "Escape") {
                 popup[0].hide();
@@ -104,7 +107,7 @@ export default Extension.create({
 function getToolbarItemsFromExtensions(editor: Editor) {
   const extensionManager = editor?.extensionManager;
   return extensionManager.extensions
-    .reduce((acc: CommandMenuItem[], extension: AnyExtension) => {
+    .reduce((acc: CommandMenuItemType[], extension: AnyExtension) => {
       const { getCommandMenuItems } = extension.options;
 
       if (!getCommandMenuItems) {

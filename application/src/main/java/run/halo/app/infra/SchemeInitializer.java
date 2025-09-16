@@ -9,14 +9,13 @@ import static run.halo.app.extension.index.IndexAttributeFactory.simpleAttribute
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.context.event.ApplicationContextInitializedEvent;
-import org.springframework.context.ApplicationListener;
-import org.springframework.lang.NonNull;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 import run.halo.app.content.Stats;
 import run.halo.app.core.attachment.extension.LocalThumbnail;
@@ -55,27 +54,34 @@ import run.halo.app.core.extension.notification.Reason;
 import run.halo.app.core.extension.notification.ReasonType;
 import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.extension.ConfigMap;
-import run.halo.app.extension.DefaultSchemeManager;
-import run.halo.app.extension.DefaultSchemeWatcherManager;
 import run.halo.app.extension.MetadataOperator;
 import run.halo.app.extension.MetadataUtil;
+import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.Secret;
 import run.halo.app.extension.index.IndexSpec;
-import run.halo.app.extension.index.IndexSpecRegistryImpl;
 import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.migration.Backup;
 import run.halo.app.plugin.extensionpoint.ExtensionDefinition;
 import run.halo.app.plugin.extensionpoint.ExtensionPointDefinition;
-import run.halo.app.search.extension.SearchEngine;
 import run.halo.app.security.PersonalAccessToken;
 
 @Component
-public class SchemeInitializer implements ApplicationListener<ApplicationContextInitializedEvent> {
+class SchemeInitializer implements SmartLifecycle {
+
+    private final SchemeManager schemeManager;
+
+    private volatile boolean running;
+
+    public SchemeInitializer(SchemeManager schemeManager) {
+        this.schemeManager = schemeManager;
+    }
 
     @Override
-    public void onApplicationEvent(@NonNull ApplicationContextInitializedEvent event) {
-        var schemeManager = createSchemeManager(event);
-
+    public void start() {
+        if (running) {
+            return;
+        }
+        running = true;
         schemeManager.register(Role.class, is -> {
             is.add(new IndexSpec()
                 .setName("labels.aggregateToRoles")
@@ -122,7 +128,6 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
                 )
             );
         });
-        schemeManager.register(SearchEngine.class);
         schemeManager.register(ExtensionPointDefinition.class, indexSpecs -> {
             indexSpecs.add(new IndexSpec()
                 .setName("spec.className")
@@ -177,6 +182,13 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
                             })
                         )
                         .orElseGet(Set::of))));
+            indexSpecs.add(new IndexSpec()
+                .setName("spec.disabled")
+                .setIndexFunc(simpleAttribute(User.class, user ->
+                    Objects.requireNonNullElse(user.getSpec().getDisabled(), Boolean.FALSE)
+                        .toString())
+                )
+            );
         });
         schemeManager.register(ReverseProxy.class);
         schemeManager.register(Setting.class);
@@ -333,6 +345,11 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
             indexSpecs.add(new IndexSpec()
                 .setName("spec.slug")
                 .setIndexFunc(simpleAttribute(Tag.class, tag -> tag.getSpec().getSlug()))
+            );
+            indexSpecs.add(new IndexSpec()
+                .setName("status.postCount")
+                .setIndexFunc(simpleAttribute(Tag.class,
+                    tag -> defaultIfNull(tag.getStatus().getPostCount(), 0).toString()))
             );
             indexSpecs.add(new IndexSpec()
                 .setName(Tag.REQUIRE_SYNC_ON_STARTUP_INDEX_NAME)
@@ -607,11 +624,22 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
         schemeManager.register(PolicyTemplate.class);
         schemeManager.register(Thumbnail.class, indexSpec -> {
             indexSpec.add(new IndexSpec()
+                // see run.halo.app.core.attachment.ThumbnailMigration
+                // .setUnique(true)
                 .setName(Thumbnail.ID_INDEX)
                 .setIndexFunc(simpleAttribute(Thumbnail.class, Thumbnail::idIndexFunc))
             );
         });
         schemeManager.register(LocalThumbnail.class, indexSpec -> {
+            // make sure image and size are unique
+            indexSpec.add(new IndexSpec()
+                // see run.halo.app.core.attachment.ThumbnailMigration
+                // .setUnique(true)
+                .setName(LocalThumbnail.UNIQUE_IMAGE_AND_SIZE_INDEX)
+                .setIndexFunc(simpleAttribute(LocalThumbnail.class,
+                    LocalThumbnail::uniqueImageAndSize)
+                )
+            );
             indexSpec.add(new IndexSpec()
                 .setName("spec.imageSignature")
                 .setIndexFunc(simpleAttribute(LocalThumbnail.class,
@@ -623,6 +651,16 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
                 .setIndexFunc(simpleAttribute(LocalThumbnail.class,
                     thumbnail -> thumbnail.getSpec().getThumbSignature())
                 ));
+            indexSpec.add(new IndexSpec()
+                .setName("status.phase")
+                .setIndexFunc(
+                    simpleAttribute(LocalThumbnail.class,
+                        thumbnail -> Optional.of(thumbnail.getStatus())
+                        .map(LocalThumbnail.Status::getPhase)
+                        .map(LocalThumbnail.Phase::name)
+                        .orElse(null))
+                )
+            );
         });
         // metrics.halo.run
         schemeManager.register(Counter.class);
@@ -735,16 +773,22 @@ public class SchemeInitializer implements ApplicationListener<ApplicationContext
         });
     }
 
-    private static DefaultSchemeManager createSchemeManager(
-        ApplicationContextInitializedEvent event) {
-        var indexSpecRegistry = new IndexSpecRegistryImpl();
-        var watcherManager = new DefaultSchemeWatcherManager();
-        var schemeManager = new DefaultSchemeManager(indexSpecRegistry, watcherManager);
+    @Override
+    public void stop() {
+        if (!running) {
+            return;
+        }
+        running = false;
+        schemeManager.schemes().forEach(schemeManager::unregister);
+    }
 
-        var beanFactory = event.getApplicationContext().getBeanFactory();
-        beanFactory.registerSingleton("indexSpecRegistry", indexSpecRegistry);
-        beanFactory.registerSingleton("schemeWatcherManager", watcherManager);
-        beanFactory.registerSingleton("schemeManager", schemeManager);
-        return schemeManager;
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public int getPhase() {
+        return InitializationPhase.SCHEME.getPhase();
     }
 }

@@ -94,7 +94,7 @@ public class RequestInfoFactory {
         RequestInfo requestInfo =
             new RequestInfo(false, path.value(), request.getMethod().name().toLowerCase());
 
-        String[] currentParts = splitPath(request.getPath().value());
+        String[] currentParts = splitPath(path.value());
 
         if (currentParts.length < 3) {
             // return a non-resource request
@@ -116,7 +116,7 @@ public class RequestInfoFactory {
                 return requestInfo;
             }
 
-            requestInfo.apiGroup = StringUtils.defaultString(currentParts[0], "");
+            requestInfo.apiGroup = StringUtils.defaultString(currentParts[0]);
             currentParts = Arrays.copyOfRange(currentParts, 1, currentParts.length);
         }
         requestInfo.isResourceRequest = true;

@@ -16,6 +16,7 @@ import {
   VButton,
   VCard,
   VEmpty,
+  VEntityContainer,
   VLoading,
   VPagination,
   VSpace,
@@ -100,12 +101,18 @@ function onUploadModalClose() {
 
 // Select
 const selectedAttachment = ref<Attachment>();
-const selectedAttachments = ref<Set<Attachment>>(new Set<Attachment>());
+const selectedAttachmentNames = ref<Set<string>>(new Set<string>());
+
+const selectedAttachments = computed(() => {
+  return data.value?.items.filter((attachment) =>
+    selectedAttachmentNames.value.has(attachment.metadata.name)
+  );
+});
 
 watch(
   () => selectedAttachments.value,
   (newValue) => {
-    emit("update:selected", Array.from(newValue));
+    emit("update:selected", newValue || []);
   },
   {
     deep: true,
@@ -113,12 +120,7 @@ watch(
 );
 
 const isChecked = (attachment: Attachment) => {
-  return (
-    attachment.metadata.name === selectedAttachment.value?.metadata.name ||
-    Array.from(selectedAttachments.value)
-      .map((item) => item.metadata.name)
-      .includes(attachment.metadata.name)
-  );
+  return selectedAttachmentNames.value.has(attachment.metadata.name);
 };
 
 const isDisabled = (attachment: Attachment) => {
@@ -129,7 +131,7 @@ const isDisabled = (attachment: Attachment) => {
 
   if (
     props.max !== undefined &&
-    props.max <= selectedAttachments.value.size &&
+    props.max <= selectedAttachmentNames.value.size &&
     !isChecked(attachment)
   ) {
     return true;
@@ -140,11 +142,11 @@ const isDisabled = (attachment: Attachment) => {
 
 const handleSelect = async (attachment: Attachment | undefined) => {
   if (!attachment) return;
-  if (selectedAttachments.value.has(attachment)) {
-    selectedAttachments.value.delete(attachment);
+  if (selectedAttachmentNames.value.has(attachment.metadata.name)) {
+    selectedAttachmentNames.value.delete(attachment.metadata.name);
     return;
   }
-  selectedAttachments.value.add(attachment);
+  selectedAttachmentNames.value.add(attachment.metadata.name);
 };
 
 // View type
@@ -305,7 +307,7 @@ const handleSelectNext = async () => {
   <div v-if="data?.total" class="mb-5">
     <VButton @click="uploadVisible = true">
       <template #icon>
-        <IconUpload class="h-full w-full" />
+        <IconUpload />
       </template>
       {{ $t("core.common.buttons.upload") }}
     </VButton>
@@ -325,7 +327,7 @@ const handleSelectNext = async () => {
         </VButton>
         <VButton type="secondary" @click="uploadVisible = true">
           <template #icon>
-            <IconUpload class="h-full w-full" />
+            <IconUpload />
           </template>
           {{ $t("core.uc_attachment.empty.actions.upload") }}
         </VButton>
@@ -396,7 +398,7 @@ const handleSelectNext = async () => {
             </p>
 
             <div
-              :class="{ '!flex': selectedAttachments.has(attachment) }"
+              :class="{ '!flex': isChecked(attachment) }"
               class="absolute left-0 top-0 hidden h-1/3 w-full justify-end bg-gradient-to-b from-gray-300 to-transparent ease-in-out group-hover:flex"
             >
               <IconEye
@@ -405,7 +407,7 @@ const handleSelectNext = async () => {
               />
               <IconCheckboxFill
                 :class="{
-                  '!text-primary': selectedAttachments.has(attachment),
+                  '!text-primary': isChecked(attachment),
                 }"
                 class="mr-1 mt-1 h-6 w-6 cursor-pointer text-white transition-all hover:text-primary"
               />
@@ -415,12 +417,11 @@ const handleSelectNext = async () => {
       </div>
     </Transition>
     <Transition v-if="viewType === 'list'" appear name="fade">
-      <ul
-        class="box-border h-full w-full divide-y divide-gray-100 overflow-hidden rounded-base border"
-        role="list"
-      >
-        <li v-for="attachment in data.items" :key="attachment.metadata.name">
+      <div class="overflow-hidden rounded-base border">
+        <VEntityContainer>
           <AttachmentSelectorListItem
+            v-for="attachment in data.items"
+            :key="attachment.metadata.name"
             :attachment="attachment"
             :is-selected="isChecked(attachment)"
             @select="handleSelect"
@@ -435,8 +436,8 @@ const handleSelectNext = async () => {
               />
             </template>
           </AttachmentSelectorListItem>
-        </li>
-      </ul>
+        </VEntityContainer>
+      </div>
     </Transition>
   </div>
 
@@ -466,7 +467,7 @@ const handleSelectNext = async () => {
   >
     <template #actions>
       <span
-        v-if="selectedAttachment && selectedAttachments.has(selectedAttachment)"
+        v-if="isChecked(selectedAttachment)"
         @click="handleSelect(selectedAttachment)"
       >
         <IconCheckboxFill />

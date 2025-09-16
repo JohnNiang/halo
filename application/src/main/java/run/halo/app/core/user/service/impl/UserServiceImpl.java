@@ -5,6 +5,7 @@ import static run.halo.app.extension.index.query.QueryFactory.equal;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
@@ -13,8 +14,12 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.ReactiveTransactionManager;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -36,21 +41,23 @@ import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.infra.SystemConfigurableEnvironmentFetcher;
 import run.halo.app.infra.SystemSetting;
 import run.halo.app.infra.ValidationUtils;
 import run.halo.app.infra.exception.DuplicateNameException;
+import run.halo.app.infra.exception.EmailAlreadyTakenException;
 import run.halo.app.infra.exception.EmailVerificationFailed;
 import run.halo.app.infra.exception.UnsatisfiedAttributeValueException;
 import run.halo.app.infra.exception.UserNotFoundException;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
+import run.halo.app.security.authorization.AuthorityUtils;
+import run.halo.app.security.device.DeviceService;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-
-    public static final String GHOST_USER_NAME = "ghost";
 
     private final ReactiveExtensionClient client;
 
@@ -65,6 +72,10 @@ public class UserServiceImpl implements UserService {
     private final EmailVerificationService emailVerificationService;
 
     private final ExtensionGetter extensionGetter;
+
+    private final DeviceService deviceService;
+
+    private final ReactiveTransactionManager transactionManager;
 
     private Clock clock = Clock.systemUTC();
 
@@ -82,6 +93,27 @@ public class UserServiceImpl implements UserService {
     public Mono<User> getUserOrGhost(String username) {
         return client.fetch(User.class, username)
             .switchIfEmpty(Mono.defer(() -> client.get(User.class, GHOST_USER_NAME)));
+    }
+
+    @Override
+    public Flux<User> getUsersOrGhosts(Collection<String> names) {
+        if (CollectionUtils.isEmpty(names)) {
+            return Flux.empty();
+        }
+        var nameSet = new HashSet<>(names);
+        nameSet.add(GHOST_USER_NAME);
+        var options = ListOptions.builder()
+            .andQuery(QueryFactory.in("metadata.name", nameSet))
+            .build();
+        return client.listAll(User.class, options, defaultSort())
+            .collectMap(u -> u.getMetadata().getName())
+            .map(map -> {
+                var ghost = map.get(GHOST_USER_NAME);
+                return names.stream()
+                    .map(name -> map.getOrDefault(name, ghost))
+                    .toList();
+            })
+            .flatMapMany(Flux::fromIterable);
     }
 
     @Override
@@ -163,6 +195,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Mono<Boolean> hasSufficientRoles(Collection<String> roles) {
+        return ReactiveSecurityContextHolder.getContext()
+            .map(SecurityContext::getAuthentication)
+            .map(a -> AuthorityUtils.authoritiesToRoles(a.getAuthorities()))
+            .flatMap(userRoles -> roleService.contains(userRoles, roles))
+            .defaultIfEmpty(false);
+    }
+
+    @Override
     public Mono<User> signUp(SignUpData signUpData) {
         return environmentFetcher.fetch(SystemSetting.User.GROUP, SystemSetting.User.class)
             .filter(SystemSetting.User::isAllowRegistration)
@@ -199,7 +240,12 @@ public class UserServiceImpl implements UserService {
                         .switchIfEmpty(Mono.error(() ->
                             new EmailVerificationFailed("Invalid email captcha.", null)
                         ))
-                        .doOnNext(spec::setEmailVerified)
+                        .then(this.checkEmailAlreadyVerified(signUpData.getEmail()))
+                        .filter(has -> !has)
+                        .switchIfEmpty(Mono.error(
+                            () -> new EmailAlreadyTakenException("Email is already taken")
+                        ))
+                        .doOnNext(v -> spec.setEmailVerified(true))
                         .then();
                 }
                 return verifyEmail.then(Mono.defer(() -> {
@@ -272,8 +318,35 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Mono<Boolean> checkEmailAlreadyVerified(String email) {
+        return listByEmail(email)
+            // TODO Use index query in the future
+            .filter(u -> u.getSpec().isEmailVerified())
+            .hasElements();
+    }
+
+    @Override
     public String encryptPassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
+    }
+
+    @Override
+    public Mono<User> disable(String username) {
+        var tx = TransactionalOperator.create(transactionManager);
+        return client.fetch(User.class, username)
+            .filter(user -> !Boolean.TRUE.equals(user.getSpec().getDisabled()))
+            .flatMap(user -> deviceService.revoke(username).thenReturn(user))
+            .doOnNext(user -> user.getSpec().setDisabled(true))
+            .flatMap(client::update)
+            .as(tx::transactional);
+    }
+
+    @Override
+    public Mono<User> enable(String username) {
+        return client.fetch(User.class, username)
+            .filter(user -> Boolean.TRUE.equals(user.getSpec().getDisabled()))
+            .doOnNext(user -> user.getSpec().setDisabled(false))
+            .flatMap(client::update);
     }
 
     void publishPasswordChangedEvent(String username) {

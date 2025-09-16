@@ -76,7 +76,7 @@ public class CommentFinderEndpoint implements CustomEndpoint {
         final var tag = "CommentV1alpha1Public";
         return SpringdocRouteBuilder.route()
             .POST("comments", this::createComment,
-                builder -> builder.operationId("CreateComment")
+                builder -> builder.operationId("CreateComment_1")
                     .description("Create a comment.")
                     .tag(tag)
                     .requestBody(requestBodyBuilder()
@@ -90,7 +90,7 @@ public class CommentFinderEndpoint implements CustomEndpoint {
                         .implementation(Comment.class))
             )
             .POST("comments/{name}/reply", this::createReply,
-                builder -> builder.operationId("CreateReply")
+                builder -> builder.operationId("CreateReply_1")
                     .description("Create a reply.")
                     .tag(tag)
                     .parameter(parameterBuilder().name("name")
@@ -108,7 +108,7 @@ public class CommentFinderEndpoint implements CustomEndpoint {
                         .implementation(Reply.class))
             )
             .GET("comments", this::listComments, builder -> {
-                builder.operationId("ListComments")
+                builder.operationId("ListComments_1")
                     .description("List comments.")
                     .tag(tag)
                     .response(responseBuilder()
@@ -176,8 +176,6 @@ public class CommentFinderEndpoint implements CustomEndpoint {
                 Reply reply = replyRequest.toReply();
                 reply.getSpec().setIpAddress(IpAddressUtils.getIpAddress(request));
                 reply.getSpec().setUserAgent(HaloUtils.userAgentFrom(request));
-                // fix gh-2951
-                reply.getSpec().setHidden(false);
                 return environmentFetcher.fetchComment()
                     .map(commentSetting -> {
                         if (isFalse(commentSetting.getEnable())) {
@@ -191,6 +189,11 @@ public class CommentFinderEndpoint implements CustomEndpoint {
                         }
                         reply.getSpec()
                             .setApproved(isFalse(commentSetting.getRequireReviewForNew()));
+
+                        if (reply.getSpec().getHidden() == null) {
+                            reply.getSpec().setHidden(false);
+                        }
+
                         return reply;
                     })
                     .defaultIfEmpty(reply);

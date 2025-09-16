@@ -36,7 +36,7 @@ class FileTypeDetectUtilsTest {
     void detectMimeTypeWithNameTest() throws IOException {
         var stream = getFileInputStream("classpath:file-type-detect/index.js");
         String mimeType = FileTypeDetectUtils.detectMimeType(stream, "index.js");
-        assertThat(mimeType).isEqualTo("application/javascript");
+        assertThat(mimeType).isEqualTo("text/javascript");
 
         stream = getFileInputStream("classpath:file-type-detect/index.html");
         mimeType =
@@ -96,5 +96,29 @@ class FileTypeDetectUtilsTest {
 
         ext = FileTypeDetectUtils.detectFileExtension("application/zip");
         assertThat(ext).isEqualTo(".zip");
+
+        ext = FileTypeDetectUtils.detectFileExtension("image/bmp");
+        assertThat(ext).isEqualTo(".bmp");
+    }
+
+    @Test
+    void getFileExtensionTest() {
+        var ext = FileTypeDetectUtils.getFileExtension("BMP+HTML+JAR.html");
+        assertThat(ext).isEqualTo(".html");
+
+        ext = FileTypeDetectUtils.getFileExtension("test.jpg");
+        assertThat(ext).isEqualTo(".jpg");
+
+        ext = FileTypeDetectUtils.getFileExtension("hello");
+        assertThat(ext).isEqualTo("");
+    }
+
+    @Test
+    void isValidExtensionForMimeTest() {
+        assertThat(FileTypeDetectUtils.isValidExtensionForMime("image/bmp", "hello.html"))
+            .isFalse();
+
+        assertThat(FileTypeDetectUtils.isValidExtensionForMime("image/bmp", "hello.bmp"))
+            .isTrue();
     }
 }

@@ -291,7 +291,9 @@ public class PostFinderImpl implements PostFinder {
     public Flux<ListedPostVo> listAll() {
         return postPredicateResolver.getListOptions()
             .flatMapMany(listOptions -> client.listAll(Post.class, listOptions, defaultSort()))
-            .flatMapSequential(postPublicQueryService::convertToListedVo);
+            .collectList()
+            .flatMap(postPublicQueryService::convertToListedVos)
+            .flatMapMany(Flux::fromIterable);
     }
 
     static int pageNullSafe(Integer page) {
@@ -323,10 +325,6 @@ public class PostFinderImpl implements PostFinder {
             }
             if (StringUtils.isNotBlank(tagName)) {
                 builder.andQuery(equal("spec.tags", tagName));
-                hasQuery = true;
-            }
-            if (StringUtils.isNotBlank(categoryName)) {
-                builder.andQuery(in("spec.categories", categoryName));
                 hasQuery = true;
             }
             // Exclude hidden posts when no query
