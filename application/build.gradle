@@ -2,6 +2,7 @@ import de.undercouch.gradle.tasks.download.Download
 import org.gradle.crypto.checksum.Checksum
 import org.springframework.boot.gradle.tasks.bundling.BootBuildImage
 import org.springframework.boot.gradle.tasks.bundling.BootJar
+import org.springframework.util.StringUtils
 
 plugins {
     id "checkstyle"
@@ -209,11 +210,11 @@ tasks.register('publishToGhcr', BootBuildImage) {
     group = 'publishing'
     description = 'Build and publish the Docker image to GitHub Container Registry.'
     imageName = "ghcr.io/johnniang/${name}:${tagName}"
-    publish = System.getenv("GHCR_TOKEN") != null
+    publish = StringUtils.hasText(System.getenv('GHCR_TOKEN'))
     docker {
         publishRegistry {
-            username = System.getenv("GHCR_USERNAME")
-            password = System.getenv("GHCR_TOKEN")
+            username = System.getenv('GHCR_USERNAME')
+            password = System.getenv('GHCR_TOKEN')
         }
     }
     archiveFile = tasks.named('bootJar', BootJar).get().archiveFile
@@ -223,7 +224,7 @@ tasks.register('publishToDockerHub', BootBuildImage) {
     group = 'publishing'
     description = 'Build and publish the Docker image to Docker Hub.'
     imageName = "halohub/${name}:${tagName}"
-    publish = System.getenv("DOCKER_TOKEN") != null
+    publish = StringUtils.hasText(System.getenv('DOCKER_TOKEN'))
     docker {
         publishRegistry {
             username = System.getenv("DOCKER_USERNAME")
@@ -236,7 +237,7 @@ tasks.register('publishToDockerHub', BootBuildImage) {
 tasks.register('publishToFit2Cloud', BootBuildImage) {
     imageName = "registry.fit2cloud.com/${name}:${tagName}"
     description = 'Build and publish the Docker image to Fit2Cloud Container Registry.'
-    publish = System.getenv('F2C_TOKEN') != null
+    publish = StringUtils.hasText(System.getenv('F2C_TOKEN'))
     docker {
         publishRegistry {
             username = System.getenv("F2C_USERNAME")
