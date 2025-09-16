@@ -14,6 +14,7 @@ plugins {
     alias(libs.plugins.checksum)
     alias(libs.plugins.springdoc.openapi)
     alias(libs.plugins.versions)
+    alias(libs.plugins.grgit)
 }
 
 group = 'run.halo.app'
@@ -144,10 +145,10 @@ tasks.named('jacocoTestReport', JacocoReport) {
 }
 
 ext.presetPluginUrls = [
-        'https://github.com/halo-dev/plugin-comment-widget/releases/download/v3.0.0/plugin-comment-widget-3.0.0.jar'  : 'plugin-comment-widget.jar',
-        'https://github.com/halo-dev/plugin-search-widget/releases/download/v1.7.0/plugin-search-widget-1.7.0.jar'    : 'plugin-search-widget.jar',
-        'https://github.com/halo-dev/plugin-sitemap/releases/download/v1.1.2/plugin-sitemap-1.1.2.jar'                : 'plugin-sitemap.jar',
-        'https://github.com/halo-dev/plugin-feed/releases/download/v1.5.0/plugin-feed-1.5.0.jar'                      : 'plugin-feed.jar',
+        'https://github.com/halo-dev/plugin-comment-widget/releases/download/v3.0.0/plugin-comment-widget-3.0.0.jar'           : 'plugin-comment-widget.jar',
+        'https://github.com/halo-dev/plugin-search-widget/releases/download/v1.7.0/plugin-search-widget-1.7.0.jar'             : 'plugin-search-widget.jar',
+        'https://github.com/halo-dev/plugin-sitemap/releases/download/v1.1.2/plugin-sitemap-1.1.2.jar'                         : 'plugin-sitemap.jar',
+        'https://github.com/halo-dev/plugin-feed/releases/download/v1.5.0/plugin-feed-1.5.0.jar'                               : 'plugin-feed.jar',
 
         // Currently, plugin-app-store is not open source, so we need to download it from the official website.
         // Please see https://github.com/halo-dev/plugin-app-store/issues/55
@@ -193,4 +194,19 @@ tasks.named('generateOpenApiDocs') {
     outputs.upToDateWhen {
         false
     }
+}
+
+tasks.named('bootBuildImage') {
+    def name = 'halo'
+    def tagName = "${project.version}-cnb"
+    if (!Objects.equals(project.findProperty('release'), 'true')) {
+        name = 'halo-dev'
+        tagName = "cnb-sha-${grgit.head().abbreviatedId}"
+    }
+    imageName = "halohub/${name}:${tagName}"
+    tags = [
+            // Additional tags for different registries
+            "ghcr.io/halo-dev/${name}:${tagName}",
+            "registry.fit2cloud.com/${name}:${tagName}"
+    ]
 }
