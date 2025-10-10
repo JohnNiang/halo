@@ -11,7 +11,7 @@ public class Between extends SimpleQuery {
     public Between(String fieldName, String lowerValue, boolean lowerInclusive,
         String upperValue, boolean upperInclusive) {
         // value and isFieldRef are not used in Between
-        super(fieldName, null, false);
+        super(fieldName, null);
         this.lowerValue = lowerValue;
         this.lowerInclusive = lowerInclusive;
         this.upperValue = upperValue;

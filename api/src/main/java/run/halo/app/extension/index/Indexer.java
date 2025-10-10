@@ -16,7 +16,7 @@ import run.halo.app.extension.Extension;
  * @author guqing
  * @since 2.12.0
  */
-public interface Indexer {
+public interface Indexer<E extends Extension> {
 
     /**
      * <p>Index the specified {@link Extension} by {@link IndexDescriptor}s.</p>
@@ -26,9 +26,8 @@ public interface Indexer {
      * {@link Indexer} consistent.</p>
      *
      * @param extension the {@link Extension} to be indexed
-     * @param <E> the type of the {@link Extension}
      */
-    <E extends Extension> void indexRecord(E extension);
+    void indexRecord(E extension);
 
     /**
      * <p>Update indexes for the specified {@link Extension} by {@link IndexDescriptor}s.</p>
@@ -38,9 +37,8 @@ public interface Indexer {
      * transaction will be rollback to keep the {@link Indexer} consistent.</p>
      *
      * @param extension the {@link Extension} to be updated
-     * @param <E> the type of the {@link Extension}
      */
-    <E extends Extension> void updateRecord(E extension);
+    void updateRecord(E extension);
 
     /**
      * <p>Remove indexes (index entries) for the specified {@link Extension} already indexed by
@@ -57,7 +55,7 @@ public interface Indexer {
      * @param name index name
      * @return index descriptor if found, null otherwise
      */
-    IndexDescriptor findIndexByName(String name);
+    IndexDescriptor<E, ?> findIndexByName(String name);
 
     /**
      * <p>Create an index entry for the specified {@link IndexDescriptor}.</p>
@@ -65,14 +63,14 @@ public interface Indexer {
      * @param descriptor the {@link IndexDescriptor} to be recorded
      * @return the {@link IndexEntry} created
      */
-    IndexEntry createIndexEntry(IndexDescriptor descriptor);
+    IndexEntry<E, ?> createIndexEntry(IndexDescriptor<E, ?> descriptor);
 
     /**
      * <p>Remove all index entries that match the given {@link IndexDescriptor}.</p>
      *
      * @param matchFn the {@link IndexDescriptor} to be matched
      */
-    void removeIndexRecords(Function<IndexDescriptor, Boolean> matchFn);
+    void removeIndexRecords(Function<IndexDescriptor<E, ?>, Boolean> matchFn);
 
     /**
      * <p>Get the {@link IndexEntry} by index name if found and ready.</p>
@@ -82,7 +80,7 @@ public interface Indexer {
      * @throws IllegalArgumentException if the index name is not found or the index is not ready
      */
     @NonNull
-    IndexEntry getIndexEntry(String name);
+    <K extends Comparable<K>> IndexEntry<E, K> getIndexEntry(String name);
 
     /**
      * <p>Gets an iterator over all the ready {@link IndexEntry}s, in no particular order.</p>
@@ -90,7 +88,7 @@ public interface Indexer {
      * @return an iterator over all the ready {@link IndexEntry}s
      * @see IndexDescriptor#isReady()
      */
-    Iterator<IndexEntry> readyIndexesIterator();
+    Iterator<IndexEntry<E, ?>> readyIndexesIterator();
 
     /**
      * <p>Gets an iterator over all the {@link IndexEntry}s, in no particular order.</p>
@@ -98,7 +96,7 @@ public interface Indexer {
      * @return an iterator over all the {@link IndexEntry}s
      * @see IndexDescriptor#isReady()
      */
-    Iterator<IndexEntry> allIndexesIterator();
+    Iterator<IndexEntry<E, ?>> allIndexesIterator();
 
     void acquireReadLock();
 

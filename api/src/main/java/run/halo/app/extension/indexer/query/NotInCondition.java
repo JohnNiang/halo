@@ -1,0 +1,16 @@
+package run.halo.app.extension.indexer.query;
+
+import java.util.Set;
+import org.springframework.util.Assert;
+
+record NotInCondition(String indexName, Set<Object> keys) implements Condition {
+
+    public NotInCondition {
+        Assert.notEmpty(keys, "Keys must not be empty");
+    }
+
+    @Override
+    public Condition not() {
+        return new InCondition(indexName, keys);
+    }
+}

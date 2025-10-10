@@ -6,19 +6,12 @@ public class GreaterThanQuery extends SimpleQuery {
     private final boolean orEqual;
 
     public GreaterThanQuery(String fieldName, String value, boolean orEqual) {
-        this(fieldName, value, orEqual, false);
-    }
-
-    public GreaterThanQuery(String fieldName, String value, boolean orEqual, boolean isFieldRef) {
-        super(fieldName, value, isFieldRef);
+        super(fieldName, value);
         this.orEqual = orEqual;
     }
 
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
-        if (isFieldRef) {
-            return indexView.findMatchingIdsWithGreaterValues(fieldName, value, orEqual);
-        }
         return indexView.findIdsGreaterThan(fieldName, value, orEqual);
     }
 
@@ -26,6 +19,6 @@ public class GreaterThanQuery extends SimpleQuery {
     public String toString() {
         return fieldName
             + (orEqual ? " >= " : " > ")
-            + (isFieldRef ? value : "'" + value + "'");
+            + "'" + value + "'";
     }
 }

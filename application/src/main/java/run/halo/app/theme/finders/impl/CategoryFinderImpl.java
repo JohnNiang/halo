@@ -1,6 +1,6 @@
 package run.halo.app.theme.finders.impl;
 
-import static run.halo.app.extension.index.query.QueryFactory.notEqual;
+import static run.halo.app.extension.indexer.QueryFactory.notEqual;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ import run.halo.app.extension.ListResult;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.index.query.QueryFactory;
+import run.halo.app.extension.indexer.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.theme.finders.CategoryFinder;
 import run.halo.app.theme.finders.Finder;

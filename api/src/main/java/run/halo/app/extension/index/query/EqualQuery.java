@@ -10,23 +10,17 @@ public class EqualQuery extends SimpleQuery {
     }
 
     public EqualQuery(String fieldName, String value, boolean isFieldRef) {
-        super(fieldName, value, isFieldRef);
+        super(fieldName, value);
         Assert.notNull(value, "Value must not be null, use IsNull or IsNotNull instead");
     }
 
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
-        if (isFieldRef) {
-            return indexView.findMatchingIdsWithEqualValues(fieldName, value);
-        }
         return indexView.findIds(fieldName, value);
     }
 
     @Override
     public String toString() {
-        if (isFieldRef) {
-            return fieldName + " = " + value;
-        }
         return fieldName + " = '" + value + "'";
     }
 }

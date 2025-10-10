@@ -4,7 +4,7 @@ import java.util.NavigableSet;
 
 public class IsNull extends SimpleQuery {
 
-    protected IsNull(String fieldName) {
+    public IsNull(String fieldName) {
         super(fieldName, null);
     }
 

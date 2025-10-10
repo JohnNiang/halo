@@ -4,6 +4,7 @@ import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
+import run.halo.app.extension.index.IndexEntry;
 
 public class StringStartsWith extends SimpleQuery {
     public StringStartsWith(String fieldName, String value) {
@@ -13,14 +14,14 @@ public class StringStartsWith extends SimpleQuery {
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
         var resultSet = Sets.<String>newTreeSet();
-        var indexEntry = indexView.getIndexEntry(fieldName);
+        IndexEntry<?, ?> indexEntry = indexView.getIndexEntry(fieldName);
 
         indexEntry.acquireReadLock();
         try {
-            for (Map.Entry<String, String> entry : indexEntry.entries()) {
+            for (Map.Entry<?, ?> entry : indexEntry.entries()) {
                 var fieldValue = entry.getKey();
-                if (StringUtils.startsWith(fieldValue, value)) {
-                    resultSet.add(entry.getValue());
+                if (StringUtils.startsWith(fieldValue.toString(), value.toString())) {
+                    resultSet.add(entry.getValue().toString());
                 }
             }
             return resultSet;

@@ -1,6 +1,7 @@
 package run.halo.app.extension.index.query;
 
 import java.util.NavigableSet;
+import run.halo.app.extension.Extension;
 import run.halo.app.extension.Metadata;
 
 /**
@@ -9,7 +10,7 @@ import run.halo.app.extension.Metadata;
  * @author guqing
  * @since 2.12.0
  */
-public interface Query {
+public interface Query<E extends Extension> {
 
     /**
      * Matches the given {@link QueryIndexView} and returns the matched object names see
@@ -18,5 +19,5 @@ public interface Query {
      * @param indexView the {@link QueryIndexView} to match.
      * @return the matched object names ordered by natural order.
      */
-    NavigableSet<String> matches(QueryIndexView indexView);
+    NavigableSet<String> matches(QueryIndexView<E> indexView);
 }

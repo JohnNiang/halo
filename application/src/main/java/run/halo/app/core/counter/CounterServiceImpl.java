@@ -9,7 +9,7 @@ import run.halo.app.core.extension.Counter;
 import run.halo.app.extension.ExtensionUtil;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.index.query.QueryFactory;
+import run.halo.app.extension.indexer.QueryFactory;
 
 /**
  * Counter service implementation.

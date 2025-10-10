@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.springframework.data.domain.Sort;
 import run.halo.app.extension.index.query.Query;
-import run.halo.app.extension.index.query.QueryFactory;
+import run.halo.app.extension.indexer.QueryFactory;
 
 public enum ExtensionUtil {
     ;

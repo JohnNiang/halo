@@ -7,7 +7,7 @@ import run.halo.app.content.ContentWrapper;
 import run.halo.app.content.PostService;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.extension.ListOptions;
-import run.halo.app.extension.index.query.QueryFactory;
+import run.halo.app.extension.indexer.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.infra.ReactiveExtensionPaginatedOperator;
 import run.halo.app.search.HaloDocument;

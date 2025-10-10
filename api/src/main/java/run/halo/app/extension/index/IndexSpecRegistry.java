@@ -4,6 +4,7 @@ import org.springframework.lang.NonNull;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.Scheme;
+import run.halo.app.extension.indexer.IndexSpec;
 
 /**
  * <p>{@link IndexSpecRegistry} is a registry for {@link IndexSpecs} to manage {@link IndexSpecs}

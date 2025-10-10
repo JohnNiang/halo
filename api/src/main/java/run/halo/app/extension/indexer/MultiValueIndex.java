@@ -1,0 +1,463 @@
+package run.halo.app.extension.indexer;
+
+import com.google.common.collect.Ordering;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
+import run.halo.app.extension.Extension;
+
+@Slf4j
+class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements Index<E, K> {
+
+    private final ConcurrentNavigableMap<K, Set<String>> index;
+
+    private final ConcurrentMap<String, Set<K>> invertedIndex;
+
+    private final Set<String> nullKeyValues;
+
+    private final IndexSpec<E, K> spec;
+
+    public MultiValueIndex(IndexSpec<E, K> spec) {
+        this.spec = spec;
+        var comparator = Ordering.natural();
+        if (IndexSpec.OrderType.DESC.equals(spec.getOrder())) {
+            comparator = comparator.reverse();
+        }
+        this.index = new ConcurrentSkipListMap<>(comparator);
+        this.invertedIndex = new ConcurrentHashMap<>();
+        this.nullKeyValues = ConcurrentHashMap.newKeySet();
+    }
+
+    @Override
+    public String getName() {
+        return spec.getName();
+    }
+
+    @Override
+    public Class<K> getKeyType() {
+        return spec.getKeyType();
+    }
+
+    @Override
+    public IndexOperation prepareInsert(E extension) {
+        var keys = spec.getIndexFunc().getValues(extension);
+        return new InsertIndexOperation(extension.getMetadata().getName(), keys);
+    }
+
+    @Override
+    public IndexOperation prepareUpdate(E extension) {
+        // find old state
+        var newKeys = spec.getIndexFunc().getValues(extension);
+        var primaryKey = extension.getMetadata().getName();
+        return new UpdateIndexOperation(primaryKey, newKeys);
+    }
+
+    @Override
+    public IndexOperation prepareDelete(E extension) {
+        return new DeleteIndexOperation(extension.getMetadata().getName());
+    }
+
+    @Override
+    public Set<String> between(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+        Assert.isTrue(fromKey.compareTo(toKey) < 0, "fromKey must be less than toKey");
+        return index.subMap(fromKey, fromInclusive, toKey, toInclusive)
+            .values()
+            .stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> notBetween(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+        // check if fromKey is less than toKey
+        Assert.isTrue(fromKey.compareTo(toKey) < 0, "fromKey must be less than toKey");
+        return Stream.concat(
+                index.headMap(fromKey, !fromInclusive).values().stream(),
+                index.tailMap(toKey, !toInclusive).values().stream()
+            )
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> in(Collection<K> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return Set.of();
+        }
+        return keys.stream()
+            .distinct()
+            .map(index::get)
+            .filter(Objects::nonNull)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> notIn(Collection<K> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return all();
+        }
+        var keySet = new HashSet<>(keys);
+        return index.entrySet().stream()
+            .filter(entry -> !keySet.contains(entry.getKey()))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> lessThan(K key, boolean inclusive) {
+        return index.headMap(key, inclusive)
+            .values()
+            .stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> greaterThan(K key, boolean inclusive) {
+        return index.tailMap(key, inclusive)
+            .values()
+            .stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> isNull() {
+        return Collections.unmodifiableSet(nullKeyValues);
+    }
+
+    @Override
+    public Set<String> isNotNull() {
+        return index.values()
+            .stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> stringContains(String keyword) {
+        Assert.isInstanceOf(getKeyType(), keyword,
+            "Key type must be String for stringContains operation");
+        return index.entrySet()
+            .stream()
+            .filter(entry -> StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> stringNotContains(String keyword) {
+        Assert.isInstanceOf(getKeyType(), keyword,
+            "Key type must be String for stringNotContains operation");
+        return index.entrySet()
+            .stream()
+            .filter(entry -> !StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> stringStartsWith(String prefix) {
+        Assert.isInstanceOf(getKeyType(), prefix,
+            "Key type must be String for stringStartsWith operation");
+        var fromKey = prefix;
+        var toKey = prefix + Character.MAX_VALUE;
+        return index.subMap((K) fromKey, true, (K) toKey, false)
+            .values()
+            .stream()
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> stringEndsWith(String suffix) {
+        Assert.isInstanceOf(getKeyType(), suffix,
+            "Key type must be String for stringEndsWith operation");
+        return index.entrySet()
+            .stream()
+            .filter(entry -> StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> notEqual(K key) {
+        return index.entrySet().stream()
+            .filter(entry -> !Objects.equals(entry.getKey(), key))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> equal(K key) {
+        return index.get(key);
+    }
+
+    @Override
+    public Set<String> all() {
+        return Stream.concat(index.values().stream(), Stream.of(nullKeyValues))
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    class UpdateIndexOperation implements IndexOperation {
+
+        @NonNull
+        private final String primaryKey;
+
+        @Nullable
+        private final Set<K> newKeys;
+
+        private boolean committed;
+
+        private Set<K> previousKeys;
+
+        private boolean nullKeyRemoved;
+
+        private boolean nullKeyAdded;
+
+        UpdateIndexOperation(
+            @NonNull String primaryKey, @Nullable Set<K> newKeys
+        ) {
+            this.primaryKey = primaryKey;
+            this.newKeys = newKeys;
+        }
+
+        @Override
+        public void commit() {
+            if (committed) {
+                return;
+            }
+            committed = true;
+            this.previousKeys = invertedIndex.put(primaryKey, newKeys);
+            if (Objects.equals(previousKeys, newKeys)) {
+                return;
+            }
+            // remove previous keys
+            if (!CollectionUtils.isEmpty(previousKeys)) {
+                previousKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
+                    v.remove(primaryKey);
+                    return v.isEmpty() ? null : v;
+                }));
+            }
+            // add new keys
+            boolean hasNullKey = false;
+            if (!CollectionUtils.isEmpty(newKeys)) {
+                for (K key : newKeys) {
+                    if (key == null) {
+                        nullKeyAdded = nullKeyValues.add(primaryKey);
+                        hasNullKey = true;
+                        continue;
+                    }
+                    index.compute(key, (k, v) -> {
+                        if (v == null) {
+                            v = ConcurrentHashMap.newKeySet();
+                        }
+                        if (spec.isUnique() && !v.isEmpty()) {
+                            throw new DuplicateKeyException(
+                                String.format("Duplicate key '%s' for extension '%s'", k,
+                                    primaryKey)
+                            );
+                        }
+                        v.add(primaryKey);
+                        return v;
+                    });
+                }
+            }
+            if (!hasNullKey) {
+                nullKeyRemoved = nullKeyValues.remove(primaryKey);
+            }
+        }
+
+        @Override
+        public void rollback() {
+            if (Objects.equals(this.previousKeys, newKeys) || !committed) {
+                return;
+            }
+            // remove possibly added new keys
+            if (!CollectionUtils.isEmpty(newKeys)) {
+                newKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
+                    v.remove(primaryKey);
+                    return v.isEmpty() ? null : v;
+                }));
+            }
+            // add previous keys
+            if (!CollectionUtils.isEmpty(this.previousKeys)) {
+                this.previousKeys.forEach(key -> index.compute(key, (k, v) -> {
+                    if (v == null) {
+                        v = ConcurrentHashMap.newKeySet();
+                    }
+                    // No need to check duplicate here, as it was already present before.
+                    v.add(primaryKey);
+                    return v;
+                }));
+            }
+            invertedIndex.put(primaryKey, this.previousKeys);
+            if (nullKeyRemoved) {
+                nullKeyValues.add(primaryKey);
+            }
+            if (nullKeyAdded) {
+                nullKeyValues.remove(primaryKey);
+            }
+        }
+
+    }
+
+    class DeleteIndexOperation implements IndexOperation {
+
+        @NonNull
+        private final String primaryKey;
+
+        private boolean committed;
+
+        private Set<K> previousKeys;
+
+        private boolean nullKeyRemoved;
+
+        DeleteIndexOperation(@NonNull String primaryKey) {
+            this.primaryKey = primaryKey;
+        }
+
+        @Override
+        public void commit() {
+            if (committed) {
+                return;
+            }
+            committed = true;
+            this.previousKeys = invertedIndex.remove(primaryKey);
+            if (this.previousKeys == null) {
+                return;
+            }
+            this.previousKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
+                v.remove(primaryKey);
+                return v.isEmpty() ? null : v;
+            }));
+            nullKeyRemoved = nullKeyValues.remove(primaryKey);
+        }
+
+        @Override
+        public void rollback() {
+            if (this.previousKeys == null || !committed) {
+                return;
+            }
+            if (nullKeyRemoved) {
+                nullKeyValues.add(primaryKey);
+            }
+            // add previous keys
+            this.previousKeys.forEach(key -> index.compute(key, (k, v) -> {
+                if (v == null) {
+                    v = ConcurrentHashMap.newKeySet();
+                }
+                v.add(primaryKey);
+                return v;
+            }));
+            invertedIndex.put(primaryKey, this.previousKeys);
+        }
+    }
+
+    class InsertIndexOperation implements IndexOperation {
+
+        @NonNull
+        private final String primaryKey;
+
+        @Nullable
+        private final Set<K> keys;
+
+        private Set<K> previousKeys;
+
+        private boolean nullKeyAdded;
+
+        private boolean committed;
+
+        InsertIndexOperation(@NonNull String primaryKey, @Nullable Set<K> keys) {
+            this.primaryKey = primaryKey;
+            this.keys = keys;
+        }
+
+        @Override
+        public void commit() {
+            if (committed) {
+                return;
+            }
+            committed = true;
+            if (keys == null) {
+                return;
+            }
+
+            // save current state
+            this.previousKeys = invertedIndex.put(primaryKey, keys);
+            keys.forEach(key -> {
+                if (key == null) {
+                    this.nullKeyAdded = nullKeyValues.add(primaryKey);
+                    return;
+                }
+                index.compute(key, (k, v) -> {
+                    if (v == null) {
+                        v = ConcurrentHashMap.newKeySet();
+                    }
+                    if (spec.isUnique() && !v.isEmpty()) {
+                        throw new DuplicateKeyException(
+                            String.format("Duplicate key '%s' for extension '%s'", k, primaryKey)
+                        );
+                    }
+                    v.add(primaryKey);
+                    return v;
+                });
+            });
+        }
+
+        @Override
+        public void rollback() {
+            if (keys == null || !committed) {
+                return;
+            }
+            // remove possibly added keys
+            keys.forEach(key -> {
+                if (key == null && nullKeyAdded) {
+                    nullKeyValues.remove(primaryKey);
+                }
+                index.computeIfPresent(key, (k, v) -> {
+                    v.remove(primaryKey);
+                    return v.isEmpty() ? null : v;
+                });
+            });
+
+            // add previous keys
+            if (previousKeys != null) {
+                previousKeys.forEach(key -> {
+                    index.compute(key, (k, v) -> {
+                        if (v == null) {
+                            v = ConcurrentHashMap.newKeySet();
+                        }
+                        v.add(primaryKey);
+                        return v;
+                    });
+                });
+            }
+            invertedIndex.put(primaryKey, previousKeys);
+        }
+    }
+
+}

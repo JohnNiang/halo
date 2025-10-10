@@ -21,7 +21,7 @@ public interface IndexerTransaction {
 
     void add(ChangeRecord changeRecord);
 
-    record ChangeRecord(IndexEntry indexEntry, String key, String value, boolean isAdd) {
+    record ChangeRecord(IndexEntry indexEntry, Object key, String value, boolean isAdd) {
 
         public ChangeRecord {
             Assert.notNull(indexEntry, "IndexEntry must not be null");
@@ -29,11 +29,11 @@ public interface IndexerTransaction {
             Assert.notNull(value, "Value must not be null");
         }
 
-        public static ChangeRecord onAdd(IndexEntry indexEntry, String key, String value) {
+        public static ChangeRecord onAdd(IndexEntry indexEntry, Object key, String value) {
             return new ChangeRecord(indexEntry, key, value, true);
         }
 
-        public static ChangeRecord onRemove(IndexEntry indexEntry, String key, String value) {
+        public static ChangeRecord onRemove(IndexEntry indexEntry, Object key, String value) {
             return new ChangeRecord(indexEntry, key, value, false);
         }
     }

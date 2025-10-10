@@ -1,8 +1,8 @@
 package run.halo.app.security.authentication.rememberme;
 
-import static run.halo.app.extension.index.query.QueryFactory.and;
-import static run.halo.app.extension.index.query.QueryFactory.isNull;
-import static run.halo.app.extension.index.query.QueryFactory.lessThan;
+import static run.halo.app.extension.indexer.QueryFactory.and;
+import static run.halo.app.extension.indexer.QueryFactory.isNull;
+import static run.halo.app.extension.indexer.QueryFactory.lessThan;
 
 import java.time.Duration;
 import java.time.Instant;

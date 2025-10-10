@@ -11,7 +11,7 @@ public class NotEqual extends SimpleQuery {
     }
 
     public NotEqual(String fieldName, String value, boolean isFieldRef) {
-        super(fieldName, value, isFieldRef);
+        super(fieldName, value);
         Assert.notNull(value, "Value must not be null, use IsNull or IsNotNull instead");
         this.equalQuery = new EqualQuery(fieldName, value, isFieldRef);
     }
@@ -31,6 +31,6 @@ public class NotEqual extends SimpleQuery {
 
     @Override
     public String toString() {
-        return fieldName + " != " + (isFieldRef ? value : "'" + value + "'");
+        return fieldName + " != " + ("'" + value + "'");
     }
 }

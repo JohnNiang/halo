@@ -2,7 +2,7 @@ package run.halo.app.core.reconciler;
 
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 import static run.halo.app.extension.ExtensionUtil.addFinalizers;
-import static run.halo.app.extension.index.query.QueryFactory.equal;
+import static run.halo.app.extension.indexer.QueryFactory.equal;
 
 import java.util.Set;
 import lombok.AllArgsConstructor;

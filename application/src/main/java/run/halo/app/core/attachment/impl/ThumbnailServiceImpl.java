@@ -19,7 +19,7 @@ import run.halo.app.core.extension.attachment.Attachment;
 import run.halo.app.extension.ExtensionUtil;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.index.query.QueryFactory;
+import run.halo.app.extension.indexer.QueryFactory;
 
 /**
  * Implementation of {@link ThumbnailService}.

@@ -2,6 +2,7 @@ package run.halo.app.extension.index;
 
 import java.util.List;
 import org.springframework.lang.Nullable;
+import run.halo.app.extension.indexer.IndexSpec;
 
 /**
  * An interface that defines a collection of {@link IndexSpec}, and provides methods to add,

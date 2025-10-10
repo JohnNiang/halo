@@ -7,20 +7,23 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.util.Assert;
+import run.halo.app.extension.Extension;
 
-public class IndexEntryOperatorImpl implements IndexEntryOperator {
-    private final IndexEntry indexEntry;
+public class IndexEntryOperatorImpl<E extends Extension, K extends Comparable<K>>
+    implements IndexEntryOperator<K> {
 
-    public IndexEntryOperatorImpl(IndexEntry indexEntry) {
+    private final IndexEntry<E, K> indexEntry;
+
+    public IndexEntryOperatorImpl(IndexEntry<E, K> indexEntry) {
         this.indexEntry = indexEntry;
     }
 
     private static NavigableSet<String> createNavigableSet() {
-        return new TreeSet<>(KeyComparator.INSTANCE);
+        return new TreeSet<>();
     }
 
     @Override
-    public NavigableSet<String> lessThan(String key, boolean orEqual) {
+    public NavigableSet<String> lessThan(K key, boolean orEqual) {
         Assert.notNull(key, "Key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -33,7 +36,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> greaterThan(String key, boolean orEqual) {
+    public NavigableSet<String> greaterThan(K key, boolean orEqual) {
         Assert.notNull(key, "Key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -46,7 +49,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> range(String start, String end, boolean startInclusive,
+    public NavigableSet<String> range(K start, K end, boolean startInclusive,
         boolean endInclusive) {
         Assert.notNull(start, "The start must not be null.");
         Assert.notNull(end, "The end must not be null.");
@@ -61,7 +64,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> find(String key) {
+    public NavigableSet<String> find(K key) {
         Assert.notNull(key, "The key must not be null.");
         indexEntry.acquireReadLock();
         try {
@@ -77,7 +80,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
     }
 
     @Override
-    public NavigableSet<String> findIn(Collection<String> keys) {
+    public NavigableSet<String> findIn(Collection<K> keys) {
         if (keys == null || keys.isEmpty()) {
             return createNavigableSet();
         }
@@ -101,7 +104,7 @@ public class IndexEntryOperatorImpl implements IndexEntryOperator {
         indexEntry.acquireReadLock();
         try {
             Set<String> uniqueValues = new HashSet<>();
-            for (Map.Entry<String, String> entry : indexEntry.entries()) {
+            for (Map.Entry<K, String> entry : indexEntry.entries()) {
                 uniqueValues.add(entry.getValue());
             }
             return uniqueValues;

@@ -24,13 +24,14 @@ public interface IndexerFactory {
     /**
      * Create {@link Indexer} for {@link Extension} type.
      *
-     * @param extensionType the extension type must exist in {@link SchemeManager}.
+     * @param scheme the scheme represents a specific {@link Extension} type must exist in
+     * {@link SchemeManager}.
      * @param extensionIterator the extension iterator to iterate all records for the extension type
      * @return created {@link Indexer}
      */
     @NonNull
-    Indexer createIndexerFor(Class<? extends Extension> extensionType,
-        ExtensionIterator<? extends Extension> extensionIterator);
+    <E extends Extension> Indexer<E> createIndexerFor(Scheme scheme,
+        ExtensionIterator<E> extensionIterator);
 
     /**
      * Get {@link Indexer} for {@link GroupVersionKind}.
@@ -41,7 +42,7 @@ public interface IndexerFactory {
      *                                  {@link Extension} not exists in {@link SchemeManager}
      */
     @NonNull
-    Indexer getIndexer(GroupVersionKind gvk);
+    <E extends Extension> Indexer<E> getIndexer(GroupVersionKind gvk);
 
     boolean contains(GroupVersionKind gvk);
 
@@ -53,4 +54,5 @@ public interface IndexerFactory {
      * @param scheme the scheme represents a {@link Extension}
      */
     void removeIndexer(Scheme scheme);
+
 }

@@ -4,6 +4,7 @@ import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.NavigableSet;
 import org.apache.commons.lang3.StringUtils;
+import run.halo.app.extension.index.IndexEntry;
 
 public class StringContains extends SimpleQuery {
     public StringContains(String fieldName, String value) {
@@ -13,13 +14,13 @@ public class StringContains extends SimpleQuery {
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
         var resultSet = Sets.<String>newTreeSet();
-        var indexEntry = indexView.getIndexEntry(fieldName);
+        IndexEntry<?, ?> indexEntry = indexView.getIndexEntry(fieldName);
 
         indexEntry.acquireReadLock();
         try {
-            for (Map.Entry<String, String> entry : indexEntry.entries()) {
+            for (Map.Entry<?, String> entry : indexEntry.entries()) {
                 var fieldValue = entry.getKey();
-                if (StringUtils.containsIgnoreCase(fieldValue, value)) {
+                if (StringUtils.containsIgnoreCase(fieldValue.toString(), value.toString())) {
                     resultSet.add(entry.getValue());
                 }
             }

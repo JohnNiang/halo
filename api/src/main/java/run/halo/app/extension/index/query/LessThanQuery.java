@@ -10,15 +10,12 @@ public class LessThanQuery extends SimpleQuery {
     }
 
     public LessThanQuery(String fieldName, String value, boolean orEqual, boolean isFieldRef) {
-        super(fieldName, value, isFieldRef);
+        super(fieldName, value);
         this.orEqual = orEqual;
     }
 
     @Override
     public NavigableSet<String> matches(QueryIndexView indexView) {
-        if (isFieldRef) {
-            return indexView.findMatchingIdsWithSmallerValues(fieldName, value, orEqual);
-        }
         return indexView.findIdsLessThan(fieldName, value, orEqual);
     }
 
@@ -26,6 +23,6 @@ public class LessThanQuery extends SimpleQuery {
     public String toString() {
         return fieldName
             + (orEqual ? " <= " : " < ")
-            + (isFieldRef ? value : "'" + value + "'");
+            + ("'" + value + "'");
     }
 }
