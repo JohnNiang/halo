@@ -83,7 +83,7 @@ public class CommentPublicQueryServiceImpl implements CommentPublicQueryService 
     public Mono<ListResult<CommentVo>> list(Ref ref, PageRequest pageParam) {
         var pageRequest = Optional.ofNullable(pageParam)
             .map(page -> page.withSort(page.getSort().and(defaultCommentSort())))
-            .orElse(PageRequestImpl.ofSize(0));
+            .orElseGet(() -> PageRequestImpl.ofSize(10));
         return populateCommentListOptions(ref)
             .flatMap(listOptions -> client.listBy(Comment.class, listOptions, pageRequest))
             .flatMap(listResult -> Flux.fromStream(listResult.get())
