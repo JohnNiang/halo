@@ -4,7 +4,7 @@ import java.util.List;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import run.halo.app.extension.index.query.Query;
-import run.halo.app.extension.indexer.query.QueryFactory;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.extension.router.selector.LabelSelector;
 import run.halo.app.extension.router.selector.SelectorMatcher;

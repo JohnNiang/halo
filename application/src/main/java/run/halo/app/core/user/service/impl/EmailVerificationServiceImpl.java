@@ -26,7 +26,7 @@ import run.halo.app.extension.GroupVersion;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.MetadataUtil;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.indexer.query.QueryFactory;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.infra.exception.EmailVerificationFailed;
 import run.halo.app.notification.NotificationCenter;
 import run.halo.app.notification.NotificationReasonEmitter;

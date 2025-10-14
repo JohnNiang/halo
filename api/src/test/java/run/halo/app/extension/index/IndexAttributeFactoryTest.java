@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import run.halo.app.extension.AbstractExtension;
 import run.halo.app.extension.GVK;
 import run.halo.app.extension.Metadata;
-import run.halo.app.extension.indexer.IndexAttributeFactory;
 
 /**
  * Tests for {@link IndexAttributeFactory}.

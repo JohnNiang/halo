@@ -19,7 +19,7 @@ import run.halo.app.core.extension.endpoint.CustomEndpoint;
 import run.halo.app.extension.GroupVersion;
 import run.halo.app.extension.ListResult;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.indexer.query.QueryFactory;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.extension.router.SortableRequest;
 import run.halo.app.theme.finders.PostPublicQueryService;
 import run.halo.app.theme.finders.TagFinder;

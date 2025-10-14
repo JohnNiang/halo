@@ -26,14 +26,14 @@ import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import run.halo.app.extension.event.IndexerBuiltEvent;
 import run.halo.app.extension.event.SchemeRemovedEvent;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
+import run.halo.app.extension.index.IndexEngine;
 import run.halo.app.extension.index.IndexedQueryEngine;
-import run.halo.app.extension.index.IndexerFactory;
-import run.halo.app.extension.indexer.IndexEngine;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
 
 @Slf4j
@@ -52,8 +52,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final ObjectMapper objectMapper;
 
-    private final IndexerFactory indexerFactory;
-
     private final IndexEngine indexEngine;
 
     /**
@@ -61,20 +59,30 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
      * the indexer is built.
      */
     private final ConcurrentMap<GroupKind, Boolean> indexerBuiltMap = new ConcurrentHashMap<>();
+    private Scheduler scheduler;
 
     private TransactionalOperator transactionalOperator;
 
     public ReactiveExtensionClientImpl(ReactiveExtensionStoreClient client,
         ExtensionConverter converter, SchemeManager schemeManager, ObjectMapper objectMapper,
-        IndexerFactory indexerFactory, IndexEngine indexEngine,
+        IndexEngine indexEngine,
         ReactiveTransactionManager reactiveTransactionManager) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
         this.objectMapper = objectMapper;
-        this.indexerFactory = indexerFactory;
         this.indexEngine = indexEngine;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
+        this.scheduler = Schedulers.boundedElastic();
+    }
+
+    /**
+     * Only for test.
+     *
+     * @param scheduler the scheduler to set
+     */
+    void setScheduler(Scheduler scheduler) {
+        this.scheduler = scheduler;
     }
 
     /**
@@ -129,6 +137,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
         return Mono.fromCallable(
                 () -> indexEngine.retrieveAll(scheme.type(), options, nullSafeSort)
             )
+            .subscribeOn(this.scheduler)
             .flatMapMany(objectKeys -> {
                 var storeNames = StreamSupport.stream(objectKeys.spliterator(), false)
                     .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
@@ -154,20 +163,23 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     }
 
     @Override
-    public <E extends Extension> Flux<String> listAllNames(Class<E> type, ListOptions options,
-        Sort sort) {
+    public <E extends Extension> Flux<String> listAllNames(
+        Class<E> type, ListOptions options, Sort sort
+    ) {
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieveAll(scheme.type(), options, sort))
+            .subscribeOn(this.scheduler)
             .flatMapMany(Flux::fromIterable);
     }
 
     @Override
-    public <E extends Extension> Flux<String> listTopNames(Class<E> type, ListOptions options,
-        Sort sort, int top) {
+    public <E extends Extension> Flux<String> listTopNames(
+        Class<E> type, ListOptions options, Sort sort, int topN
+    ) {
         var scheme = schemeManager.get(type);
-        return Mono.fromCallable(() -> indexEngine.retrieveAll(type, options, sort))
-            .flatMapMany(Flux::fromIterable)
-            .take(top);
+        return Mono.fromCallable(() -> indexEngine.retrieveTopN(scheme.type(), options, sort, topN))
+            .subscribeOn(this.scheduler)
+            .flatMapMany(Flux::fromIterable);
     }
 
     @Override
@@ -175,6 +187,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
         PageRequest page) {
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, page))
+            .subscribeOn(this.scheduler)
             .flatMap(listResult -> {
                 var storeNames = listResult.get()
                     .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
@@ -198,7 +211,15 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     public <E extends Extension> Mono<ListResult<String>> listNamesBy(Class<E> type,
         ListOptions options, PageRequest pageable) {
         var scheme = schemeManager.get(type);
-        return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, pageable));
+        return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, pageable))
+            .subscribeOn(this.scheduler);
+    }
+
+    @Override
+    public <E extends Extension> Mono<Long> countBy(Class<E> type, ListOptions options) {
+        var scheme = schemeManager.get(type);
+        return Mono.fromCallable(() -> indexEngine.count(scheme.type(), options))
+            .subscribeOn(this.scheduler);
     }
 
     @Override
@@ -271,7 +292,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                 })
             // the method secureStrong() may invoke blocking SecureRandom, so we need to subscribe
             // on boundedElastic thread pool.
-            .subscribeOn(Schedulers.boundedElastic())
+            .subscribeOn(this.scheduler)
             .flatMap(extStore -> doCreate(extension, extStore.getName(), extStore.getData())
                 .doOnNext(created -> watchers.onAdd(convertToRealExtension(created)))
             )
@@ -405,12 +426,14 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     @SuppressWarnings("unchecked")
     <E extends Extension> Mono<E> doCreate(E oldExtension, String name, byte[] data) {
         return Mono.defer(() -> {
-            var gvk = oldExtension.groupVersionKind();
             var type = (Class<E>) oldExtension.getClass();
-            var indexer = indexerFactory.getIndexer(gvk);
             return client.create(name, data)
                 .map(created -> converter.convertFrom(type, created))
-                .doOnNext(extension -> indexer.indexRecord(convertToRealExtension(extension)))
+                .flatMap(extension -> Mono.fromRunnable(
+                        () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
+                    .subscribeOn(this.scheduler)
+                    .thenReturn(extension)
+                )
                 .as(transactionalOperator::transactional);
         });
     }
@@ -422,10 +445,13 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     <E extends Extension> Mono<E> doUpdate(E oldExtension, String name, Long version, byte[] data) {
         return Mono.defer(() -> {
             var type = (Class<E>) oldExtension.getClass();
-            var indexer = indexerFactory.getIndexer(oldExtension.groupVersionKind());
             return client.update(name, version, data)
                 .map(updated -> converter.convertFrom(type, updated))
-                .doOnNext(extension -> indexer.updateRecord(convertToRealExtension(extension)))
+                .flatMap(extension -> Mono.fromRunnable(
+                        () -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
+                    .subscribeOn(this.scheduler)
+                    .thenReturn(extension)
+                )
                 .as(transactionalOperator::transactional);
         });
     }

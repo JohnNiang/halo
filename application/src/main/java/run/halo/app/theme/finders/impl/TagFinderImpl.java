@@ -16,7 +16,7 @@ import run.halo.app.extension.ListResult;
 import run.halo.app.extension.PageRequest;
 import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.indexer.query.QueryFactory;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.theme.finders.Finder;
 import run.halo.app.theme.finders.TagFinder;
 import run.halo.app.theme.finders.vo.TagVo;

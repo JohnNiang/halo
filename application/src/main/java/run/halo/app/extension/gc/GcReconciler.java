@@ -18,7 +18,7 @@ import run.halo.app.extension.controller.DefaultQueue;
 import run.halo.app.extension.controller.Reconciler;
 import run.halo.app.extension.controller.RequestQueue;
 import run.halo.app.extension.event.SchemeAddedEvent;
-import run.halo.app.extension.index.IndexerFactory;
+import run.halo.app.extension.index.IndicesManager;
 import run.halo.app.extension.store.ExtensionStoreClient;
 
 @Slf4j
@@ -31,7 +31,9 @@ class GcReconciler implements Reconciler<GcRequest> {
 
     private final ExtensionConverter converter;
 
-    private final IndexerFactory indexerFactory;
+    private final IndicesManager indicesManager;
+
+    private final SchemeManager schememanager;
 
     private final RequestQueue<GcRequest> queue;
 
@@ -41,31 +43,32 @@ class GcReconciler implements Reconciler<GcRequest> {
         ExtensionStoreClient storeClient,
         ExtensionConverter converter,
         SchemeManager schemeManager,
-        IndexerFactory indexerFactory) {
+        IndicesManager indicesManager) {
         this.client = client;
         this.storeClient = storeClient;
         this.converter = converter;
-        this.indexerFactory = indexerFactory;
+        this.indicesManager = indicesManager;
         this.queue = new DefaultQueue<>(Instant::now, Duration.ofMillis(500));
         this.synchronizer = new GcSynchronizer(client, queue, schemeManager);
+        this.schememanager = schemeManager;
     }
 
     @Override
     public Result reconcile(GcRequest request) {
         log.debug("Extension {} is being deleted", request);
-
-        client.fetch(request.gvk(), request.name())
+        var scheme = schememanager.get(request.gvk());
+        client.fetch(scheme.type(), request.name())
             .filter(deletable())
-            .ifPresent(extension -> {
-                var extensionStore = converter.convertTo(extension);
-                storeClient.delete(extensionStore.getName(), extensionStore.getVersion());
-                // drop index for this extension
-                var indexer = indexerFactory.getIndexer(extension.groupVersionKind());
-                indexer.unIndexRecord(request.name());
-                log.debug("Extension {} was deleted", request);
-            });
-
+            .ifPresent(this::doDelete);
         return null;
+    }
+
+    private <E extends Extension> void doDelete(E extension) {
+        var extensionStore = converter.convertTo(extension);
+        var indices = indicesManager.get((Class<E>) extension.getClass());
+        indices.delete(extension);
+        storeClient.delete(extensionStore.getName(), extensionStore.getVersion());
+        log.info("Extension {}/{} was deleted", extension.groupVersionKind(), extension);
     }
 
     @Override

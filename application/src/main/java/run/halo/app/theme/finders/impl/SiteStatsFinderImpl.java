@@ -1,8 +1,8 @@
 package run.halo.app.theme.finders.impl;
 
-import static run.halo.app.extension.indexer.query.QueryFactory.and;
-import static run.halo.app.extension.indexer.query.QueryFactory.equal;
-import static run.halo.app.extension.indexer.query.QueryFactory.isNull;
+import static run.halo.app.extension.index.query.QueryFactory.and;
+import static run.halo.app.extension.index.query.QueryFactory.equal;
+import static run.halo.app.extension.index.query.QueryFactory.isNull;
 
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;

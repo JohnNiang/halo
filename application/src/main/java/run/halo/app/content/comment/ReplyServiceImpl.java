@@ -1,9 +1,9 @@
 package run.halo.app.content.comment;
 
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
-import static run.halo.app.extension.indexer.query.QueryFactory.and;
-import static run.halo.app.extension.indexer.query.QueryFactory.equal;
-import static run.halo.app.extension.indexer.query.QueryFactory.isNull;
+import static run.halo.app.extension.index.query.QueryFactory.and;
+import static run.halo.app.extension.index.query.QueryFactory.equal;
+import static run.halo.app.extension.index.query.QueryFactory.isNull;
 
 import java.time.Duration;
 import java.time.Instant;

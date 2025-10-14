@@ -7,8 +7,6 @@ import lombok.EqualsAndHashCode;
 import org.junit.jupiter.api.Test;
 import run.halo.app.extension.AbstractExtension;
 import run.halo.app.extension.GVK;
-import run.halo.app.extension.indexer.IndexAttributeFactory;
-import run.halo.app.extension.indexer.IndexSpec;
 
 /**
  * Tests for {@link IndexSpec}.

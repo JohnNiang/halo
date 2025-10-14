@@ -12,7 +12,7 @@ import run.halo.app.extension.Watcher;
 import run.halo.app.extension.controller.RequestQueue;
 import run.halo.app.extension.controller.Synchronizer;
 import run.halo.app.extension.event.SchemeAddedEvent;
-import run.halo.app.extension.indexer.query.QueryFactory;
+import run.halo.app.extension.index.query.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 
 class GcSynchronizer implements Synchronizer<GcRequest>, ApplicationListener<SchemeAddedEvent> {
