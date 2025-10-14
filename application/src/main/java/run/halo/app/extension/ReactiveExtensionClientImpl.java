@@ -12,12 +12,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Predicates;
@@ -29,8 +26,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
-import run.halo.app.extension.event.IndexerBuiltEvent;
-import run.halo.app.extension.event.SchemeRemovedEvent;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.extension.index.IndexEngine;
 import run.halo.app.extension.index.IndexedQueryEngine;
@@ -54,11 +49,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final IndexEngine indexEngine;
 
-    /**
-     * The indexer building state map, the key is the group kind, and the value indicates whether
-     * the indexer is built.
-     */
-    private final ConcurrentMap<GroupKind, Boolean> indexerBuiltMap = new ConcurrentHashMap<>();
     private Scheduler scheduler;
 
     private TransactionalOperator transactionalOperator;
@@ -266,7 +256,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     public <E extends Extension> Mono<E> create(E extension) {
         return Mono.fromCallable(
                 () -> {
-                    checkClientWritable(extension);
                     var metadata = extension.getMetadata();
                     // those fields should be managed by halo.
                     metadata.setCreationTimestamp(Instant.now());
@@ -305,7 +294,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> update(E extension) {
-        checkClientWritable(extension);
         // Refactor the atomic reference if we have a better solution.
         return getLatest(extension).flatMap(old -> {
             var oldJsonExt = new JsonExtension(objectMapper, old);
@@ -355,7 +343,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<E> delete(E extension) {
-        checkClientWritable(extension);
         // set deletionTimestamp
         extension.getMetadata().setDeletionTimestamp(Instant.now());
         var extensionStore = converter.convertTo(extension);
@@ -466,28 +453,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             realExtension = jsonExtension.getObjectMapper().convertValue(jsonExtension, realType);
         }
         return realExtension;
-    }
-
-    /**
-     * If the extension is being updated, we should the index is not building index for the
-     * extension, otherwise the {@link IllegalStateException} will be thrown.
-     */
-    private <E extends Extension> void checkClientWritable(E extension) {
-        var built = indexerBuiltMap.get(extension.groupVersionKind().groupKind());
-        if (built == null || !built) {
-            throw new IllegalStateException("Index is building for " + extension.groupVersionKind()
-                + ", please wait for a moment and try again.");
-        }
-    }
-
-    @EventListener
-    void onIndexerBuiltEvent(IndexerBuiltEvent event) {
-        this.indexerBuiltMap.put(event.getScheme().groupVersionKind().groupKind(), true);
-    }
-
-    @EventListener
-    void onSchemeRemovedEvent(SchemeRemovedEvent event) {
-        this.indexerBuiltMap.remove(event.getScheme().groupVersionKind().groupKind());
     }
 
     @Override

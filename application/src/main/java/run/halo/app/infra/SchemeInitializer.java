@@ -4,6 +4,7 @@ import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.BooleanUtils.toStringTrueFalse;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 import static run.halo.app.core.extension.Role.ROLE_AGGREGATE_LABEL_PREFIX;
+import static run.halo.app.extension.index.IndexAttributeFactory.attribute;
 import static run.halo.app.extension.index.IndexAttributeFactory.multiValueAttribute;
 import static run.halo.app.extension.index.IndexAttributeFactory.simpleAttribute;
 
@@ -270,12 +271,13 @@ class SchemeInitializer implements SmartLifecycle {
                     var lastModifyTime = post.getStatus().getLastModifyTime();
                     return lastModifyTime == null ? null : lastModifyTime.toString();
                 })));
-            indexSpecs.add(new IndexSpec()
+            indexSpecs.add(new IndexSpec<Post, Boolean>()
                 .setName("status.hideFromList")
-                .setIndexFunc(simpleAttribute(Post.class, post -> {
-                    var hidden = post.getStatus().getHideFromList();
-                    // only index when hidden is true
-                    return (hidden == null || !hidden) ? null : BooleanUtils.TRUE;
+                .setIndexFunc(attribute(Post.class, Boolean.class, post -> {
+                    if (post.getStatus() == null) {
+                        return false;
+                    }
+                    return Boolean.TRUE.equals(post.getStatus().getHideFromList());
                 }))
             );
             indexSpecs.add(new IndexSpec()
@@ -656,9 +658,9 @@ class SchemeInitializer implements SmartLifecycle {
                 .setIndexFunc(
                     simpleAttribute(LocalThumbnail.class,
                         thumbnail -> Optional.of(thumbnail.getStatus())
-                        .map(LocalThumbnail.Status::getPhase)
-                        .map(LocalThumbnail.Phase::name)
-                        .orElse(null))
+                            .map(LocalThumbnail.Status::getPhase)
+                            .map(LocalThumbnail.Phase::name)
+                            .orElse(null))
                 )
             );
         });

@@ -15,7 +15,7 @@ public class IndexAttributeFactory {
 
     public static <E extends Extension> IndexAttribute<E, UnknownKey> simpleAttribute(Class<E> type,
         Function<E, String> valueFunc) {
-        return attribute((E e) -> Optional.ofNullable(valueFunc.apply(e))
+        return attribute(type, UnknownKey.class, (E e) -> Optional.ofNullable(valueFunc.apply(e))
             .map(UnknownKey::new)
             .orElse(null));
     }
@@ -23,7 +23,7 @@ public class IndexAttributeFactory {
     public static <E extends Extension> IndexAttribute<E, UnknownKey> multiValueAttribute(
         Class<E> type,
         Function<E, Set<String>> valuesFunc) {
-        return attributes((E e) -> Optional.ofNullable(valuesFunc.apply(e))
+        return attributes(type, UnknownKey.class, (E e) -> Optional.ofNullable(valuesFunc.apply(e))
             .map(values -> values.stream()
                 .map(UnknownKey::new)
                 .collect(Collectors.toSet())
@@ -32,15 +32,17 @@ public class IndexAttributeFactory {
     }
 
     public static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attributes(
-        Function<E, Set<K>> valuesFunc) {
-        return new DefaultIndexAttribute<>(valuesFunc);
+        Class<E> objectType, Class<K> keyType, Function<E, Set<K>> valuesFunc
+    ) {
+        return new DefaultIndexAttribute<>(valuesFunc, objectType, keyType);
     }
 
     public static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attribute(
-        Function<E, K> valueFunc) {
+        Class<E> objectType, Class<K> keyType, Function<E, K> valueFunc
+    ) {
         return new DefaultIndexAttribute<>(e -> Optional.ofNullable(valueFunc.apply(e))
             .map(Set::of)
-            .orElse(null));
+            .orElse(null), objectType, keyType);
     }
 
     /**
@@ -50,14 +52,7 @@ public class IndexAttributeFactory {
      * @since 2.22.0
      *
      */
-    public static class UnknownKey implements Comparable<UnknownKey> {
-
-        @Nullable
-        private final String value;
-
-        public UnknownKey(@Nullable String value) {
-            this.value = value;
-        }
+    record UnknownKey(@Nullable String value) implements Comparable<UnknownKey> {
 
         @Override
         public int compareTo(@NotNull UnknownKey o) {
@@ -74,9 +69,5 @@ public class IndexAttributeFactory {
             return Objects.equals(value, unknownKey.value);
         }
 
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(value);
-        }
     }
 }

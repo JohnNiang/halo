@@ -29,4 +29,8 @@ public interface IndexEngine {
     );
 
     <E extends Extension> long count(Class<E> type, ListOptions options);
+
+    @NonNull
+    IndicesManager getIndicesManager();
+
 }

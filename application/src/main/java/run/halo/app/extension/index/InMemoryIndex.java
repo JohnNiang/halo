@@ -1,9 +1,8 @@
-package run.halo.app.extension.index.query;
+package run.halo.app.extension.index;
 
 import java.util.Collection;
 import java.util.Set;
 import run.halo.app.extension.Extension;
-import run.halo.app.extension.index.Index;
 
 public interface InMemoryIndex<E extends Extension, K extends Comparable<K>> extends Index<E, K> {
 

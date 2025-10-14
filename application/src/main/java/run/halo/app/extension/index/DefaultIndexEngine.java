@@ -4,8 +4,11 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.function.Function;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.core.convert.ConversionService;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.Extension;
@@ -16,12 +19,21 @@ import run.halo.app.extension.index.query.Condition;
 import run.halo.app.extension.index.query.QueryVisitor;
 import run.halo.app.extension.router.selector.SelectorMatcher;
 
-class DefaultIndexEngine implements IndexEngine {
+@Component
+class DefaultIndexEngine implements IndexEngine, DisposableBean {
 
     private final IndicesManager indicesManager;
 
-    public DefaultIndexEngine(IndicesManager indicesManager) {
-        this.indicesManager = indicesManager;
+    private final ConversionService conversionService;
+
+    public DefaultIndexEngine(ConversionService conversionService) {
+        this.conversionService = conversionService;
+        this.indicesManager = new DefaultIndicesManager();
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        this.indicesManager.close();
     }
 
     @Override
@@ -57,7 +69,7 @@ class DefaultIndexEngine implements IndexEngine {
         }
         var finalCondition = buildCondition(options);
         var indices = indicesManager.get(type);
-        var queryVisitor = new QueryVisitor<>(indices);
+        var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
         var result = queryVisitor.getResult();
         // create comparator
@@ -66,6 +78,14 @@ class DefaultIndexEngine implements IndexEngine {
 
         int offset = (page.getPageNumber() - 1) * page.getPageSize();
         int limit = page.getPageSize();
+
+        if (limit <= 0) {
+            // return all results for backward compatibility
+            var finalResult = result.stream().sorted(comparator).toList();
+            return new ListResult<>(
+                page.getPageNumber(), page.getPageSize(), result.size(), finalResult
+            );
+        }
 
         var n = offset + limit;
         var pq = new PriorityQueue<>(n, comparator.reversed());
@@ -97,7 +117,7 @@ class DefaultIndexEngine implements IndexEngine {
         }
         var finalCondition = buildCondition(options);
         var indices = indicesManager.get(type);
-        var queryVisitor = new QueryVisitor<>(indices);
+        var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
         var result = queryVisitor.getResult();
         // create comparator
@@ -117,7 +137,7 @@ class DefaultIndexEngine implements IndexEngine {
         }
         var finalCondition = buildCondition(options);
         var indices = indicesManager.get(type);
-        var queryVisitor = new QueryVisitor<>(indices);
+        var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
         var result = queryVisitor.getResult();
         // create comparator
@@ -144,9 +164,14 @@ class DefaultIndexEngine implements IndexEngine {
         }
         var finalCondition = buildCondition(options);
         var indices = indicesManager.get(type);
-        var queryVisitor = new QueryVisitor<>(indices);
+        var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
         return queryVisitor.getResult().size();
+    }
+
+    @Override
+    public IndicesManager getIndicesManager() {
+        return this.indicesManager;
     }
 
     private Condition buildCondition(@NonNull ListOptions options) {

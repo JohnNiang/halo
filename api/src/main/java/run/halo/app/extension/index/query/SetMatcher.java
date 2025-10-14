@@ -51,20 +51,18 @@ public class SetMatcher implements SelectorMatcher {
 
     @Override
     public LabelCondition toCondition() {
-        var indexNamePrefix = "metadata.labels.";
-        var indexName = indexNamePrefix + key;
         switch (operator) {
             case IN -> {
-                return new LabelInCondition(indexName, Set.of(this.values));
+                return new LabelInCondition(key, Set.of(this.values));
             }
             case NOT_IN -> {
-                return new LabelNotInCondition(indexName, Set.of(this.values));
+                return new LabelNotInCondition(key, Set.of(this.values));
             }
             case EXISTS -> {
-                return new LabelExistsCondition(indexName);
+                return new LabelExistsCondition(key);
             }
             case NOT_EXISTS -> {
-                return new LabelNotExistsCondition(indexName);
+                return new LabelNotExistsCondition(key);
             }
             default -> throw new UnsupportedOperationException("Unsupported operator: " + operator);
         }

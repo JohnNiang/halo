@@ -22,7 +22,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.Extension;
-import run.halo.app.extension.index.query.InMemoryIndex;
 
 @Slf4j
 class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements InMemoryIndex<E, K> {
@@ -258,7 +257,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
 
     @Override
     public Set<String> equal(K key) {
-        return index.get(key);
+        return index.getOrDefault(key, Set.of());
     }
 
     @Override
@@ -281,10 +280,6 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
         private Set<K> previousKeys;
 
         private boolean previousNullKey;
-
-        // private boolean nullKeyRemoved;
-        //
-        // private boolean nullKeyAdded;
 
         UpsertIndexOperation(
             @NonNull String primaryKey, @Nullable Set<K> newKeys
@@ -317,14 +312,8 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 }));
             }
             // add new keys
-            boolean hasNullKey = false;
             if (!CollectionUtils.isEmpty(newKeys)) {
                 for (K key : newKeys) {
-                    if (key == null) {
-                        nullKeyValues.add(primaryKey);
-                        hasNullKey = true;
-                        continue;
-                    }
                     index.compute(key, (k, v) -> {
                         if (v == null) {
                             v = ConcurrentHashMap.newKeySet();
@@ -339,9 +328,9 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                         return v;
                     });
                 }
-            }
-            if (!hasNullKey) {
                 nullKeyValues.remove(primaryKey);
+            } else {
+                nullKeyValues.add(primaryKey);
             }
         }
 

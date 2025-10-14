@@ -17,7 +17,7 @@ public interface IndexAttribute<E extends Extension, K extends Comparable<K>> {
      *
      * @return the value type of the attribute.
      */
-    Class<K> getKeytype();
+    Class<K> getKeyType();
 
     /**
      * Get the value of the attribute.

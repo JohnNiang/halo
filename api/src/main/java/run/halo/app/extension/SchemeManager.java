@@ -21,6 +21,10 @@ public interface SchemeManager {
         register(type, null);
     }
 
+    default void register(Scheme scheme) {
+        register(scheme.type(), null);
+    }
+
     <E extends Extension> void register(
         Class<E> type, @Nullable Consumer<IndexSpecs<E>> specsConsumer
     );

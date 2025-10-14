@@ -53,14 +53,12 @@ public class EqualityMatcher implements SelectorMatcher {
 
     @Override
     public LabelCondition toCondition() {
-        var indexNamePrefix = "metadata.labels.";
-        var indexName = indexNamePrefix + key;
         switch (operator) {
             case EQUAL, DOUBLE_EQUAL -> {
-                return new LabelEqualsCondition(indexName, value);
+                return new LabelEqualsCondition(key, value);
             }
             case NOT_EQUAL -> {
-                return new LabelNotEqualsCondition(indexName, value);
+                return new LabelNotEqualsCondition(key, value);
             }
             default -> throw new IllegalArgumentException("Unsupported operator: " + operator);
         }

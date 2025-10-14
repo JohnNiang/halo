@@ -1,5 +1,7 @@
 package run.halo.app.extension.index;
 
+import static run.halo.app.extension.index.IndexAttributeFactory.attribute;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,7 +25,7 @@ class DefaultIndicesManager implements IndicesManager {
     public <E extends Extension> void add(Class<E> type, List<IndexSpec<E, ?>> indexSpecs) {
         indicesMap.computeIfAbsent(type, t -> {
             var finalIndexSpecs = new ArrayList<>(indexSpecs);
-            finalIndexSpecs.addAll(createDefaultIndexSpecs());
+            finalIndexSpecs.addAll(createDefaultIndexSpecs(type));
             List<Index<E, ?>> indices = finalIndexSpecs.stream()
                 .map(MultiValueIndex::new)
                 .map(index -> (Index<E, ?>) index)
@@ -56,22 +58,22 @@ class DefaultIndicesManager implements IndicesManager {
         IOUtils.closeQuietly(indices);
     }
 
-    private <E extends Extension> List<IndexSpec<E, ?>> createDefaultIndexSpecs() {
+    private <E extends Extension> List<IndexSpec<E, ?>> createDefaultIndexSpecs(Class<E> type) {
         var metadataNameSpec = new IndexSpec<E, String>()
             .setName("metadata.name")
             .setUnique(true)
-            .setIndexFunc(IndexAttributeFactory.attribute(e -> e.getMetadata().getName()));
+            .setIndexFunc(attribute(type, String.class, e -> e.getMetadata().getName()));
         var creationTimestampSpec = new IndexSpec<E, Instant>()
             .setName("metadata.creationTimestamp")
             .setOrder(IndexSpec.OrderType.DESC)
             .setIndexFunc(
-                IndexAttributeFactory.attribute(e -> e.getMetadata().getCreationTimestamp())
+                attribute(type, Instant.class, e -> e.getMetadata().getCreationTimestamp())
             );
         var deletionTimestampSpec = new IndexSpec<E, Instant>()
             .setName("metadata.deletionTimestamp")
             .setOrder(IndexSpec.OrderType.DESC)
             .setIndexFunc(
-                IndexAttributeFactory.attribute(e -> e.getMetadata().getDeletionTimestamp())
+                attribute(type, Instant.class, e -> e.getMetadata().getDeletionTimestamp())
             );
         return List.of(metadataNameSpec, creationTimestampSpec, deletionTimestampSpec);
     }

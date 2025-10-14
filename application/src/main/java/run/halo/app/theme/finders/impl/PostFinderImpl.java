@@ -127,7 +127,7 @@ public class PostFinderImpl implements PostFinder {
                 .build()
             )
             .flatMap(listOptions -> client.listNamesBy(Post.class, listOptions,
-                PageRequestImpl.ofSize(0).withSort(defaultSort()))
+                PageRequestImpl.ofSize(1).withSort(defaultSort()))
             )
             .flatMap(listResult -> {
                 var postNames = listResult.getItems();

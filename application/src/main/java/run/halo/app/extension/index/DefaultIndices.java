@@ -51,7 +51,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         lock.lock();
         try {
             for (var index : indexMap.values()) {
-                updaters.add(index.prepareInsert(extension));
+                var updater = index.prepareInsert(extension);
+                updater.prepare();
+                updaters.add(updater);
             }
             updaters.forEach(IndexOperation::commit);
         } catch (Exception e) {
@@ -72,7 +74,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         lock.lock();
         try {
             for (var index : indexMap.values()) {
-                updaters.add(index.prepareUpdate(extension));
+                var updater = index.prepareUpdate(extension);
+                updater.prepare();
+                updaters.add(updater);
             }
             updaters.forEach(IndexOperation::commit);
         } catch (Exception e) {
@@ -93,7 +97,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         lock.lock();
         try {
             for (var index : indexMap.values()) {
-                updaters.add(index.prepareDelete(primaryKey));
+                var updater = index.prepareDelete(primaryKey);
+                updater.prepare();
+                updaters.add(updater);
             }
             updaters.forEach(IndexOperation::commit);
         } catch (Exception e) {

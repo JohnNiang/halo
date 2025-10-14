@@ -27,7 +27,7 @@ public class IndexSpec<E extends Extension, K extends Comparable<K>> {
     }
 
     public Class<K> getKeyType() {
-        return indexFunc.getKeytype();
+        return indexFunc.getKeyType();
     }
 
     @Override

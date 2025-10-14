@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.lang.NonNull;
@@ -91,9 +90,10 @@ class LabelIndexImpl<E extends Extension> implements LabelIndex<E> {
 
     @Override
     public Set<String> notEqual(String labelKey, String labelValue) {
-        var headMap = index.headMap(new LabelEntry(labelKey, labelValue), false);
-        var tailMap = index.tailMap(new LabelEntry(labelKey, labelValue), false);
-        return Stream.concat(headMap.values().stream(), tailMap.values().stream())
+        var labelEntry = new LabelEntry(labelKey, labelValue);
+        return index.entrySet().stream()
+            .filter(entry -> !Objects.equals(entry.getKey(), labelEntry))
+            .map(Map.Entry::getValue)
             .flatMap(Set::stream)
             .collect(Collectors.toSet());
     }

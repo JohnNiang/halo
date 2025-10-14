@@ -10,6 +10,7 @@ import org.springframework.data.relational.core.sql.Visitable;
 import org.springframework.data.relational.core.sql.Visitor;
 import org.springframework.lang.NonNull;
 import run.halo.app.extension.Extension;
+import run.halo.app.extension.index.InMemoryIndex;
 import run.halo.app.extension.index.Indices;
 import run.halo.app.extension.index.LabelIndex;
 
@@ -22,9 +23,13 @@ public class QueryVisitor<E extends Extension> implements Visitor {
     private final Set<String> result;
 
     public QueryVisitor(Indices<E> indices) {
+        this(indices, ApplicationConversionService.getSharedInstance());
+    }
+
+    public QueryVisitor(Indices<E> indices, ConversionService conversionService) {
         this.indices = indices;
         this.result = new HashSet<>();
-        this.conversionService = ApplicationConversionService.getSharedInstance();
+        this.conversionService = conversionService;
     }
 
     @Override
