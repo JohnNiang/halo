@@ -24,4 +24,8 @@ public interface IndexEngine {
         Class<E> type, @Nullable ListOptions options, @Nullable Sort sort
     );
 
+    <E extends Extension> Iterable<String> retrieveTopN(
+        Class<E> type, @Nullable ListOptions options, @Nullable Sort sort, int topN
+    );
+
 }

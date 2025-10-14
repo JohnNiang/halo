@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
+import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,6 +33,7 @@ import run.halo.app.extension.event.SchemeRemovedEvent;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.extension.index.IndexedQueryEngine;
 import run.halo.app.extension.index.IndexerFactory;
+import run.halo.app.extension.indexer.IndexEngine;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
 
 @Slf4j
@@ -52,7 +54,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final IndexerFactory indexerFactory;
 
-    private final IndexedQueryEngine indexedQueryEngine;
+    private final IndexEngine indexEngine;
 
     /**
      * The indexer building state map, the key is the group kind, and the value indicates whether
@@ -64,14 +66,14 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     public ReactiveExtensionClientImpl(ReactiveExtensionStoreClient client,
         ExtensionConverter converter, SchemeManager schemeManager, ObjectMapper objectMapper,
-        IndexerFactory indexerFactory, IndexedQueryEngine indexedQueryEngine,
+        IndexerFactory indexerFactory, IndexEngine indexEngine,
         ReactiveTransactionManager reactiveTransactionManager) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
         this.objectMapper = objectMapper;
         this.indexerFactory = indexerFactory;
-        this.indexedQueryEngine = indexedQueryEngine;
+        this.indexEngine = indexEngine;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
     }
 
@@ -123,23 +125,25 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                 return Sort.unsorted();
             });
         var scheme = schemeManager.get(type);
-        return Mono.fromSupplier(
-                () -> indexedQueryEngine.retrieveAll(scheme.groupVersionKind(), options,
-                    nullSafeSort))
-            .doOnSuccess(objectKeys -> {
-                if (log.isDebugEnabled()) {
-                    if (objectKeys.size() > 500) {
-                        log.warn("The number of objects retrieved by listAll is too large ({}) "
-                                + "and it is recommended to use paging query.",
-                            objectKeys.size());
-                    }
-                }
-            })
+
+        return Mono.fromCallable(
+                () -> indexEngine.retrieveAll(scheme.type(), options, nullSafeSort)
+            )
             .flatMapMany(objectKeys -> {
-                var storeNames = objectKeys.stream()
+                var storeNames = StreamSupport.stream(objectKeys.spliterator(), false)
                     .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
                     .toList();
-                final long startTimeMs = System.currentTimeMillis();
+                if (log.isDebugEnabled()) {
+                    if (storeNames.size() > 500) {
+                        log.warn("""
+                                The number of objects retrieved by listAll is too large ({}) \
+                                and it is recommended to use paging query.\
+                                """,
+                            storeNames.size()
+                        );
+                    }
+                }
+                long startTimeMs = System.currentTimeMillis();
                 return client.listByNames(storeNames)
                     .map(extensionStore -> converter.convertFrom(type, extensionStore))
                     .doOnComplete(() -> log.debug(
@@ -150,14 +154,29 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     }
 
     @Override
+    public <E extends Extension> Flux<String> listAllNames(Class<E> type, ListOptions options,
+        Sort sort) {
+        var scheme = schemeManager.get(type);
+        return Mono.fromCallable(() -> indexEngine.retrieveAll(scheme.type(), options, sort))
+            .flatMapMany(Flux::fromIterable);
+    }
+
+    @Override
+    public <E extends Extension> Flux<String> listTopNames(Class<E> type, ListOptions options,
+        Sort sort, int top) {
+        var scheme = schemeManager.get(type);
+        return Mono.fromCallable(() -> indexEngine.retrieveAll(type, options, sort))
+            .flatMapMany(Flux::fromIterable)
+            .take(top);
+    }
+
+    @Override
     public <E extends Extension> Mono<ListResult<E>> listBy(Class<E> type, ListOptions options,
         PageRequest page) {
         var scheme = schemeManager.get(type);
-        return Mono.fromSupplier(
-                () -> indexedQueryEngine.retrieve(scheme.groupVersionKind(), options, page)
-            )
-            .flatMap(objectKeys -> {
-                var storeNames = objectKeys.get()
+        return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, page))
+            .flatMap(listResult -> {
+                var storeNames = listResult.get()
                     .map(objectKey -> ExtensionStoreUtil.buildStoreName(scheme, objectKey))
                     .toList();
                 final long startTimeMs = System.currentTimeMillis();
@@ -168,10 +187,18 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                         scheme.groupVersionKind(), System.currentTimeMillis() - startTimeMs)
                     )
                     .collectList()
-                    .map(result -> new ListResult<>(page.getPageNumber(), page.getPageSize(),
-                        objectKeys.getTotal(), result));
+                    .map(items -> new ListResult<>(page.getPageNumber(), page.getPageSize(),
+                        listResult.getTotal(), items)
+                    );
             })
             .defaultIfEmpty(ListResult.emptyResult());
+    }
+
+    @Override
+    public <E extends Extension> Mono<ListResult<String>> listNamesBy(Class<E> type,
+        ListOptions options, PageRequest pageable) {
+        var scheme = schemeManager.get(type);
+        return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, pageable));
     }
 
     @Override
@@ -213,7 +240,6 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
         return fetchJsonExtension(gvk, name)
             .switchIfEmpty(Mono.error(() -> new ExtensionNotFoundException(gvk, name)));
     }
-
 
     @Override
     public <E extends Extension> Mono<E> create(E extension) {
@@ -319,7 +345,23 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public IndexedQueryEngine indexedQueryEngine() {
-        return this.indexedQueryEngine;
+        return new IndexedQueryEngine() {
+            @Override
+            public ListResult<String> retrieve(GroupVersionKind gvk, ListOptions options,
+                PageRequest page) {
+                var scheme = schemeManager.get(gvk);
+                return indexEngine.retrieve(scheme.type(), options, page);
+            }
+
+            @Override
+            public List<String> retrieveAll(GroupVersionKind gvk, ListOptions options, Sort sort) {
+                var scheme = schemeManager.get(gvk);
+                return StreamSupport.stream(
+                        indexEngine.retrieveAll(scheme.type(), options, sort).spliterator(), false
+                    )
+                    .toList();
+            }
+        };
     }
 
     /**

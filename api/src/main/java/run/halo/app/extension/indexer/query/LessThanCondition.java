@@ -1,7 +1,7 @@
 package run.halo.app.extension.indexer.query;
 
 record LessThanCondition(String indexName, Object upperBound, boolean inclusive)
-    implements Condition {
+    implements IndexCondition {
 
     @Override
     public Condition not() {

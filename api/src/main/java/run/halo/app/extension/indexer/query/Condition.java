@@ -1,6 +1,7 @@
 package run.halo.app.extension.indexer.query;
 
 import org.springframework.data.relational.core.sql.Visitable;
+import run.halo.app.extension.index.query.Query;
 
 /**
  * A condition used in querying index.
@@ -9,7 +10,7 @@ import org.springframework.data.relational.core.sql.Visitable;
  * @author johnniang
  * @since 2.22.0
  */
-public interface Condition extends Visitable {
+public interface Condition extends Visitable, Query {
 
     default Condition and(Condition another) {
         return new AndCondition(this, another);
@@ -21,6 +22,10 @@ public interface Condition extends Visitable {
 
     default Condition not() {
         return new NotCondition(this);
+    }
+
+    static Condition empty() {
+        return new EmptyCondition();
     }
 
 }

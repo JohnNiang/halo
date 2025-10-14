@@ -1,6 +1,6 @@
 package run.halo.app.core.attachment;
 
-import static run.halo.app.extension.indexer.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
 
 import java.time.Duration;
 import java.time.Instant;

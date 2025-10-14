@@ -1,6 +1,6 @@
 package run.halo.app.content;
 
-import static run.halo.app.extension.indexer.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.lang.NonNull;

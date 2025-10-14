@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import run.halo.app.extension.ListOptions;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 
 public final class SelectorUtil {
 

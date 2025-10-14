@@ -1,9 +1,9 @@
 package run.halo.app.theme.finders.impl;
 
-import static run.halo.app.extension.indexer.QueryFactory.and;
-import static run.halo.app.extension.indexer.QueryFactory.equal;
-import static run.halo.app.extension.indexer.QueryFactory.in;
-import static run.halo.app.extension.indexer.QueryFactory.notEqual;
+import static run.halo.app.extension.indexer.query.QueryFactory.and;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.in;
+import static run.halo.app.extension.indexer.query.QueryFactory.notEqual;
 
 import java.util.Comparator;
 import java.util.List;
@@ -30,7 +30,7 @@ import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.extension.index.query.Query;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 import run.halo.app.extension.router.selector.FieldSelector;
 import run.halo.app.extension.router.selector.LabelSelector;
 import run.halo.app.infra.utils.HaloUtils;
@@ -119,18 +119,18 @@ public class PostFinderImpl implements PostFinder {
 
     @Override
     public Mono<NavigationPostVo> cursor(String currentName) {
+        // TODO Refine this feature
         return postPredicateResolver.getListOptions()
             .map(listOptions -> ListOptions.builder(listOptions)
                 // Exclude hidden posts
                 .andQuery(notHiddenPostQuery())
                 .build()
             )
-            .flatMap(postListOption -> {
-                var postNames = client.indexedQueryEngine()
-                    .retrieve(Post.GVK, postListOption,
-                        PageRequestImpl.ofSize(0).withSort(defaultSort())
-                    )
-                    .getItems();
+            .flatMap(listOptions -> client.listNamesBy(Post.class, listOptions,
+                PageRequestImpl.ofSize(0).withSort(defaultSort()))
+            )
+            .flatMap(listResult -> {
+                var postNames = listResult.getItems();
                 var previousNextPair = findPostNavigation(postNames, currentName);
                 String previousPostName = previousNextPair.prev();
                 String nextPostName = previousNextPair.next();

@@ -1,8 +1,8 @@
 package run.halo.app.content;
 
-import static run.halo.app.extension.indexer.QueryFactory.and;
-import static run.halo.app.extension.indexer.QueryFactory.equal;
-import static run.halo.app.extension.indexer.QueryFactory.isNull;
+import static run.halo.app.extension.indexer.query.QueryFactory.and;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.isNull;
 
 import java.security.Principal;
 import java.time.Duration;

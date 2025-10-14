@@ -7,7 +7,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.index.query.Query;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 
 public class FieldSelectorConverter implements Converter<SelectorCriteria, Query> {
 

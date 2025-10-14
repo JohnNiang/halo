@@ -43,9 +43,21 @@ public class DelegateExtensionClient implements ExtensionClient {
     }
 
     @Override
+    public <E extends Extension> List<String> listAllNames(Class<E> type, ListOptions options,
+        Sort sort) {
+        return client.listAllNames(type, options, sort).collectList().block(TIMEOUT);
+    }
+
+    @Override
     public <E extends Extension> ListResult<E> listBy(Class<E> type, ListOptions options,
         PageRequest page) {
         return client.listBy(type, options, page).block(TIMEOUT);
+    }
+
+    @Override
+    public <E extends Extension> ListResult<String> listNamesBy(Class<E> type, ListOptions options,
+        PageRequest page) {
+        return client.listNamesBy(type, options, page).block(TIMEOUT);
     }
 
     @Override

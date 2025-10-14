@@ -46,7 +46,12 @@ public interface ExtensionClient {
 
     <E extends Extension> List<E> listAll(Class<E> type, ListOptions options, Sort sort);
 
+    <E extends Extension> List<String> listAllNames(Class<E> type, ListOptions options, Sort sort);
+
     <E extends Extension> ListResult<E> listBy(Class<E> type, ListOptions options,
+        PageRequest page);
+
+    <E extends Extension> ListResult<String> listNamesBy(Class<E> type, ListOptions options,
         PageRequest page);
 
     /**

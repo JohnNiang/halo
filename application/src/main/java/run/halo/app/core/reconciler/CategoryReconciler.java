@@ -23,7 +23,7 @@ import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.controller.Controller;
 import run.halo.app.extension.controller.ControllerBuilder;
 import run.halo.app.extension.controller.Reconciler;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 
 /**
  * Reconciler for {@link Category}.

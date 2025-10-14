@@ -80,7 +80,7 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         lock.lock();
         try {
             for (var index : indexMap.values()) {
-                updaters.add(index.prepareDelete(extension));
+                updaters.add(index.prepareDelete(primaryKey));
             }
             updaters.forEach(IndexOperation::commit);
         } catch (Exception e) {

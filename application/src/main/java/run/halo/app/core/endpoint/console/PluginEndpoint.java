@@ -11,9 +11,9 @@ import static org.springframework.boot.convert.ApplicationConversionService.getS
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
 import static org.springframework.web.reactive.function.server.RequestPredicates.contentType;
 import static run.halo.app.extension.ListResult.generateGenericClass;
-import static run.halo.app.extension.indexer.QueryFactory.contains;
-import static run.halo.app.extension.indexer.QueryFactory.equal;
-import static run.halo.app.extension.indexer.QueryFactory.or;
+import static run.halo.app.extension.indexer.query.QueryFactory.contains;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.or;
 import static run.halo.app.extension.router.QueryParamBuildUtil.sortParameter;
 import static run.halo.app.infra.utils.FileUtils.deleteFileSilently;
 

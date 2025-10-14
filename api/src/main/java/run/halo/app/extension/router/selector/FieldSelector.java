@@ -4,7 +4,7 @@ import java.util.Objects;
 import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 import run.halo.app.extension.index.query.Query;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 
 public record FieldSelector(@NonNull Query query) {
     public FieldSelector(Query query) {

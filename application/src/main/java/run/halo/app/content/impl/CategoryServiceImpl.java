@@ -1,6 +1,6 @@
 package run.halo.app.content.impl;
 
-import static run.halo.app.extension.indexer.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;

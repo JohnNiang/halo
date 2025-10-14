@@ -28,7 +28,7 @@ import run.halo.app.core.extension.Device;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 import run.halo.app.security.authentication.rememberme.PersistentRememberMeTokenRepository;
 
 @Slf4j

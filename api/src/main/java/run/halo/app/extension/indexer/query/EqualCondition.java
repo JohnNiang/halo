@@ -1,6 +1,6 @@
 package run.halo.app.extension.indexer.query;
 
-record EqualCondition(String indexName, Object key) implements Condition {
+record EqualCondition(String indexName, Object key) implements IndexCondition {
 
     @Override
     public Condition not() {

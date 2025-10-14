@@ -4,11 +4,11 @@ import static org.springdoc.core.fn.builders.arrayschema.Builder.arraySchemaBuil
 import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
 import static org.springdoc.core.fn.builders.schema.Builder.schemaBuilder;
 import static org.springframework.boot.convert.ApplicationConversionService.getSharedInstance;
-import static run.halo.app.extension.indexer.QueryFactory.contains;
-import static run.halo.app.extension.indexer.QueryFactory.in;
-import static run.halo.app.extension.indexer.QueryFactory.isNull;
-import static run.halo.app.extension.indexer.QueryFactory.not;
-import static run.halo.app.extension.indexer.QueryFactory.startsWith;
+import static run.halo.app.extension.indexer.query.QueryFactory.contains;
+import static run.halo.app.extension.indexer.query.QueryFactory.in;
+import static run.halo.app.extension.indexer.query.QueryFactory.isNull;
+import static run.halo.app.extension.indexer.query.QueryFactory.not;
+import static run.halo.app.extension.indexer.query.QueryFactory.startsWith;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import java.util.List;
@@ -18,7 +18,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import run.halo.app.extension.ListOptions;
-import run.halo.app.extension.indexer.QueryFactory;
+import run.halo.app.extension.indexer.query.QueryFactory;
 import run.halo.app.extension.router.IListRequest;
 import run.halo.app.extension.router.QueryParamBuildUtil;
 import run.halo.app.extension.router.SortableRequest;

@@ -21,9 +21,10 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.Extension;
+import run.halo.app.extension.indexer.query.InMemoryIndex;
 
 @Slf4j
-class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements Index<E, K> {
+class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements InMemoryIndex<E, K> {
 
     private final ConcurrentNavigableMap<K, Set<String>> index;
 
@@ -55,9 +56,14 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
     }
 
     @Override
+    public boolean isUnique() {
+        return spec.isUnique();
+    }
+
+    @Override
     public IndexOperation prepareInsert(E extension) {
         var keys = spec.getIndexFunc().getValues(extension);
-        return new InsertIndexOperation(extension.getMetadata().getName(), keys);
+        return new UpsertIndexOperation(extension.getMetadata().getName(), keys);
     }
 
     @Override
@@ -65,12 +71,17 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
         // find old state
         var newKeys = spec.getIndexFunc().getValues(extension);
         var primaryKey = extension.getMetadata().getName();
-        return new UpdateIndexOperation(primaryKey, newKeys);
+        return new UpsertIndexOperation(primaryKey, newKeys);
     }
 
     @Override
-    public IndexOperation prepareDelete(E extension) {
-        return new DeleteIndexOperation(extension.getMetadata().getName());
+    public IndexOperation prepareDelete(String primaryKey) {
+        return new DeleteIndexOperation(primaryKey);
+    }
+
+    @Override
+    public Set<K> getKeys(String primaryKey) {
+        return Collections.unmodifiableSet(invertedIndex.get(primaryKey));
     }
 
     @Override
@@ -190,6 +201,20 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
     }
 
     @Override
+    public Set<String> stringNotStartsWith(String prefix) {
+        Assert.isInstanceOf(getKeyType(), prefix,
+            "Key type must be String for stringStartsWith operation");
+        var fromKey = prefix;
+        var toKey = prefix + Character.MAX_VALUE;
+        return Stream.concat(
+                index.headMap((K) fromKey, false).values().stream(),
+                index.tailMap((K) toKey, true).values().stream()
+            )
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
+    @Override
     public Set<String> stringEndsWith(String suffix) {
         Assert.isInstanceOf(getKeyType(), suffix,
             "Key type must be String for stringEndsWith operation");
@@ -200,6 +225,19 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
             .flatMap(Set::stream)
             .collect(Collectors.toSet());
     }
+
+    @Override
+    public Set<String> stringNotEndsWith(String suffix) {
+        Assert.isInstanceOf(getKeyType(), suffix,
+            "Key type must be String for stringEndsWith operation");
+        return index.entrySet()
+            .stream()
+            .filter(entry -> !StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
+            .map(Map.Entry::getValue)
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
+    }
+
 
     @Override
     public Set<String> notEqual(K key) {
@@ -222,7 +260,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
             .collect(Collectors.toSet());
     }
 
-    class UpdateIndexOperation implements IndexOperation {
+    class UpsertIndexOperation implements IndexOperation {
 
         @NonNull
         private final String primaryKey;
@@ -234,15 +272,23 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
 
         private Set<K> previousKeys;
 
-        private boolean nullKeyRemoved;
+        private boolean previousNullKey;
 
-        private boolean nullKeyAdded;
+        // private boolean nullKeyRemoved;
+        //
+        // private boolean nullKeyAdded;
 
-        UpdateIndexOperation(
+        UpsertIndexOperation(
             @NonNull String primaryKey, @Nullable Set<K> newKeys
         ) {
             this.primaryKey = primaryKey;
             this.newKeys = newKeys;
+        }
+
+        @Override
+        public void prepare() {
+            this.previousKeys = invertedIndex.get(primaryKey);
+            this.previousNullKey = nullKeyValues.contains(primaryKey);
         }
 
         @Override
@@ -251,10 +297,10 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 return;
             }
             committed = true;
-            this.previousKeys = invertedIndex.put(primaryKey, newKeys);
             if (Objects.equals(previousKeys, newKeys)) {
                 return;
             }
+            invertedIndex.put(primaryKey, newKeys);
             // remove previous keys
             if (!CollectionUtils.isEmpty(previousKeys)) {
                 previousKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
@@ -267,7 +313,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
             if (!CollectionUtils.isEmpty(newKeys)) {
                 for (K key : newKeys) {
                     if (key == null) {
-                        nullKeyAdded = nullKeyValues.add(primaryKey);
+                        nullKeyValues.add(primaryKey);
                         hasNullKey = true;
                         continue;
                     }
@@ -287,7 +333,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 }
             }
             if (!hasNullKey) {
-                nullKeyRemoved = nullKeyValues.remove(primaryKey);
+                nullKeyValues.remove(primaryKey);
             }
         }
 
@@ -304,7 +350,10 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 }));
             }
             // add previous keys
-            if (!CollectionUtils.isEmpty(this.previousKeys)) {
+            if (this.previousKeys == null) {
+                // remove from inverted index
+                invertedIndex.remove(primaryKey);
+            } else {
                 this.previousKeys.forEach(key -> index.compute(key, (k, v) -> {
                     if (v == null) {
                         v = ConcurrentHashMap.newKeySet();
@@ -313,12 +362,11 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                     v.add(primaryKey);
                     return v;
                 }));
+                invertedIndex.put(primaryKey, this.previousKeys);
             }
-            invertedIndex.put(primaryKey, this.previousKeys);
-            if (nullKeyRemoved) {
+            if (previousNullKey) {
                 nullKeyValues.add(primaryKey);
-            }
-            if (nullKeyAdded) {
+            } else {
                 nullKeyValues.remove(primaryKey);
             }
         }
@@ -334,10 +382,16 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
 
         private Set<K> previousKeys;
 
-        private boolean nullKeyRemoved;
+        private boolean previousNullKey;
 
         DeleteIndexOperation(@NonNull String primaryKey) {
             this.primaryKey = primaryKey;
+        }
+
+        @Override
+        public void prepare() {
+            this.previousKeys = invertedIndex.get(primaryKey);
+            this.previousNullKey = nullKeyValues.contains(primaryKey);
         }
 
         @Override
@@ -346,15 +400,14 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 return;
             }
             committed = true;
-            this.previousKeys = invertedIndex.remove(primaryKey);
-            if (this.previousKeys == null) {
-                return;
+            invertedIndex.remove(primaryKey);
+            if (this.previousKeys != null) {
+                this.previousKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
+                    v.remove(primaryKey);
+                    return v.isEmpty() ? null : v;
+                }));
             }
-            this.previousKeys.forEach(key -> index.computeIfPresent(key, (k, v) -> {
-                v.remove(primaryKey);
-                return v.isEmpty() ? null : v;
-            }));
-            nullKeyRemoved = nullKeyValues.remove(primaryKey);
+            nullKeyValues.remove(primaryKey);
         }
 
         @Override
@@ -362,8 +415,10 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
             if (this.previousKeys == null || !committed) {
                 return;
             }
-            if (nullKeyRemoved) {
+            if (previousNullKey) {
                 nullKeyValues.add(primaryKey);
+            } else {
+                nullKeyValues.remove(primaryKey);
             }
             // add previous keys
             this.previousKeys.forEach(key -> index.compute(key, (k, v) -> {
@@ -374,89 +429,6 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
                 return v;
             }));
             invertedIndex.put(primaryKey, this.previousKeys);
-        }
-    }
-
-    class InsertIndexOperation implements IndexOperation {
-
-        @NonNull
-        private final String primaryKey;
-
-        @Nullable
-        private final Set<K> keys;
-
-        private Set<K> previousKeys;
-
-        private boolean nullKeyAdded;
-
-        private boolean committed;
-
-        InsertIndexOperation(@NonNull String primaryKey, @Nullable Set<K> keys) {
-            this.primaryKey = primaryKey;
-            this.keys = keys;
-        }
-
-        @Override
-        public void commit() {
-            if (committed) {
-                return;
-            }
-            committed = true;
-            if (keys == null) {
-                return;
-            }
-
-            // save current state
-            this.previousKeys = invertedIndex.put(primaryKey, keys);
-            keys.forEach(key -> {
-                if (key == null) {
-                    this.nullKeyAdded = nullKeyValues.add(primaryKey);
-                    return;
-                }
-                index.compute(key, (k, v) -> {
-                    if (v == null) {
-                        v = ConcurrentHashMap.newKeySet();
-                    }
-                    if (spec.isUnique() && !v.isEmpty()) {
-                        throw new DuplicateKeyException(
-                            String.format("Duplicate key '%s' for extension '%s'", k, primaryKey)
-                        );
-                    }
-                    v.add(primaryKey);
-                    return v;
-                });
-            });
-        }
-
-        @Override
-        public void rollback() {
-            if (keys == null || !committed) {
-                return;
-            }
-            // remove possibly added keys
-            keys.forEach(key -> {
-                if (key == null && nullKeyAdded) {
-                    nullKeyValues.remove(primaryKey);
-                }
-                index.computeIfPresent(key, (k, v) -> {
-                    v.remove(primaryKey);
-                    return v.isEmpty() ? null : v;
-                });
-            });
-
-            // add previous keys
-            if (previousKeys != null) {
-                previousKeys.forEach(key -> {
-                    index.compute(key, (k, v) -> {
-                        if (v == null) {
-                            v = ConcurrentHashMap.newKeySet();
-                        }
-                        v.add(primaryKey);
-                        return v;
-                    });
-                });
-            }
-            invertedIndex.put(primaryKey, previousKeys);
         }
     }
 

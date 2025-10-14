@@ -1,7 +1,7 @@
 package run.halo.app.notification;
 
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
-import static run.halo.app.extension.indexer.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
 
 import java.util.Collections;
 import java.util.Comparator;

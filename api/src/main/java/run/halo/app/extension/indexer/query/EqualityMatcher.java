@@ -1,7 +1,8 @@
-package run.halo.app.extension.router.selector;
+package run.halo.app.extension.indexer.query;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
+import run.halo.app.extension.router.selector.SelectorMatcher;
 
 public class EqualityMatcher implements SelectorMatcher {
     private final Operator operator;
@@ -48,6 +49,21 @@ public class EqualityMatcher implements SelectorMatcher {
     @Override
     public boolean test(String s) {
         return operator.with(value).test(s);
+    }
+
+    @Override
+    public LabelCondition toCondition() {
+        var indexNamePrefix = "metadata.labels.";
+        var indexName = indexNamePrefix + key;
+        switch (operator) {
+            case EQUAL, DOUBLE_EQUAL -> {
+                return new LabelEqualsCondition(indexName, value);
+            }
+            case NOT_EQUAL -> {
+                return new LabelNotEqualsCondition(indexName, value);
+            }
+            default -> throw new IllegalArgumentException("Unsupported operator: " + operator);
+        }
     }
 
     @Override

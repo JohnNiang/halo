@@ -10,10 +10,10 @@ import static org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuil
 import static org.springdoc.core.fn.builders.schema.Builder.schemaBuilder;
 import static org.springframework.web.reactive.function.server.RequestPredicates.contentType;
 import static run.halo.app.extension.ListResult.generateGenericClass;
-import static run.halo.app.extension.indexer.QueryFactory.contains;
-import static run.halo.app.extension.indexer.QueryFactory.equal;
-import static run.halo.app.extension.indexer.QueryFactory.in;
-import static run.halo.app.extension.indexer.QueryFactory.or;
+import static run.halo.app.extension.indexer.query.QueryFactory.contains;
+import static run.halo.app.extension.indexer.query.QueryFactory.equal;
+import static run.halo.app.extension.indexer.query.QueryFactory.in;
+import static run.halo.app.extension.indexer.query.QueryFactory.or;
 import static run.halo.app.extension.router.selector.SelectorUtil.labelAndFieldSelectorToListOptions;
 import static run.halo.app.security.authorization.AuthorityUtils.authoritiesToRoles;
 

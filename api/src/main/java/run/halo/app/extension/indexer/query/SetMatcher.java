@@ -1,11 +1,14 @@
-package run.halo.app.extension.router.selector;
+package run.halo.app.extension.indexer.query;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import run.halo.app.extension.router.selector.SelectorMatcher;
 
 public class SetMatcher implements SelectorMatcher {
+
     private final SetMatcher.Operator operator;
     private final String key;
     private final String[] values;
@@ -44,6 +47,27 @@ public class SetMatcher implements SelectorMatcher {
     @Override
     public boolean test(String s) {
         return operator.with(values).test(s);
+    }
+
+    @Override
+    public LabelCondition toCondition() {
+        var indexNamePrefix = "metadata.labels.";
+        var indexName = indexNamePrefix + key;
+        switch (operator) {
+            case IN -> {
+                return new LabelInCondition(indexName, Set.of(this.values));
+            }
+            case NOT_IN -> {
+                return new LabelNotInCondition(indexName, Set.of(this.values));
+            }
+            case EXISTS -> {
+                return new LabelExistsCondition(indexName);
+            }
+            case NOT_EXISTS -> {
+                return new LabelNotExistsCondition(indexName);
+            }
+            default -> throw new UnsupportedOperationException("Unsupported operator: " + operator);
+        }
     }
 
     @Override
