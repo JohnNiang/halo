@@ -25,6 +25,10 @@ public interface IndexSpecs<E extends Extension> {
 
     <K extends Comparable<K>> void add(ValueIndexSpec<E, K> indexSpec);
 
+    default <K extends Comparable<K>> void add(IndexSpecBuilder<E, K> builder) {
+        add(builder.build());
+    }
+
     /**
      * Get all {@link IndexSpec} in the collection.
      *

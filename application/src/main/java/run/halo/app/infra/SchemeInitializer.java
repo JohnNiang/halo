@@ -60,7 +60,6 @@ import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.Secret;
 import run.halo.app.extension.index.IndexSpec;
 import run.halo.app.extension.index.MultiValueIndexSpec;
-import run.halo.app.extension.index.SingleValueBuilder;
 import run.halo.app.extension.index.SingleValueIndexSpec;
 import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.migration.Backup;
@@ -86,49 +85,44 @@ class SchemeInitializer implements SmartLifecycle {
         }
         running = true;
         schemeManager.register(Role.class, is -> {
-            is.add(MultiValueIndexSpec.<Role, String>builder(
-                    "labels.aggregateToRoles",
-                    String.class,
-                    role -> Optional.ofNullable(role.getMetadata().getLabels())
-                        .map(labels -> labels.keySet()
-                            .stream()
-                            .filter(key -> key.startsWith(ROLE_AGGREGATE_LABEL_PREFIX))
-                            .filter(key -> Boolean.parseBoolean(labels.get(key)))
-                            .map(
-                                key -> StringUtils.removeStart(key, ROLE_AGGREGATE_LABEL_PREFIX)
+            is.add(
+                MultiValueIndexSpec.<Role, String>builder("labels.aggregateToRoles", String.class)
+                    .indexFunc(
+                        role -> Optional.ofNullable(role.getMetadata().getLabels())
+                            .map(labels -> labels.keySet()
+                                .stream()
+                                .filter(key -> key.startsWith(ROLE_AGGREGATE_LABEL_PREFIX))
+                                .filter(key -> Boolean.parseBoolean(labels.get(key)))
+                                .map(
+                                    key -> StringUtils.removeStart(key, ROLE_AGGREGATE_LABEL_PREFIX)
+                                )
+                                .collect(Collectors.toSet())
                             )
-                            .collect(Collectors.toSet())
-                        )
-                        .orElseGet(Set::of))
-                .build()
+                            .orElseGet(Set::of)
+                    )
             );
         });
 
         // plugin.halo.run
         schemeManager.register(Plugin.class, is -> {
-            is.add(new SingleValueBuilder<Plugin, String>(
-                "spec.displayName",
-                plugin -> Optional.ofNullable(plugin.getSpec())
+            is.add(SingleValueIndexSpec.<Plugin, String>builder("spec.displayName", String.class)
+                .indexFunc(plugin -> Optional.ofNullable(plugin.getSpec())
                     .map(Plugin.PluginSpec::getDisplayName)
-                    .orElse(null))
-                .build()
-            );
-            is.add(new IndexSpec()
-                .setName("spec.description")
-                .setIndexFunc(
-                    simpleAttribute(Plugin.class, plugin -> Optional.ofNullable(plugin.getSpec())
-                        .map(Plugin.PluginSpec::getDescription)
-                        .orElse(null))
+                    .orElse(null)
                 )
             );
-            is.add(new IndexSpec()
-                .setName("spec.enabled")
-                .setIndexFunc(
-                    simpleAttribute(Plugin.class, plugin -> Optional.ofNullable(plugin.getSpec())
-                        .map(Plugin.PluginSpec::getEnabled)
-                        .map(Object::toString)
-                        .orElse(Boolean.FALSE.toString()))
+            is.add(SingleValueIndexSpec.<Plugin, String>builder("spec.description", String.class)
+                .indexFunc(plugin -> Optional.ofNullable(plugin.getSpec())
+                    .map(Plugin.PluginSpec::getDescription)
+                    .orElse(null)
                 )
+            );
+            is.add(SingleValueIndexSpec.<Plugin, Boolean>builder("spec.enabled", Boolean.class)
+                .indexFunc(plugin -> Optional.ofNullable(plugin.getSpec())
+                    .map(Plugin.PluginSpec::getEnabled)
+                    .orElse(false)
+                )
+                .nullable(false)
             );
         });
         schemeManager.register(ExtensionPointDefinition.class, indexSpecs -> {
@@ -273,14 +267,13 @@ class SchemeInitializer implements SmartLifecycle {
                     var lastModifyTime = post.getStatus().getLastModifyTime();
                     return lastModifyTime == null ? null : lastModifyTime.toString();
                 })));
-            indexSpecs.add(SingleValueIndexSpec.<Post, Boolean>builder(
-                    "status.hideFromList",
-                    Boolean.class,
-                    post -> Optional.ofNullable(post.getStatus())
+            indexSpecs.add(
+                SingleValueIndexSpec.<Post, Boolean>builder("status.hideFromList", Boolean.class)
+                    .indexFunc(post -> Optional.ofNullable(post.getStatus())
                         .map(Post.PostStatus::getHideFromList)
                         .orElse(false)
-                )
-                .build());
+                    )
+            );
             indexSpecs.add(new IndexSpec()
                 .setName(Post.REQUIRE_SYNC_ON_STARTUP_INDEX_NAME)
                 .setIndexFunc(simpleAttribute(Post.class, post -> {

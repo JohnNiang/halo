@@ -65,22 +65,22 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
     }
 
     @Override
-    public IndexOperation prepareInsert(E extension) {
+    public TransactionalOperation prepareInsert(E extension) {
         var keys = spec.getValues(extension);
-        return new UpsertIndexOperation(extension.getMetadata().getName(), keys);
+        return new UpsertTransactionalOperation(extension.getMetadata().getName(), keys);
     }
 
     @Override
-    public IndexOperation prepareUpdate(E extension) {
+    public TransactionalOperation prepareUpdate(E extension) {
         // find old state
         var newKeys = spec.getValues(extension);
         var primaryKey = extension.getMetadata().getName();
-        return new UpsertIndexOperation(primaryKey, newKeys);
+        return new UpsertTransactionalOperation(primaryKey, newKeys);
     }
 
     @Override
-    public IndexOperation prepareDelete(String primaryKey) {
-        return new DeleteIndexOperation(primaryKey);
+    public TransactionalOperation prepareDelete(String primaryKey) {
+        return new DeleteTransactionalOperation(primaryKey);
     }
 
     @Override
@@ -262,7 +262,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
             .collect(Collectors.toSet());
     }
 
-    class UpsertIndexOperation implements IndexOperation {
+    class UpsertTransactionalOperation implements TransactionalOperation {
 
         @NonNull
         private final String primaryKey;
@@ -276,7 +276,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
         private boolean previousNullKey;
 
-        UpsertIndexOperation(
+        UpsertTransactionalOperation(
             @NonNull String primaryKey, @Nullable Set<K> newKeys
         ) {
             this.primaryKey = primaryKey;
@@ -365,7 +365,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     }
 
-    class DeleteIndexOperation implements IndexOperation {
+    class DeleteTransactionalOperation implements TransactionalOperation {
 
         @NonNull
         private final String primaryKey;
@@ -376,7 +376,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
         private boolean previousNullKey;
 
-        DeleteIndexOperation(@NonNull String primaryKey) {
+        DeleteTransactionalOperation(@NonNull String primaryKey) {
             this.primaryKey = primaryKey;
         }
 

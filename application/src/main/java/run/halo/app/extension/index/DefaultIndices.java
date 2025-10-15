@@ -12,9 +12,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import run.halo.app.extension.Extension;
 
+@Slf4j
 class DefaultIndices<E extends Extension> implements Indices<E> {
 
     private final Map<String, Index<E, ?>> indexMap;
@@ -47,7 +49,7 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         var lock = Objects.requireNonNull(
             lockCache.get(primaryKey, pk -> new ReentrantReadWriteLock())
         ).writeLock();
-        var updaters = new ArrayList<IndexOperation>();
+        var updaters = new ArrayList<TransactionalOperation>();
         lock.lock();
         try {
             for (var index : indexMap.values()) {
@@ -55,9 +57,10 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
                 updater.prepare();
                 updaters.add(updater);
             }
-            updaters.forEach(IndexOperation::commit);
+            updaters.forEach(TransactionalOperation::commit);
         } catch (Exception e) {
-            updaters.forEach(IndexOperation::rollback);
+            log.warn("Failed to insert extension {} and trying to rollback", primaryKey, e);
+            updaters.forEach(TransactionalOperation::rollback);
         } finally {
             lock.unlock();
         }
@@ -70,7 +73,7 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         var lock = Objects.requireNonNull(
             lockCache.get(primaryKey, pk -> new ReentrantReadWriteLock())
         ).writeLock();
-        var updaters = new ArrayList<IndexOperation>();
+        var updaters = new ArrayList<TransactionalOperation>();
         lock.lock();
         try {
             for (var index : indexMap.values()) {
@@ -78,9 +81,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
                 updater.prepare();
                 updaters.add(updater);
             }
-            updaters.forEach(IndexOperation::commit);
+            updaters.forEach(TransactionalOperation::commit);
         } catch (Exception e) {
-            updaters.forEach(IndexOperation::rollback);
+            updaters.forEach(TransactionalOperation::rollback);
         } finally {
             lock.unlock();
         }
@@ -93,7 +96,7 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         var lock = Objects.requireNonNull(
             lockCache.get(primaryKey, pk -> new ReentrantReadWriteLock())
         ).writeLock();
-        var updaters = new ArrayList<IndexOperation>();
+        var updaters = new ArrayList<TransactionalOperation>();
         lock.lock();
         try {
             for (var index : indexMap.values()) {
@@ -101,9 +104,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
                 updater.prepare();
                 updaters.add(updater);
             }
-            updaters.forEach(IndexOperation::commit);
+            updaters.forEach(TransactionalOperation::commit);
         } catch (Exception e) {
-            updaters.forEach(IndexOperation::rollback);
+            updaters.forEach(TransactionalOperation::rollback);
         } finally {
             lock.unlock();
         }

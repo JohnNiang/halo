@@ -136,7 +136,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> isNull() {
-        Assert.isTrue(spec.isNullable(), "Index is not nullable");
+        Assert.isTrue(spec.isNullable(), "Index " + getName() + " is not nullable");
         return new HashSet<>(nullKeyValues);
     }
 
@@ -227,22 +227,22 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
     }
 
     @Override
-    public IndexOperation prepareInsert(E extension) {
+    public TransactionalOperation prepareInsert(E extension) {
         var primaryKey = extension.getMetadata().getName();
         var key = spec.getValue(extension);
-        return new UpsertIndexOperation(primaryKey, key);
+        return new UpsertTransactionalOperation(primaryKey, key);
     }
 
     @Override
-    public IndexOperation prepareUpdate(E extension) {
+    public TransactionalOperation prepareUpdate(E extension) {
         var primaryKey = extension.getMetadata().getName();
         var key = spec.getValue(extension);
-        return new UpsertIndexOperation(primaryKey, key);
+        return new UpsertTransactionalOperation(primaryKey, key);
     }
 
     @Override
-    public IndexOperation prepareDelete(String primaryKey) {
-        return new DeleteIndexOperation(primaryKey);
+    public TransactionalOperation prepareDelete(String primaryKey) {
+        return new DeleteTransactionalOperation(primaryKey);
     }
 
     @Override
@@ -251,7 +251,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
         return key == null ? Set.of() : Set.of(key);
     }
 
-    class UpsertIndexOperation implements IndexOperation {
+    class UpsertTransactionalOperation implements TransactionalOperation {
 
         private final String primaryKey;
 
@@ -260,9 +260,11 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
         private K previousKey;
 
+        private boolean previousNull;
+
         private boolean committed;
 
-        UpsertIndexOperation(String primaryKey, @Nullable K newKey) {
+        UpsertTransactionalOperation(String primaryKey, @Nullable K newKey) {
             this.primaryKey = primaryKey;
             this.newKey = newKey;
         }
@@ -270,11 +272,12 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
         @Override
         public void prepare() {
             previousKey = invertedIndex.get(primaryKey);
+            previousNull = nullKeyValues.contains(primaryKey);
         }
 
         @Override
         public void commit() {
-            if (committed || Objects.equals(previousKey, newKey)) {
+            if (committed) {
                 return;
             }
             committed = true;
@@ -288,12 +291,19 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
                 return;
             }
             removeKey(primaryKey, newKey);
-            addKey(primaryKey, previousKey);
+            if (spec.isNullable() || previousKey != null) {
+                addKey(primaryKey, previousKey);
+            }
+            if (previousNull) {
+                nullKeyValues.add(primaryKey);
+            } else {
+                nullKeyValues.remove(primaryKey);
+            }
         }
 
     }
 
-    class DeleteIndexOperation implements IndexOperation {
+    class DeleteTransactionalOperation implements TransactionalOperation {
 
         private final String primaryKey;
 
@@ -303,7 +313,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
         private boolean committed;
 
-        DeleteIndexOperation(String primaryKey) {
+        DeleteTransactionalOperation(String primaryKey) {
             this.primaryKey = primaryKey;
         }
 
@@ -327,20 +337,19 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
             if (!committed) {
                 return;
             }
-            addKey(primaryKey, previousKey);
+            if (spec.isNullable() || previousKey != null) {
+                removeKey(primaryKey, previousKey);
+            }
             if (previousNull) {
-                nullKeyValues.remove(primaryKey);
-            } else {
                 nullKeyValues.add(primaryKey);
+            } else {
+                nullKeyValues.remove(primaryKey);
             }
         }
 
     }
 
     private void removeKey(String primaryKey, K key) {
-        if (!spec.isNullable() && key == null) {
-            throw new IllegalArgumentException("Index '" + getName() + "' is not nullable");
-        }
         nullKeyValues.remove(primaryKey);
         if (key == null) {
             var oldKey = invertedIndex.remove(primaryKey);
@@ -358,7 +367,9 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     private void addKey(String primaryKey, K key) {
         if (!spec.isNullable() && key == null) {
-            throw new IllegalArgumentException("Index '" + getName() + "' is not nullable");
+            throw new IllegalArgumentException(
+                "Index %s of %s is not nullable".formatted(getName(), primaryKey)
+            );
         }
         if (key == null) {
             var oldKey = invertedIndex.remove(primaryKey);

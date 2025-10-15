@@ -5,26 +5,25 @@ import org.springframework.util.Assert;
 import run.halo.app.extension.Extension;
 
 public class SingleValueBuilder<E extends Extension, K extends Comparable<K>>
-    extends AbstractValueIndexSpecBuilder<E, K> {
+    extends AbstractValueIndexSpecBuilder<E, K, SingleValueBuilder<E, K>> {
 
-    private final Function<E, K> indexFunc;
+    private Function<E, K> indexFunc;
 
-    SingleValueBuilder(
-        String name, Class<K> keyType, Function<E, K> indexFunc
-    ) {
+    SingleValueBuilder(String name, Class<K> keyType) {
         super(name, keyType);
-        Assert.notNull(indexFunc, "Index function must not be null");
-        this.indexFunc = indexFunc;
     }
 
-    public SingleValueBuilder(String name, Function<E, K> indexFunc) {
-        super(name);
-        Assert.notNull(indexFunc, "Index function must not be null");
+    public SingleValueBuilder<E, K> indexFunc(Function<E, K> indexFunc) {
         this.indexFunc = indexFunc;
+        return this;
     }
 
     @Override
     public SingleValueIndexSpec<E, K> build() {
+        Assert.hasText(name, "Index name must not be blank");
+        Assert.notNull(keyType, "Key type must not be null");
+        Assert.notNull(indexFunc, "Index function must not be null");
+
         return new SingleValueIndexSpec<>() {
             @Override
             public K getValue(E extension) {

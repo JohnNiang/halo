@@ -33,9 +33,9 @@ public class QueryFactory {
     }
 
     public static Query notEqual(String fieldName, Object attributeValue) {
-        if (attributeValue == null) {
-            return new IsNotNullCondition(fieldName);
-        }
+        Assert.notNull(attributeValue,
+            "Attribute value of field " + fieldName + " must not be null"
+        );
         return new NotEqualCondition(fieldName, attributeValue);
     }
 
@@ -44,9 +44,9 @@ public class QueryFactory {
     }
 
     public static Query equal(String fieldName, Object attributeValue) {
-        if (attributeValue == null) {
-            return new IsNullCondition(fieldName);
-        }
+        Assert.notNull(attributeValue,
+            "Attribute value of field " + fieldName + " must not be null"
+        );
         return new EqualCondition(fieldName, attributeValue);
     }
 

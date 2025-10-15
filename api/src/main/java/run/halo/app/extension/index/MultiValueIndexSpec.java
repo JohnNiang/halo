@@ -1,7 +1,6 @@
 package run.halo.app.extension.index;
 
 import java.util.Set;
-import java.util.function.Function;
 import org.springframework.lang.Nullable;
 import run.halo.app.extension.Extension;
 
@@ -12,9 +11,8 @@ public interface MultiValueIndexSpec<E extends Extension, K extends Comparable<K
     Set<K> getValues(E extension);
 
     static <E extends Extension, K extends Comparable<K>> MultiValueBuilder<E, K> builder(
-        String name, Class<K> keyType, Function<E, Set<K>> indexFunc
-    ) {
-        return new MultiValueBuilder<>(name, keyType, indexFunc);
+        String name, Class<K> keyType) {
+        return new MultiValueBuilder<>(name, keyType);
     }
 
 }

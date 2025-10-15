@@ -1,6 +1,6 @@
 package run.halo.app.extension.index;
 
-public interface IndexOperation {
+public interface TransactionalOperation {
 
     void prepare();
 

@@ -54,22 +54,22 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
     }
 
     @Override
-    public IndexOperation prepareInsert(E extension) {
+    public TransactionalOperation prepareInsert(E extension) {
         var primaryKey = extension.getMetadata().getName();
         var labels = extension.getMetadata().getLabels();
-        return new UpsertIndexOperation(primaryKey, labels);
+        return new UpsertTransactionalOperation(primaryKey, labels);
     }
 
     @Override
-    public IndexOperation prepareUpdate(E extension) {
+    public TransactionalOperation prepareUpdate(E extension) {
         var primaryKey = extension.getMetadata().getName();
         var labels = extension.getMetadata().getLabels();
-        return new UpsertIndexOperation(primaryKey, labels);
+        return new UpsertTransactionalOperation(primaryKey, labels);
     }
 
     @Override
-    public IndexOperation prepareDelete(String primaryKey) {
-        return new DeleteIndexOperation(primaryKey);
+    public TransactionalOperation prepareDelete(String primaryKey) {
+        return new DeleteTransactionalOperation(primaryKey);
     }
 
     @Override
@@ -150,7 +150,7 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
         }
     }
 
-    class UpsertIndexOperation implements IndexOperation {
+    class UpsertTransactionalOperation implements TransactionalOperation {
 
         private final String primaryKey;
 
@@ -160,7 +160,7 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
 
         private boolean committed;
 
-        UpsertIndexOperation(String primaryKey, Map<String, String> labels) {
+        UpsertTransactionalOperation(String primaryKey, Map<String, String> labels) {
             this.primaryKey = primaryKey;
             this.labels = labels;
         }
@@ -203,7 +203,7 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
 
     }
 
-    class DeleteIndexOperation implements IndexOperation {
+    class DeleteTransactionalOperation implements TransactionalOperation {
 
         private final String primaryKey;
 
@@ -211,7 +211,7 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
 
         private boolean committed;
 
-        DeleteIndexOperation(String primaryKey) {
+        DeleteTransactionalOperation(String primaryKey) {
             this.primaryKey = primaryKey;
         }
 

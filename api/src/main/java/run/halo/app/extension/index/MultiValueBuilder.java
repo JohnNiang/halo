@@ -6,20 +6,25 @@ import org.springframework.util.Assert;
 import run.halo.app.extension.Extension;
 
 public class MultiValueBuilder<E extends Extension, K extends Comparable<K>>
-    extends AbstractValueIndexSpecBuilder<E, K> {
+    extends AbstractValueIndexSpecBuilder<E, K, MultiValueBuilder<E, K>> {
 
-    private final Function<E, Set<K>> indexFunc;
+    private Function<E, Set<K>> indexFunc;
 
-    MultiValueBuilder(
-        String name, Class<K> keyType, Function<E, Set<K>> indexFunc
-    ) {
+    MultiValueBuilder(String name, Class<K> keyType) {
         super(name, keyType);
-        Assert.notNull(indexFunc, "Index function must not be null");
+    }
+
+    public MultiValueBuilder<E, K> indexFunc(Function<E, Set<K>> indexFunc) {
         this.indexFunc = indexFunc;
+        return this;
     }
 
     @Override
     public MultiValueIndexSpec<E, K> build() {
+        Assert.hasText(name, "Index name must not be blank");
+        Assert.notNull(keyType, "Key type must not be null");
+        Assert.notNull(indexFunc, "Index function must not be null");
+
         return new MultiValueIndexSpec<>() {
             @Override
             public String getName() {

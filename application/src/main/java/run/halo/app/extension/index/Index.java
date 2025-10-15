@@ -14,11 +14,11 @@ public interface Index<E extends Extension, K extends Comparable<K>> extends Clo
         return false;
     }
 
-    IndexOperation prepareInsert(E extension);
+    TransactionalOperation prepareInsert(E extension);
 
-    IndexOperation prepareUpdate(E newExtension);
+    TransactionalOperation prepareUpdate(E newExtension);
 
-    IndexOperation prepareDelete(String primaryKey);
+    TransactionalOperation prepareDelete(String primaryKey);
 
     Set<K> getKeys(String primaryKey);
 

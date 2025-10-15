@@ -24,6 +24,7 @@ class DefaultIndicesManager implements IndicesManager {
         indicesMap.computeIfAbsent(type, t -> {
             var indices = new ArrayList<Index<E, ?>>();
             Stream.concat(indexSpecs.stream(), this.<E>createDefaultIndexSpecs().stream())
+                .distinct()
                 .forEach(indexSpec -> {
                     if (indexSpec instanceof MultiValueIndexSpec<E, ?> spec) {
                         indices.add(new MultiValueIndex<>(spec));
@@ -59,21 +60,24 @@ class DefaultIndicesManager implements IndicesManager {
     }
 
     private <E extends Extension> List<ValueIndexSpec<E, ?>> createDefaultIndexSpecs() {
-        var metadataNameSpec = new SingleValueBuilder<E, String>(
-            "metadata.name", e -> e.getMetadata().getName())
-            .setUnique(true)
-            .setNullable(false)
-            .build();
-        var creationTimestampSpec = new SingleValueBuilder<E, Instant>(
-            "metadata.creationTimestamp", e -> e.getMetadata().getCreationTimestamp())
-            .setUnique(false)
-            .setNullable(false)
-            .build();
-        var deletionTimestampSpec = new SingleValueBuilder<E, Instant>(
-            "metadata.deletionTimestamp", e -> e.getMetadata().getDeletionTimestamp())
-            .setUnique(false)
-            .setNullable(true)
-            .build();
+        var metadataNameSpec =
+            SingleValueIndexSpec.<E, String>builder("metadata.name", String.class)
+                .indexFunc(e -> e.getMetadata().getName())
+                .unique(true)
+                .nullable(false)
+                .build();
+        var creationTimestampSpec =
+            SingleValueIndexSpec.<E, Instant>builder("metadata.creationTimestamp", Instant.class)
+                .indexFunc(e -> e.getMetadata().getCreationTimestamp())
+                .unique(false)
+                .nullable(false)
+                .build();
+        var deletionTimestampSpec =
+            SingleValueIndexSpec.<E, Instant>builder("metadata.deletionTimestamp", Instant.class)
+                .indexFunc(e -> e.getMetadata().getDeletionTimestamp())
+                .unique(false)
+                .nullable(true)
+                .build();
         return List.of(metadataNameSpec, creationTimestampSpec, deletionTimestampSpec);
     }
 }
