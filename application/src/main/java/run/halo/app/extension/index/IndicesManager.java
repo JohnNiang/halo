@@ -14,7 +14,7 @@ public interface IndicesManager extends Closeable {
      * @param specs the list of index specifications
      * @param <E> the type of the extension
      */
-    <E extends Extension> void add(Class<E> type, List<IndexSpec<E, ?>> specs);
+    <E extends Extension> void add(Class<E> type, List<ValueIndexSpec<E, ?>> specs);
 
     /**
      * Get the {@link Indices} for the given extension type.

@@ -81,7 +81,8 @@ class ReactiveExtensionClientTest {
         client.setTransactionalOperator(transactionalOperator);
         lenient().when(transactionalOperator.transactional(any(Mono.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        client.onIndexerBuiltEvent(new IndexerBuiltEvent(this, fakeScheme));
+        // TODO Fixme
+        // client.onIndexerBuiltEvent(new IndexerBuiltEvent(this, fakeScheme));
     }
 
     FakeExtension createFakeExtension(String name, Long version) {

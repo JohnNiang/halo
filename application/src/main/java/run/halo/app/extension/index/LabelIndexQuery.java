@@ -1,14 +1,8 @@
 package run.halo.app.extension.index;
 
 import java.util.Set;
-import run.halo.app.extension.Extension;
 
-public interface LabelIndex<E extends Extension> extends Index<E, String> {
-
-    @Override
-    default String getName() {
-        return "metadata.labels";
-    }
+public interface LabelIndexQuery {
 
     Set<String> exists(String labelKey);
 

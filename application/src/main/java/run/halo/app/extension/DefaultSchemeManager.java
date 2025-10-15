@@ -1,18 +1,20 @@
 package run.halo.app.extension;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 import run.halo.app.extension.event.SchemeAddedEvent;
 import run.halo.app.extension.event.SchemeRemovedEvent;
 import run.halo.app.extension.index.IndexEngine;
-import run.halo.app.extension.index.IndexSpec;
 import run.halo.app.extension.index.IndexSpecs;
+import run.halo.app.extension.index.ValueIndexSpec;
 
 @Component
 public class DefaultSchemeManager implements SchemeManager {
@@ -65,20 +67,22 @@ public class DefaultSchemeManager implements SchemeManager {
 
     private static class DefaultIndexSpecs<E extends Extension> implements IndexSpecs<E> {
 
-        private final List<IndexSpec<E, ?>> specs;
+        private final Map<String, ValueIndexSpec<?>> specMap;
 
         private DefaultIndexSpecs() {
-            specs = new ArrayList<>();
+            this.specMap = new HashMap<>();
         }
 
         @Override
-        public <K extends Comparable<K>> void add(IndexSpec<E, K> indexSpec) {
-            specs.add(indexSpec);
+        public <K extends Comparable<K>> void add(ValueIndexSpec<K> indexSpec) {
+            Assert.isTrue(!specMap.containsKey(indexSpec.getName()),
+                "Index spec with name " + indexSpec.getName() + " already exists.");
+            this.specMap.put(indexSpec.getName(), indexSpec);
         }
 
         @Override
-        public List<IndexSpec<E, ?>> getIndexSpecs() {
-            return specs;
+        public List<ValueIndexSpec<?>> getIndexSpecs() {
+            return specMap.values().stream().toList();
         }
 
     }

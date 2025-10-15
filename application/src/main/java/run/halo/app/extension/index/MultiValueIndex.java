@@ -1,9 +1,9 @@
 package run.halo.app.extension.index;
 
-import com.google.common.collect.Ordering;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -24,7 +24,8 @@ import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.Extension;
 
 @Slf4j
-class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements InMemoryIndex<E, K> {
+class MultiValueIndex<E extends Extension, K extends Comparable<K>>
+    implements ValueIndexQuery<K>, Index<E, K> {
 
     private final ConcurrentNavigableMap<K, Set<String>> index;
 
@@ -32,15 +33,11 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
 
     private final Set<String> nullKeyValues;
 
-    private final IndexSpec<E, K> spec;
+    private final MultiValueIndexSpec<E, K> spec;
 
-    public MultiValueIndex(IndexSpec<E, K> spec) {
+    public MultiValueIndex(MultiValueIndexSpec<E, K> spec) {
         this.spec = spec;
-        var comparator = Ordering.natural();
-        if (IndexSpec.OrderType.DESC.equals(spec.getOrder())) {
-            comparator = comparator.reverse();
-        }
-        this.index = new ConcurrentSkipListMap<>(comparator);
+        this.index = new ConcurrentSkipListMap<>(Comparator.naturalOrder());
         this.invertedIndex = new ConcurrentHashMap<>();
         this.nullKeyValues = ConcurrentHashMap.newKeySet();
     }
@@ -69,14 +66,14 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
 
     @Override
     public IndexOperation prepareInsert(E extension) {
-        var keys = spec.getIndexFunc().getValues(extension);
+        var keys = spec.getValues(extension);
         return new UpsertIndexOperation(extension.getMetadata().getName(), keys);
     }
 
     @Override
     public IndexOperation prepareUpdate(E extension) {
         // find old state
-        var newKeys = spec.getIndexFunc().getValues(extension);
+        var newKeys = spec.getValues(extension);
         var primaryKey = extension.getMetadata().getName();
         return new UpsertIndexOperation(primaryKey, newKeys);
     }
@@ -198,9 +195,8 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
     public Set<String> stringStartsWith(String prefix) {
         Assert.isInstanceOf(getKeyType(), prefix,
             "Key type must be String for stringStartsWith operation");
-        var fromKey = prefix;
         var toKey = prefix + Character.MAX_VALUE;
-        return index.subMap((K) fromKey, true, (K) toKey, false)
+        return index.subMap((K) prefix, true, (K) toKey, false)
             .values()
             .stream()
             .flatMap(Set::stream)
@@ -211,10 +207,9 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements I
     public Set<String> stringNotStartsWith(String prefix) {
         Assert.isInstanceOf(getKeyType(), prefix,
             "Key type must be String for stringStartsWith operation");
-        var fromKey = prefix;
         var toKey = prefix + Character.MAX_VALUE;
         return Stream.concat(
-                index.headMap((K) fromKey, false).values().stream(),
+                index.headMap((K) prefix, false).values().stream(),
                 index.tailMap((K) toKey, true).values().stream()
             )
             .flatMap(Set::stream)

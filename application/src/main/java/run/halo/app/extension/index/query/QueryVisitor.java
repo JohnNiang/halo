@@ -10,9 +10,9 @@ import org.springframework.data.relational.core.sql.Visitable;
 import org.springframework.data.relational.core.sql.Visitor;
 import org.springframework.lang.NonNull;
 import run.halo.app.extension.Extension;
-import run.halo.app.extension.index.InMemoryIndex;
 import run.halo.app.extension.index.Indices;
-import run.halo.app.extension.index.LabelIndex;
+import run.halo.app.extension.index.LabelIndexQuery;
+import run.halo.app.extension.index.ValueIndexQuery;
 
 public class QueryVisitor<E extends Extension> implements Visitor {
 
@@ -162,7 +162,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private Set<String> labelInQuery(String labelKey, Set<String> labelValues,
             boolean negated) {
-            var index = this.getLabelIndex();
+            var index = this.getLabelIndexQuery();
             if (negated) {
                 return index.notIn(labelKey, labelValues);
             }
@@ -171,7 +171,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private Set<String> labelEqualsQuery(String labelKey, String labelValue,
             boolean negated) {
-            var index = this.getLabelIndex();
+            var index = this.getLabelIndexQuery();
             if (negated) {
                 return index.notEqual(labelKey, labelValue);
             }
@@ -179,12 +179,12 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         }
 
         private Set<String> labelExistsQuery(String labelKey) {
-            var index = getLabelIndex();
+            var index = getLabelIndexQuery();
             return index.exists(labelKey);
         }
 
         private Set<String> stringEndsWithQuery(String indexName, String suffix, boolean negated) {
-            var index = getInMemoryIndex(indexName);
+            var index = getValueIndexQuery(indexName);
             if (negated) {
                 return index.stringNotEndsWith(suffix);
             }
@@ -192,7 +192,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         }
 
         private Set<String> allQuery(String indexName, boolean negated) {
-            var index = getInMemoryIndex(indexName);
+            var index = getValueIndexQuery(indexName);
             if (negated) {
                 return Set.of();
             }
@@ -201,7 +201,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private Set<String> stringStartsWithQuery(String indexName, String prefix,
             boolean negated) {
-            var index = getInMemoryIndex(indexName);
+            var index = getValueIndexQuery(indexName);
             if (negated) {
                 return index.stringNotStartsWith(prefix);
             }
@@ -209,7 +209,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         }
 
         private Set<String> stringContainsQuery(String indexName, String keyword, boolean negated) {
-            var index = getInMemoryIndex(indexName);
+            var index = getValueIndexQuery(indexName);
             if (negated) {
                 return index.stringNotContains(keyword);
             }
@@ -218,7 +218,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private <K extends Comparable<K>> Set<String> isNullQuery(String indexName,
             boolean negated) {
-            var index = this.<K>getInMemoryIndex(indexName);
+            var index = this.<K>getValueIndexQuery(indexName);
             if (negated) {
                 return index.isNotNull();
             }
@@ -228,7 +228,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         private <K extends Comparable<K>> Set<String> betweenQuery(String indexName, Object fromKey,
             boolean fromInclusive,
             Object toKey, boolean toInclusive, boolean negated) {
-            var index = this.<K>getInMemoryIndex(indexName);
+            var index = this.<K>getValueIndexQuery(indexName);
             if (!conversionService.canConvert(fromKey.getClass(), index.getKeyType())) {
                 throw new IllegalArgumentException(
                     "Cannot convert key: " + fromKey + " to type: " + index.getKeyType()
@@ -259,7 +259,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         private <K extends Comparable<K>> Set<String> lessThanQuery(String indexName, Object bound,
             boolean inclusive,
             boolean negated) {
-            var index = this.<K>getInMemoryIndex(indexName);
+            var index = this.<K>getValueIndexQuery(indexName);
             if (!conversionService.canConvert(bound.getClass(), index.getKeyType())) {
                 throw new IllegalArgumentException(
                     "Cannot convert key: " + bound + " to type: " + index.getKeyType()
@@ -277,7 +277,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private <K extends Comparable<K>> Set<String> equalQuery(String indexName, Object key,
             boolean negated) {
-            var index = this.<K>getInMemoryIndex(indexName);
+            var index = this.<K>getValueIndexQuery(indexName);
             if (!conversionService.canConvert(key.getClass(), index.getKeyType())) {
                 throw new IllegalArgumentException(
                     "Cannot convert key: " + key + " to type: " + index.getKeyType()
@@ -292,7 +292,7 @@ public class QueryVisitor<E extends Extension> implements Visitor {
 
         private <K extends Comparable<K>> Set<String> inQuery(String indexName, Set<Object> keys,
             boolean negated) {
-            var index = this.<K>getInMemoryIndex(indexName);
+            var index = this.<K>getValueIndexQuery(indexName);
             var convertedKeys = keys.stream().map(key -> {
                 if (!conversionService.canConvert(key.getClass(), index.getKeyType())) {
                     throw new IllegalArgumentException(
@@ -308,21 +308,21 @@ public class QueryVisitor<E extends Extension> implements Visitor {
             }
         }
 
-        private <K extends Comparable<K>> InMemoryIndex<E, K> getInMemoryIndex(String indexName) {
+        private <K extends Comparable<K>> ValueIndexQuery<K> getValueIndexQuery(String indexName) {
             var index = indices.<K>getIndex(indexName);
-            if (!(index instanceof InMemoryIndex<E, K> inMemoryIndex)) {
+            if (!(index instanceof ValueIndexQuery<?> valueIndexQuery)) {
                 throw new IllegalArgumentException("Index is not in-memory: " + indexName);
             }
-            return inMemoryIndex;
+            return (ValueIndexQuery<K>) valueIndexQuery;
         }
 
-        private LabelIndex<E> getLabelIndex() {
+        private LabelIndexQuery getLabelIndexQuery() {
             var indexName = "metadata.labels";
             var index = indices.<String>getIndex(indexName);
-            if (!(index instanceof LabelIndex<E> labelIndex)) {
+            if (!(index instanceof LabelIndexQuery labelIndexQuery)) {
                 throw new IllegalArgumentException("Index is not a label index: " + indexName);
             }
-            return labelIndex;
+            return labelIndexQuery;
         }
     }
 }

@@ -2,9 +2,10 @@ package run.halo.app.extension.index;
 
 import java.util.Collection;
 import java.util.Set;
-import run.halo.app.extension.Extension;
 
-public interface InMemoryIndex<E extends Extension, K extends Comparable<K>> extends Index<E, K> {
+public interface ValueIndexQuery<K extends Comparable<K>> {
+
+    Class<K> getKeyType();
 
     Set<String> equal(K key);
 

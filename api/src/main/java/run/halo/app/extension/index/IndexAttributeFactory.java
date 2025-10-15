@@ -31,13 +31,13 @@ public class IndexAttributeFactory {
             .orElse(null));
     }
 
-    public static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attributes(
+    private static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attributes(
         Class<E> objectType, Class<K> keyType, Function<E, Set<K>> valuesFunc
     ) {
         return new DefaultIndexAttribute<>(valuesFunc, objectType, keyType);
     }
 
-    public static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attribute(
+    private static <E extends Extension, K extends Comparable<K>> IndexAttribute<E, K> attribute(
         Class<E> objectType, Class<K> keyType, Function<E, K> valueFunc
     ) {
         return new DefaultIndexAttribute<>(e -> Optional.ofNullable(valueFunc.apply(e))
@@ -52,6 +52,7 @@ public class IndexAttributeFactory {
      * @since 2.22.0
      *
      */
+    @Deprecated(forRemoval = true, since = "2.22.0")
     record UnknownKey(@Nullable String value) implements Comparable<UnknownKey> {
 
         @Override

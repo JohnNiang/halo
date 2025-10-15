@@ -19,7 +19,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.extension.Extension;
 
-class LabelIndexImpl<E extends Extension> implements LabelIndex<E> {
+class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, String> {
 
     private final ConcurrentNavigableMap<LabelEntry, Set<String>> index;
 
@@ -41,6 +41,11 @@ class LabelIndexImpl<E extends Extension> implements LabelIndex<E> {
         this.index.clear();
         this.invertedIndex.clear();
         this.emptyLabelsSet.clear();
+    }
+
+    @Override
+    public String getName() {
+        return "metadata.labels";
     }
 
     @Override

@@ -1,13 +1,16 @@
 package run.halo.app.extension.index;
 
 import com.google.common.base.Objects;
+import java.util.Set;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import run.halo.app.extension.Extension;
 
 @Data
 @Accessors(chain = true)
-public class IndexSpec<E extends Extension, K extends Comparable<K>> {
+@Deprecated(forRemoval = true, since = "2.22.0")
+public class IndexSpec<E extends Extension, K extends Comparable<K>>
+    implements MultiValueIndexSpec<E, K> {
 
     private String name;
 
@@ -17,15 +20,22 @@ public class IndexSpec<E extends Extension, K extends Comparable<K>> {
 
     private boolean unique;
 
+    @Override
+    public Set<K> getValues(E extension) {
+        return indexFunc.getValues(extension);
+    }
+
     public enum OrderType {
         ASC,
         DESC
     }
 
-    public Class<E> getObjectType() {
-        return indexFunc.getObjectType();
+    @Override
+    public boolean isNullable() {
+        return true;
     }
 
+    @Override
     public Class<K> getKeyType() {
         return indexFunc.getKeyType();
     }

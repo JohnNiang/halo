@@ -3,6 +3,7 @@ package run.halo.app.extension.index;
 import java.util.Set;
 import run.halo.app.extension.Extension;
 
+@Deprecated(forRemoval = true, since = "2.22.0")
 public interface IndexAttribute<E extends Extension, K extends Comparable<K>> {
 
     /**
@@ -20,11 +21,12 @@ public interface IndexAttribute<E extends Extension, K extends Comparable<K>> {
     Class<K> getKeyType();
 
     /**
-     * Get the value of the attribute.
+     * Gets the values of the attribute from the given extension.
      *
-     * @param object the object to get value from.
-     * @return the value of the attribute must not be null.
+     * @param e the extension
+     * @return the values of the attribute
+     * @throws IllegalArgumentException if the given extension is not of the expected type
      */
-    Set<K> getValues(E object);
+    Set<K> getValues(E e);
 
 }

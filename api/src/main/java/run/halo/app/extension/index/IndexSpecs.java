@@ -19,13 +19,17 @@ public interface IndexSpecs<E extends Extension> {
      * @throws IllegalArgumentException if the index spec with the same name already exists or
      *                                  the index spec is invalid
      */
-    <K extends Comparable<K>> void add(IndexSpec<E, K> indexSpec);
+    default <K extends Comparable<K>> void add(IndexSpec<E, K> indexSpec) {
+        add((ValueIndexSpec<K>) indexSpec);
+    }
+
+    <K extends Comparable<K>> void add(ValueIndexSpec<K> indexSpec);
 
     /**
      * Get all {@link IndexSpec} in the collection.
      *
      * @return all index specs
      */
-    List<IndexSpec<E, ?>> getIndexSpecs();
+    List<ValueIndexSpec<?>> getIndexSpecs();
 
 }

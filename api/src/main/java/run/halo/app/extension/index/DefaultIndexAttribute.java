@@ -6,6 +6,7 @@ import java.util.function.Function;
 import org.springframework.util.Assert;
 import run.halo.app.extension.Extension;
 
+@Deprecated(forRemoval = true, since = "2.22.0")
 class DefaultIndexAttribute<E extends Extension, K extends Comparable<K>>
     implements IndexAttribute<E, K> {
 
