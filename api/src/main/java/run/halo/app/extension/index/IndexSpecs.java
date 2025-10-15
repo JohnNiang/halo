@@ -20,16 +20,16 @@ public interface IndexSpecs<E extends Extension> {
      *                                  the index spec is invalid
      */
     default <K extends Comparable<K>> void add(IndexSpec<E, K> indexSpec) {
-        add((ValueIndexSpec<K>) indexSpec);
+        add((ValueIndexSpec<E, K>) indexSpec);
     }
 
-    <K extends Comparable<K>> void add(ValueIndexSpec<K> indexSpec);
+    <K extends Comparable<K>> void add(ValueIndexSpec<E, K> indexSpec);
 
     /**
      * Get all {@link IndexSpec} in the collection.
      *
      * @return all index specs
      */
-    List<ValueIndexSpec<?>> getIndexSpecs();
+    List<ValueIndexSpec<E, ?>> getIndexSpecs();
 
 }

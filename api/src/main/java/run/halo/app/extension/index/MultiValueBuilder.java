@@ -1,10 +1,9 @@
 package run.halo.app.extension.index;
 
-import org.springframework.util.Assert;
-import run.halo.app.extension.Extension;
-
 import java.util.Set;
 import java.util.function.Function;
+import org.springframework.util.Assert;
+import run.halo.app.extension.Extension;
 
 public class MultiValueBuilder<E extends Extension, K extends Comparable<K>>
     extends AbstractValueIndexSpecBuilder<E, K> {

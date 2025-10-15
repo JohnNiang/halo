@@ -67,21 +67,21 @@ public class DefaultSchemeManager implements SchemeManager {
 
     private static class DefaultIndexSpecs<E extends Extension> implements IndexSpecs<E> {
 
-        private final Map<String, ValueIndexSpec<?>> specMap;
+        private final Map<String, ValueIndexSpec<E, ?>> specMap;
 
         private DefaultIndexSpecs() {
             this.specMap = new HashMap<>();
         }
 
         @Override
-        public <K extends Comparable<K>> void add(ValueIndexSpec<K> indexSpec) {
+        public <K extends Comparable<K>> void add(ValueIndexSpec<E, K> indexSpec) {
             Assert.isTrue(!specMap.containsKey(indexSpec.getName()),
                 "Index spec with name " + indexSpec.getName() + " already exists.");
             this.specMap.put(indexSpec.getName(), indexSpec);
         }
 
         @Override
-        public List<ValueIndexSpec<?>> getIndexSpecs() {
+        public List<ValueIndexSpec<E, ?>> getIndexSpecs() {
             return specMap.values().stream().toList();
         }
 
