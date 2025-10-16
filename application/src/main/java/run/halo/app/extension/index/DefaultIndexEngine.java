@@ -72,6 +72,7 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
         var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
         var result = queryVisitor.getResult();
+        var total = result.size();
         // create comparator
         var sort = page.getSort();
         var comparator = buildComparator(sort, indices);
@@ -83,11 +84,24 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
             // return all results for backward compatibility
             var finalResult = result.stream().sorted(comparator).toList();
             return new ListResult<>(
-                page.getPageNumber(), page.getPageSize(), result.size(), finalResult
+                page.getPageNumber(), page.getPageSize(), total, finalResult
             );
         }
-
+        if (offset > total) {
+            return new ListResult<>(
+                page.getPageNumber(), page.getPageSize(), total, new LinkedList<>()
+            );
+        }
         var n = offset + limit;
+        if (n > 1000) {
+            var finalResult = result.stream().sorted(comparator)
+                .skip(offset)
+                .limit(limit)
+                .toList();
+            return new ListResult<>(
+                page.getPageNumber(), page.getPageSize(), total, finalResult
+            );
+        }
         var pq = new PriorityQueue<>(n, comparator.reversed());
         result.forEach(primaryKey -> {
             pq.offer(primaryKey);
@@ -98,10 +112,14 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
         var finalResult = new LinkedList<String>();
         while (!pq.isEmpty()) {
             finalResult.addFirst(pq.poll());
+            if (finalResult.size() >= limit) {
+                // no need to compare further
+                break;
+            }
         }
-
+        pq.clear();
         return new ListResult<>(
-            page.getPageNumber(), page.getPageSize(), result.size(), finalResult
+            page.getPageNumber(), page.getPageSize(), total, finalResult
         );
     }
 

@@ -41,7 +41,7 @@ public class ReactiveExtensionStoreClientImpl implements ReactiveExtensionStoreC
             return this.repository.findAllByNameStartingWith(prefix, Pageable.ofSize(limit));
         }
         var cursor = StringUtils.prependIfMissing(nameCursor, prefix);
-        return this.repository.findAllByNameStartingWithAndNameGreaterThan(
+        return this.repository.findAllByNameStartingWithAndNameGreaterThanOrderByName(
             prefix, cursor, Pageable.ofSize(limit)
         );
     }
