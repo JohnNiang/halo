@@ -149,8 +149,11 @@ public class QueryVisitor<E extends Extension> implements Visitor {
                 }
                 case LabelEqualsCondition(String labelKey, String labelValue) ->
                     result.addAll(labelEqualsQuery(labelKey, labelValue, false));
-                case LabelNotEqualsCondition(String labelKey, String labelValue) ->
-                    result.addAll(labelEqualsQuery(labelKey, labelValue, true));
+                case LabelNotEqualsCondition(String labelKey, String labelValue) -> {
+                    // Only for backward compatibility
+                    result.addAll(allQuery("metadata.name", false));
+                    result.removeAll(labelEqualsQuery(labelKey, labelValue, false));
+                }
                 case LabelInCondition(String labelKey, Set<String> labelValues) ->
                     result.addAll(labelInQuery(labelKey, labelValues, false));
                 case LabelNotInCondition(String labelKey, Set<String> labelValues) ->

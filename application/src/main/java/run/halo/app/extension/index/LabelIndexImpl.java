@@ -95,8 +95,13 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
 
     @Override
     public Set<String> notEqual(String labelKey, String labelValue) {
+        // collect all primary keys
         var labelEntry = new LabelEntry(labelKey, labelValue);
-        return index.entrySet().stream()
+        return index.subMap(
+                new LabelEntry(labelKey, null), true,
+                new LabelEntry(labelKey, Character.MAX_VALUE + ""), true
+            )
+            .entrySet().stream()
             .filter(entry -> !Objects.equals(entry.getKey(), labelEntry))
             .map(Map.Entry::getValue)
             .flatMap(Set::stream)
@@ -181,9 +186,6 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
                 return;
             }
             this.committed = true;
-            if (Objects.equals(labels, previousLabels)) {
-                return;
-            }
             // remove old labels
             removeLabels(primaryKey, previousLabels);
             addLabels(primaryKey, labels);
@@ -192,9 +194,6 @@ class LabelIndexImpl<E extends Extension> implements LabelIndexQuery, Index<E, S
         @Override
         public void rollback() {
             if (!committed) {
-                return;
-            }
-            if (Objects.equals(labels, previousLabels)) {
                 return;
             }
             removeLabels(primaryKey, labels);
