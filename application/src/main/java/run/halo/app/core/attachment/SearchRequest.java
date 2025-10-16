@@ -8,6 +8,7 @@ import static run.halo.app.extension.index.query.QueryFactory.contains;
 import static run.halo.app.extension.index.query.QueryFactory.in;
 import static run.halo.app.extension.index.query.QueryFactory.isNull;
 import static run.halo.app.extension.index.query.QueryFactory.not;
+import static run.halo.app.extension.index.query.QueryFactory.or;
 import static run.halo.app.extension.index.query.QueryFactory.startsWith;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -59,7 +60,7 @@ public class SearchRequest extends SortableRequest {
             .ifPresent(ungrouped -> builder.andQuery(isNull("spec.groupName")));
 
         if (!CollectionUtils.isEmpty(hiddenGroups)) {
-            builder.andQuery(not(in("spec.groupName", hiddenGroups)));
+            builder.andQuery(or(isNull("spec.groupName"), not(in("spec.groupName", hiddenGroups))));
         }
 
         getAccepts().flatMap(accepts -> accepts.stream()

@@ -361,7 +361,10 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
             }
             return;
         }
-        index.remove(key);
+        index.computeIfPresent(key, (k, v) -> {
+            v.remove(primaryKey);
+            return v.isEmpty() ? null : v;
+        });
         invertedIndex.remove(primaryKey, key);
     }
 
@@ -374,7 +377,10 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
         if (key == null) {
             var oldKey = invertedIndex.remove(primaryKey);
             if (oldKey != null) {
-                index.remove(oldKey);
+                index.computeIfPresent(oldKey, (k, v) -> {
+                    v.remove(primaryKey);
+                    return v.isEmpty() ? null : v;
+                });
             }
             nullKeyValues.add(primaryKey);
             return;
