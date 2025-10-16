@@ -100,7 +100,9 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> in(Collection<K> keys) {
-        Assert.isTrue(!CollectionUtils.isEmpty(keys), "Keys must not be empty");
+        if (CollectionUtils.isEmpty(keys)) {
+            return Set.of();
+        }
         return keys.stream()
             .map(index::get)
             .filter(Objects::nonNull)
@@ -110,7 +112,9 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> notIn(Collection<K> keys) {
-        Assert.isTrue(!CollectionUtils.isEmpty(keys), "Keys must not be empty");
+        if (CollectionUtils.isEmpty(keys)) {
+            return Set.of();
+        }
         return index.entrySet().stream()
             .filter(entry -> !keys.contains(entry.getKey()))
             .map(Map.Entry::getValue)
