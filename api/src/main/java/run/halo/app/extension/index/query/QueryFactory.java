@@ -83,7 +83,7 @@ public class QueryFactory {
     }
 
     public static Query in(String fieldName, Object... attributeValues) {
-        return in(fieldName, Set.<Object>of(attributeValues));
+        return in(fieldName, Set.of(attributeValues));
     }
 
 

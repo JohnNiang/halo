@@ -6,7 +6,7 @@ import org.springframework.util.Assert;
 record InCondition(String indexName, Set<Object> keys) implements IndexCondition {
 
     public InCondition {
-        Assert.notEmpty(keys, "Keys must not be empty");
+        Assert.notNull(keys, "Keys of " + indexName + " must not be empty");
     }
 
     @Override
