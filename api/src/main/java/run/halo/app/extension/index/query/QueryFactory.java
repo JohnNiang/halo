@@ -124,8 +124,21 @@ public class QueryFactory {
             .orElseThrow(() -> new IllegalArgumentException("No Condition found in queries"));
     }
 
-    public static Query and(Query left, Query right) {
-        return and(List.of(left, right));
+    /**
+     * Combine two queries with AND operation.
+     *
+     * @param left the left query
+     * @param right the right query
+     * @return the combined query
+     * @deprecated Use {@link #and(Query, Query, Query...)} instead.
+     */
+    @Deprecated(forRemoval = true, since = "2.22.0")
+    public static And and(Query left, Query right) {
+        Assert.isInstanceOf(Condition.class, left,
+            "Only Condition instances are supported in AND operations");
+        Assert.isInstanceOf(Condition.class, right,
+            "Only Condition instances are supported in AND operations");
+        return new And((Condition) left, (Condition) right);
     }
 
     public static Query and(Query left, Query right, Query... additionalQueries) {

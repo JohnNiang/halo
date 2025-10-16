@@ -56,50 +56,46 @@ public class QueryVisitor<E extends Extension> implements Visitor {
         @Override
         public void enter(@NonNull Visitable segment) {
             switch (segment) {
+                case And(Condition left, Condition right) -> {
+                    // convert to AndCondition for backward compatibility
+                    new AndCondition(left, right).visit(this);
+                }
                 case EmptyCondition ignored -> result.addAll(allQuery("metadata.name", false));
                 case AndCondition(Condition left, Condition right) -> {
-                    var leftVisitor = new ConditionVisitor();
-                    var rightVisitor = new ConditionVisitor();
                     if (left instanceof EmptyCondition) {
-                        right.visit(rightVisitor);
-                        result.addAll(rightVisitor.getResult());
+                        right.visit(this);
                         return;
                     }
                     if (right instanceof EmptyCondition) {
-                        left.visit(leftVisitor);
-                        result.addAll(leftVisitor.getResult());
+                        left.visit(this);
                         return;
                     }
-                    left.visit(leftVisitor);
+                    left.visit(this);
+                    var rightVisitor = new ConditionVisitor();
                     right.visit(rightVisitor);
-                    result.addAll(leftVisitor.getResult());
                     result.retainAll(rightVisitor.getResult());
                 }
                 case OrCondition(Condition left, Condition right) -> {
-                    var leftVisitor = new ConditionVisitor();
-                    var rightVisitor = new ConditionVisitor();
+                    // var leftVisitor = new ConditionVisitor();
+                    // var rightVisitor = new ConditionVisitor();
                     if (left instanceof EmptyCondition) {
-                        left.visit(leftVisitor);
-                        result.addAll(leftVisitor.getResult());
+                        left.visit(this);
                         return;
                     }
                     if (right instanceof EmptyCondition) {
-                        right.visit(rightVisitor);
-                        result.addAll(rightVisitor.getResult());
+                        right.visit(this);
                         return;
                     }
-                    left.visit(leftVisitor);
+                    left.visit(this);
+                    var rightVisitor = new ConditionVisitor();
                     right.visit(rightVisitor);
-                    result.addAll(leftVisitor.getResult());
                     result.addAll(rightVisitor.getResult());
                 }
                 case NotCondition(Condition condition) -> {
-                    var visitor = new ConditionVisitor();
                     if (condition instanceof EmptyCondition) {
                         return;
                     }
-                    condition.not().visit(visitor);
-                    result.addAll(visitor.getResult());
+                    condition.not().visit(this);
                 }
                 case EqualCondition(String indexName, Object key) ->
                     result.addAll(equalQuery(indexName, key, false));
