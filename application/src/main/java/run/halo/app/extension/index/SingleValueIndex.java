@@ -150,9 +150,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringContains(String keyword) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         return index.entrySet().stream()
             .filter(entry -> StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
             .map(Map.Entry::getValue)
@@ -162,9 +160,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotContains(String keyword) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         return index.entrySet().stream()
             .filter(entry -> !StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
             .map(Map.Entry::getValue)
@@ -174,9 +170,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringStartsWith(String prefix) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         var toKey = prefix + Character.MAX_VALUE;
         return index.subMap((K) prefix, true, (K) toKey, true).values().stream()
             .flatMap(Set::stream)
@@ -185,9 +179,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotStartsWith(String prefix) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         var toKey = prefix + Character.MAX_VALUE;
         return Stream.concat(
                 index.headMap((K) prefix, false).values().stream(),
@@ -199,9 +191,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringEndsWith(String suffix) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         return index.entrySet().stream()
             .filter(entry -> StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
             .map(Map.Entry::getValue)
@@ -211,9 +201,7 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotEndsWith(String suffix) {
-        Assert.isInstanceOf(getKeyType(),
-            "String operations are only supported for String key type"
-        );
+        ensureStringKeyType();
         return index.entrySet().stream()
             .filter(entry -> !StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
             .map(Map.Entry::getValue)
@@ -400,4 +388,10 @@ class SingleValueIndex<E extends Extension, K extends Comparable<K>>
         invertedIndex.put(primaryKey, key);
     }
 
+    private void ensureStringKeyType() {
+        Assert.isTrue(
+            getKeyType() == String.class || getKeyType() == UnknownKey.class,
+            "Key type must be String for this operation"
+        );
+    }
 }

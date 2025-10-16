@@ -169,8 +169,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringContains(String keyword) {
-        Assert.isInstanceOf(getKeyType(), keyword,
-            "Key type must be String for stringContains operation");
+        ensureStringKeyType();
         return index.entrySet()
             .stream()
             .filter(entry -> StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
@@ -181,8 +180,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotContains(String keyword) {
-        Assert.isInstanceOf(getKeyType(), keyword,
-            "Key type must be String for stringNotContains operation");
+        ensureStringKeyType();
         return index.entrySet()
             .stream()
             .filter(entry -> !StringUtils.containsIgnoreCase(entry.getKey().toString(), keyword))
@@ -193,8 +191,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringStartsWith(String prefix) {
-        Assert.isInstanceOf(getKeyType(), prefix,
-            "Key type must be String for stringStartsWith operation");
+        ensureStringKeyType();
         var toKey = prefix + Character.MAX_VALUE;
         return index.subMap((K) prefix, true, (K) toKey, false)
             .values()
@@ -205,8 +202,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotStartsWith(String prefix) {
-        Assert.isInstanceOf(getKeyType(), prefix,
-            "Key type must be String for stringStartsWith operation");
+        ensureStringKeyType();
         var toKey = prefix + Character.MAX_VALUE;
         return Stream.concat(
                 index.headMap((K) prefix, false).values().stream(),
@@ -218,8 +214,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringEndsWith(String suffix) {
-        Assert.isInstanceOf(getKeyType(), suffix,
-            "Key type must be String for stringEndsWith operation");
+        ensureStringKeyType();
         return index.entrySet()
             .stream()
             .filter(entry -> StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
@@ -230,8 +225,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
 
     @Override
     public Set<String> stringNotEndsWith(String suffix) {
-        Assert.isInstanceOf(getKeyType(), suffix,
-            "Key type must be String for stringEndsWith operation");
+        ensureStringKeyType();
         return index.entrySet()
             .stream()
             .filter(entry -> !StringUtils.endsWithIgnoreCase(entry.getKey().toString(), suffix))
@@ -239,7 +233,6 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
             .flatMap(Set::stream)
             .collect(Collectors.toSet());
     }
-
 
     @Override
     public Set<String> notEqual(K key) {
@@ -424,4 +417,10 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>>
         }
     }
 
+    private void ensureStringKeyType() {
+        Assert.isTrue(
+            getKeyType() == String.class || getKeyType() == UnknownKey.class,
+            "Key type must be String for this operation"
+        );
+    }
 }

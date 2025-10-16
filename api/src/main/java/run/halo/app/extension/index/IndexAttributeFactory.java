@@ -1,13 +1,10 @@
 package run.halo.app.extension.index;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.lang.Nullable;
 import run.halo.app.extension.Extension;
 
 @UtilityClass
@@ -45,30 +42,4 @@ public class IndexAttributeFactory {
             .orElse(null), objectType, keyType);
     }
 
-    /**
-     * String key wrapper for nullable string comparison. Only for backward compatibility.
-     *
-     * @author johnniang
-     * @since 2.22.0
-     *
-     */
-    @Deprecated(forRemoval = true, since = "2.22.0")
-    record UnknownKey(@Nullable String value) implements Comparable<UnknownKey> {
-
-        @Override
-        public int compareTo(@NotNull UnknownKey o) {
-            return KeyComparator.INSTANCE.compare(this.value, o.value);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            UnknownKey unknownKey = (UnknownKey) o;
-            return Objects.equals(value, unknownKey.value);
-        }
-
-    }
 }
