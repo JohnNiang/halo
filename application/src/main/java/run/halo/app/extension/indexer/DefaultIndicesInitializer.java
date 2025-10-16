@@ -63,7 +63,7 @@ class DefaultIndicesInitializer implements IndicesInitializer {
             }
             indexedCount += extensionStores.size();
             watch.stop();
-        } while (!Thread.currentThread().isInterrupted() && !extensionStores.isEmpty());
+        } while (!extensionStores.isEmpty());
         log.info("Total indexed count: {}, initialization summary: {}",
             indexedCount, watch.prettyPrint(TimeUnit.MILLISECONDS));
     }
