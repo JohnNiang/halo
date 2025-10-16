@@ -50,6 +50,7 @@ class DefaultIndicesInitializer implements IndicesInitializer {
         var prefix = ExtensionStoreUtil.buildStoreNamePrefix(scheme);
         List<ExtensionStore> extensionStores;
         String nameCursor = null;
+        log.info("Start to initialize indices for type: {}, prefix: {}", type.getName(), prefix);
         var watch = new StopWatch("Initialize indices for " + type.getName());
         var indexedCount = 0L;
         do {

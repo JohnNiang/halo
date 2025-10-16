@@ -7,7 +7,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -37,12 +39,13 @@ public class ReactiveExtensionStoreClientImpl implements ReactiveExtensionStoreC
 
     @Override
     public Flux<ExtensionStore> listBy(String prefix, String nameCursor, int limit) {
+        var page = PageRequest.ofSize(limit).withSort(Sort.Direction.ASC, "name");
         if (StringUtils.isBlank(nameCursor)) {
-            return this.repository.findAllByNameStartingWith(prefix, Pageable.ofSize(limit));
+            return this.repository.findAllByNameStartingWith(prefix, page);
         }
         var cursor = StringUtils.prependIfMissing(nameCursor, prefix);
-        return this.repository.findAllByNameStartingWithAndNameGreaterThanOrderByName(
-            prefix, cursor, Pageable.ofSize(limit)
+        return this.repository.findAllByNameStartingWithAndNameGreaterThan(
+            prefix, cursor, page
         );
     }
 

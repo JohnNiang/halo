@@ -36,7 +36,7 @@ public interface ExtensionStoreRepository extends R2dbcRepository<ExtensionStore
      */
     Flux<ExtensionStore> findByNameIn(List<String> names);
 
-    Flux<ExtensionStore> findAllByNameStartingWithAndNameGreaterThanOrderByName(
+    Flux<ExtensionStore> findAllByNameStartingWithAndNameGreaterThan(
         String prefix, String nameCursor, Pageable pageable);
 
 }
