@@ -1,9 +1,16 @@
 package run.halo.app.extension.index.query;
 
-record NotEqualCondition(String indexName, Object value) implements IndexCondition {
+import org.springframework.util.Assert;
+
+record NotEqualCondition(String indexName, Object key) implements IndexCondition {
+
+
+    public NotEqualCondition {
+        Assert.notNull(key, "Key of " + indexName + " must not be null");
+    }
 
     @Override
     public Condition not() {
-        return new EqualCondition(indexName, value);
+        return new EqualCondition(indexName, key);
     }
 }

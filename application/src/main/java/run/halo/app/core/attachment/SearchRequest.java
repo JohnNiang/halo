@@ -4,8 +4,8 @@ import static org.springdoc.core.fn.builders.arrayschema.Builder.arraySchemaBuil
 import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
 import static org.springdoc.core.fn.builders.schema.Builder.schemaBuilder;
 import static org.springframework.boot.convert.ApplicationConversionService.getSharedInstance;
+import static run.halo.app.extension.index.query.Queries.in;
 import static run.halo.app.extension.index.query.QueryFactory.contains;
-import static run.halo.app.extension.index.query.QueryFactory.in;
 import static run.halo.app.extension.index.query.QueryFactory.isNull;
 import static run.halo.app.extension.index.query.QueryFactory.not;
 import static run.halo.app.extension.index.query.QueryFactory.or;

@@ -1,8 +1,8 @@
 package run.halo.app.core.endpoint.console;
 
 import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
+import static run.halo.app.extension.index.query.Queries.equal;
 import static run.halo.app.extension.index.query.QueryFactory.and;
-import static run.halo.app.extension.index.query.QueryFactory.equal;
 import static run.halo.app.extension.index.query.QueryFactory.isNull;
 
 import lombok.Data;

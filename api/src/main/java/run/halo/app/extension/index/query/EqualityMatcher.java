@@ -19,7 +19,7 @@ public class EqualityMatcher implements SelectorMatcher {
      * The "equal" matcher. Matches a label if the label is present and equal.
      *
      * @param key the matching label key
-     * @param value the matching label value
+     * @param value the matching label key
      * @return the equality matcher
      */
     public static EqualityMatcher equal(String key, String value) {
@@ -30,7 +30,7 @@ public class EqualityMatcher implements SelectorMatcher {
      * The "not equal" matcher. Matches a label if the label is not present or not equal.
      *
      * @param key the matching label key
-     * @param value the matching label value
+     * @param value the matching label key
      * @return the equality matcher
      */
     public static EqualityMatcher notEqual(String key, String value) {

@@ -29,82 +29,38 @@ public class QueryFactory {
     }
 
     public static Query notEqual(String fieldName, String attributeValue) {
-        return notEqual(fieldName, (Object) attributeValue);
-    }
-
-    public static Query notEqual(String fieldName, Object attributeValue) {
-        Assert.notNull(attributeValue,
-            "Attribute value of field " + fieldName + " must not be null"
-        );
-        return new NotEqualCondition(fieldName, attributeValue);
+        return Queries.notEqual(fieldName, attributeValue);
     }
 
     public static Query equal(String fieldName, String attributeValue) {
-        return equal(fieldName, (Object) attributeValue);
-    }
-
-    public static Query equal(String fieldName, Object attributeValue) {
-        Assert.notNull(attributeValue,
-            "Attribute value of field " + fieldName + " must not be null"
-        );
-        return new EqualCondition(fieldName, attributeValue);
+        return Queries.equal(fieldName, attributeValue);
     }
 
     public static Query lessThan(String fieldName, String attributeValue) {
-        return lessThan(fieldName, (Object) attributeValue);
-    }
-
-    public static Query lessThan(String fieldName, Object attributeValue) {
-        return new LessThanCondition(fieldName, attributeValue, false);
+        return Queries.lessThan(fieldName, attributeValue);
     }
 
     public static Query lessThanOrEqual(String fieldName, String attributeValue) {
-        return lessThanOrEqual(fieldName, (Object) attributeValue);
-    }
-
-    public static Query lessThanOrEqual(String fieldName, Object attributeValue) {
-        return new LessThanCondition(fieldName, attributeValue, true);
-    }
-
-    public static Query greaterThan(String fieldName, Object attributeValue) {
-        return new GreaterThanCondition(fieldName, attributeValue, false);
+        return Queries.lessThan(fieldName, attributeValue, true);
     }
 
     public static Query greaterThan(String fieldName, String attributeValue) {
-        return greaterThan(fieldName, (Object) attributeValue);
-    }
-
-    public static Query greaterThanOrEqual(String fieldName, Object attributeValue) {
-        return new GreaterThanCondition(fieldName, attributeValue, true);
+        return Queries.greaterThan(fieldName, attributeValue);
     }
 
     public static Query greaterThanOrEqual(String fieldName, String attributeValue) {
-        return greaterThanOrEqual(fieldName, (Object) attributeValue);
+        return Queries.greaterThan(fieldName, attributeValue, true);
     }
-
-    public static Query in(String fieldName, Object... attributeValues) {
-        return in(fieldName, Set.of(attributeValues));
-    }
-
 
     public static Query in(String fieldName, String... attributeValues) {
-        return in(fieldName, Set.<Object>of(attributeValues));
-    }
-
-    public static Query in(String fieldName, Set<Object> values) {
-        Assert.notNull(values, "Values must not be null");
-        if (values.size() == 1) {
-            var value = values.iterator().next();
-            return equal(fieldName, value);
-        }
-        return new InCondition(fieldName, values);
+        return Queries.in(fieldName, Set.of(attributeValues));
     }
 
     public static Query in(String fieldName, Collection<String> values) {
         var convertedValues = values.stream()
             .map(v -> (Object) v)
             .collect(Collectors.toSet());
-        return in(fieldName, convertedValues);
+        return Queries.in(fieldName, convertedValues);
     }
 
     public static Query and(Collection<Query> queries) {
@@ -124,15 +80,6 @@ public class QueryFactory {
             .orElseThrow(() -> new IllegalArgumentException("No Condition found in queries"));
     }
 
-    /**
-     * Combine two queries with AND operation.
-     *
-     * @param left the left query
-     * @param right the right query
-     * @return the combined query
-     * @deprecated Use {@link #and(Query, Query, Query...)} instead.
-     */
-    @Deprecated(forRemoval = true, since = "2.22.0")
     public static And and(Query left, Query right) {
         Assert.isInstanceOf(Condition.class, left,
             "Only Condition instances are supported in AND operations");
@@ -202,52 +149,33 @@ public class QueryFactory {
 
     public static Query betweenLowerExclusive(String fieldName, String lowerValue,
         String upperValue) {
-        return betweenLowerExclusive(fieldName, (Object) lowerValue, (Object) upperValue);
-    }
-
-    public static Query betweenLowerExclusive(String fieldName, Object lowerValue,
-        Object upperValue) {
-        return new BetweenCondition(fieldName, lowerValue, false, upperValue, true);
+        return Queries.between(fieldName, lowerValue, false, upperValue, true);
     }
 
     public static Query betweenUpperExclusive(String fieldName, String lowerValue,
         String upperValue) {
-        return betweenUpperExclusive(fieldName, (Object) lowerValue, (Object) upperValue);
-    }
-
-    public static Query betweenUpperExclusive(String fieldName, Object lowerValue,
-        Object upperValue) {
-        return new BetweenCondition(fieldName, lowerValue, true, upperValue, false);
+        return Queries.between(fieldName, lowerValue, true, upperValue, false);
     }
 
     public static Query betweenExclusive(String fieldName, String lowerValue,
         String upperValue) {
-        return betweenExclusive(fieldName, lowerValue, (Object) upperValue);
-    }
-
-    public static Query betweenExclusive(String fieldName, Object lowerValue,
-        Object upperValue) {
-        return new BetweenCondition(fieldName, lowerValue, false, upperValue, false);
+        return Queries.between(fieldName, lowerValue, false, upperValue, false);
     }
 
     public static Query between(String fieldName, String lowerValue, String upperValue) {
-        return between(fieldName, lowerValue, (Object) upperValue);
-    }
-
-    public static Query between(String fieldName, Object lowerValue, Object upperValue) {
-        return new BetweenCondition(fieldName, lowerValue, true, upperValue, true);
+        return Queries.between(fieldName, lowerValue, true, upperValue, true);
     }
 
     public static Query startsWith(String fieldName, String value) {
-        return new StringStartsWithCondition(fieldName, value);
+        return Queries.startsWith(fieldName, value);
     }
 
     public static Query endsWith(String fieldName, String value) {
-        return new StringEndsWithCondition(fieldName, value);
+        return Queries.endsWith(fieldName, value);
     }
 
     public static Query contains(String fieldName, String value) {
-        return new StringContainsCondition(fieldName, value);
+        return Queries.contains(fieldName, value);
     }
 
 }

@@ -1,9 +1,9 @@
 package run.halo.app.theme.finders.impl;
 
+import static run.halo.app.extension.index.query.Queries.equal;
+import static run.halo.app.extension.index.query.Queries.in;
+import static run.halo.app.extension.index.query.Queries.notEqual;
 import static run.halo.app.extension.index.query.QueryFactory.and;
-import static run.halo.app.extension.index.query.QueryFactory.equal;
-import static run.halo.app.extension.index.query.QueryFactory.in;
-import static run.halo.app.extension.index.query.QueryFactory.notEqual;
 
 import java.util.Comparator;
 import java.util.List;
