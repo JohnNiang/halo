@@ -9,6 +9,12 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.springframework.util.Assert;
 
+/**
+ * Query factory utility class.
+ *
+ * @deprecated Use {@link Queries} instead.
+ */
+@Deprecated(since = "2.22.0", forRemoval = true)
 @UtilityClass
 public class QueryFactory {
 
