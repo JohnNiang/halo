@@ -1,6 +1,7 @@
 package run.halo.app.infra;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,6 +24,37 @@ import run.halo.app.infra.utils.JsonUtils;
 public class SystemSetting {
     public static final String SYSTEM_CONFIG_DEFAULT = "system-default";
     public static final String SYSTEM_CONFIG = "system";
+
+    public record Attachment(
+
+        @Nullable
+        UploadOptions console,
+
+        @Nullable
+        UploadOptions uc,
+
+        @Nullable
+        UploadOptions comment,
+
+        @Nullable
+        UploadOptions avatar
+
+    ) {
+
+        public static final String GROUP = "attachment";
+
+        public record UploadOptions(
+
+            @Nullable
+            String groupName,
+
+            @NotBlank
+            String policyName
+
+        ) {
+        }
+
+    }
 
     @Data
     public static class Theme {

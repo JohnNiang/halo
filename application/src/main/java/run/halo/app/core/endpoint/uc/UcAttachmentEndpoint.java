@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
@@ -37,10 +38,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import run.halo.app.content.PostService;
 import run.halo.app.core.attachment.AttachmentLister;
 import run.halo.app.core.attachment.SearchRequest;
+import run.halo.app.core.endpoint.AttachmentHandler;
 import run.halo.app.core.extension.attachment.Attachment;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.core.extension.endpoint.CustomEndpoint;
@@ -53,6 +54,7 @@ import run.halo.app.infra.SystemSetting;
 import run.halo.app.infra.exception.NotFoundException;
 
 @Component
+@RequiredArgsConstructor
 public class UcAttachmentEndpoint implements CustomEndpoint {
 
     public static final String POST_NAME_LABEL = "content.halo.run/post-name";
@@ -66,14 +68,7 @@ public class UcAttachmentEndpoint implements CustomEndpoint {
 
     private final SystemConfigFetcher systemSettingFetcher;
 
-    public UcAttachmentEndpoint(AttachmentService attachmentService,
-        AttachmentLister attachmentLister, PostService postService,
-        SystemConfigFetcher systemSettingFetcher) {
-        this.attachmentService = attachmentService;
-        this.attachmentLister = attachmentLister;
-        this.postService = postService;
-        this.systemSettingFetcher = systemSettingFetcher;
-    }
+    private final AttachmentHandler attachmentHandler;
 
     @Override
     public RouterFunction<ServerResponse> endpoint() {
@@ -82,7 +77,11 @@ public class UcAttachmentEndpoint implements CustomEndpoint {
             .POST("/attachments",
                 this::createAttachmentForPost,
                 builder -> builder.operationId("CreateAttachmentForPost").tag(tag)
-                    .description("Create attachment for the given post.")
+                    .description("""
+                        Create attachment for the given post. \
+                        Deprecated in favor of /attachments/-/upload."""
+                    )
+                    .deprecated(true)
                     .parameter(parameterBuilder()
                         .name("waitForPermalink")
                         .description("Wait for permalink.")
@@ -143,33 +142,16 @@ public class UcAttachmentEndpoint implements CustomEndpoint {
     }
 
     private Mono<ServerResponse> uploadAttachment(ServerRequest request) {
-        var builder = UploadContext.builder();
-        var filePartMono = request.body(BodyExtractors.toMultipartData())
-            .map(UcUploadRequest::new)
-            .switchIfEmpty(
-                Mono.error(new ServerWebInputException("Required request body is missing.")))
-            .doOnNext(uploadRequest -> builder.filePart(uploadRequest.getFile()))
-            .subscribeOn(Schedulers.boundedElastic());
-
-        var ownerMono = getCurrentUser()
-            .doOnNext(builder::owner);
-
-        var storagePolicyMono =
-            systemSettingFetcher.fetch(SystemSetting.User.GROUP, SystemSetting.User.class)
-                .mapNotNull(SystemSetting.User::getUcAttachmentPolicy)
-                .filter(StringUtils::isNotBlank)
-                .switchIfEmpty(Mono.error(new ServerWebInputException(
-                    "Please contact the administrator to configure the storage policy."))
-                )
-                .doOnNext(builder::storagePolicy)
-                .subscribeOn(Schedulers.boundedElastic());
-
-        return Mono.when(filePartMono, storagePolicyMono, ownerMono)
-            .then(Mono.fromSupplier(builder::build))
-            .flatMap(context -> attachmentService.upload(context.owner(),
-                context.storagePolicy(), null, context.filePart(), null)
+        var getConfig = systemSettingFetcher.fetch(
+                SystemSetting.Attachment.GROUP,
+                SystemSetting.Attachment.class
             )
-            .flatMap(attachment -> ServerResponse.ok().bodyValue(attachment));
+            .mapNotNull(SystemSetting.Attachment::uc)
+            .filter(ac -> org.springframework.util.StringUtils.hasText(ac.policyName()))
+            .switchIfEmpty(Mono.error(() -> new ServerWebInputException(
+                "Attachment system setting is not configured for console"
+            )));
+        return attachmentHandler.handleUpload(request, getConfig);
     }
 
     private Mono<ServerResponse> listMyAttachments(ServerRequest request) {

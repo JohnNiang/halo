@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.reactivestreams.Publisher;
@@ -52,7 +53,6 @@ import run.halo.app.core.extension.attachment.Policy;
 import run.halo.app.core.extension.attachment.endpoint.AttachmentHandler;
 import run.halo.app.extension.ConfigMap;
 import run.halo.app.extension.Metadata;
-import run.halo.app.infra.ExternalUrlSupplier;
 import run.halo.app.infra.FileCategoryMatcher;
 import run.halo.app.infra.exception.AttachmentAlreadyExistsException;
 import run.halo.app.infra.exception.FileSizeExceededException;
@@ -64,26 +64,16 @@ import run.halo.app.infra.utils.JsonUtils;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 class LocalAttachmentUploadHandler implements AttachmentHandler {
 
     private static final String UPLOAD_PATH = "upload";
 
     private final AttachmentRootGetter attachmentDirGetter;
 
-    private final ExternalUrlSupplier externalUrl;
-
     private final LocalThumbnailService localThumbnailService;
 
     private Clock clock = Clock.systemUTC();
-
-    public LocalAttachmentUploadHandler(
-        AttachmentRootGetter attachmentDirGetter,
-        ExternalUrlSupplier externalUrl,
-        LocalThumbnailService localThumbnailService) {
-        this.attachmentDirGetter = attachmentDirGetter;
-        this.externalUrl = externalUrl;
-        this.localThumbnailService = localThumbnailService;
-    }
 
     /**
      * Set clock for test.
