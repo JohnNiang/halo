@@ -45,6 +45,7 @@ checkstyle {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 
     flatDir {
@@ -87,6 +88,7 @@ tasks.named('jar') {
 
 dependencies {
     implementation project(':api')
+    implementation 'run.halo.halot:halot-core:0.1.0-SNAPSHOT'
     implementation libs.r2dbc.migrate.starter
     // Fix https://github.com/halo-dev/halo/issues/7289
     // Build from https://github.com/halo-dev/thymeleaf/commit/d23498ea297059deff04ba8c3578de59c73ccf03
