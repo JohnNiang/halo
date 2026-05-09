@@ -1,0 +1,22 @@
+{# Links page #}
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"/><title>Links — {{ site.title }}</title><link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/main-BaWd_1hx.css"></head>
+<body class="bg-slate-50 dark:bg-slate-900">
+  <header class="sticky top-0 z-10 flex h-16 items-center bg-white px-4 shadow-sm dark:bg-gray-800 lg:px-6">
+    <a href="/" class="mr-6 flex items-center gap-2">{% if site.logo %}<img src="{{ site.logo }}" alt="logo" class="h-8 w-auto"/>{% endif %}<span class="text-lg font-medium text-gray-900 dark:text-slate-100">{{ site.title }}</span></a>
+  </header>
+  <section class="mx-auto mt-6 max-w-3xl px-4 lg:px-6">
+    <h1 class="mb-6 text-3xl font-bold text-gray-900 dark:text-slate-100">Links</h1>
+    {% set links = linkFinder.listAll() %}
+    {% if links %}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {% for link in links %}
+      <a href="{{ link.spec.url }}" target="_blank" rel="noopener" class="flex items-center gap-3 rounded-xl bg-white p-4 shadow transition-shadow hover:shadow-md dark:bg-slate-800">
+        {% if link.spec.logo %}<img src="{{ link.spec.logo }}" alt="" class="size-10 rounded-full"/>{% endif %}
+        <div><h3 class="font-medium text-gray-800 dark:text-slate-100">{{ link.spec.displayName }}</h3><p class="text-xs text-gray-500">{{ link.spec.description }}</p></div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}<p class="text-gray-400">No links.</p>{% endif %}
+  </section>
+  <footer class="mt-10 bg-white py-8 dark:bg-slate-800"><div class="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500 dark:text-slate-300 lg:px-6">&copy; {{ site.title }} &middot; Powered by Halo</div></footer>
+</body></html>

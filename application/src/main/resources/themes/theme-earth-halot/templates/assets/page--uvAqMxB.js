@@ -1,0 +1,1 @@
+import{t as e}from"./main-CLmdnUTa.js";/* empty css                      */e(colorScheme,enableChangeColorScheme);

@@ -1,0 +1,99 @@
+{# Single post page #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+  <title>{{ post.spec.title }} — {{ site.title }}</title>
+  <link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/main-BaWd_1hx.css">
+  <link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/markdown-body-BoBcq-aF.css">
+</head>
+<body class="bg-slate-50 dark:bg-slate-900">
+
+  {# ——— Header ——— #}
+  {% set menu = menuFinder.getPrimary() %}
+  <header class="sticky top-0 z-10 flex h-16 items-center bg-white px-4 shadow-sm dark:bg-gray-800 lg:px-6">
+    <a href="/" class="mr-6 flex items-center gap-2">
+      {% if site.logo %}<img src="{{ site.logo }}" alt="logo" class="h-8 w-auto" />{% endif %}
+      <span class="text-lg font-medium text-gray-900 dark:text-slate-100">{{ site.title }}</span>
+    </a>
+    <nav class="hidden gap-6 sm:flex">
+      {% if menu.menuItems %}
+      {% for item in menu.menuItems %}
+      <a href="{{ item.status.href }}" class="text-sm text-gray-600 hover:text-blue-600 dark:text-slate-300">{{ item.status.displayName }}</a>
+      {% endfor %}
+      {% endif %}
+    </nav>
+  </header>
+
+  {# ——— Cover ——— #}
+  {% if post.spec.cover %}
+  <div class="relative flex h-96 items-center bg-cover bg-center bg-no-repeat"
+       style="background-image: url('{{ post.spec.cover }}')">
+    <div class="absolute inset-0 bg-black/40"></div>
+    <div class="relative z-10 mx-auto w-full max-w-3xl px-4 text-center text-white">
+      <h1 class="text-3xl font-bold sm:text-5xl">{{ post.spec.title }}</h1>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ——— Content ——— #}
+  <section class="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 px-4 md:grid-cols-[1fr_18rem] lg:px-6">
+    <div class="min-w-0">
+      <article class="rounded-xl bg-white p-6 shadow dark:bg-slate-800">
+        {# Author + meta #}
+        <div class="mb-6 flex items-center gap-3">
+          {% if post.owner.avatar %}
+          <a href="{{ post.owner.permalink }}"><img src="{{ post.owner.avatar }}" class="size-10 rounded-full" alt="{{ post.owner.displayName }}" /></a>
+          {% endif %}
+          <div>
+            <a href="{{ post.owner.permalink }}" class="font-medium text-gray-900 dark:text-slate-100">{{ post.owner.displayName }}</a>
+            <p class="text-xs text-gray-500 dark:text-slate-400">
+              {{ post.spec.publishTime[:10] }} &middot; {{ post.stats.visit or 0 }} views
+            </p>
+          </div>
+        </div>
+
+        {# Title (if no cover) #}
+        {% if not post.spec.cover %}
+        <h1 class="mb-4 text-3xl font-bold text-gray-900 dark:text-slate-100">{{ post.spec.title }}</h1>
+        {% endif %}
+
+        {# Tags #}
+        {% if post.tags %}
+        <div class="mb-4 flex flex-wrap gap-2">
+          {% for tag in post.tags %}
+          <a href="{{ tag.status.permalink }}" class="text-xs italic text-blue-500 hover:underline">#{{ tag.spec.displayName }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Body #}
+        <div class="markdown-body !max-w-none break-words">
+          {* post.content.content *}
+        </div>
+
+        {# Prev/Next #}
+        {% set cursor = postFinder.cursor(post.metadata.name) %}
+        <div class="mt-8 flex justify-between border-t pt-6 dark:border-slate-700">
+          {% if cursor.hasPrevious() %}
+          <a href="{{ cursor.previous.status.permalink }}" class="text-sm text-gray-500 hover:text-blue-600">&larr; {{ cursor.previous.spec.title[:30] }}</a>
+          {% else %}<span></span>{% endif %}
+          {% if cursor.hasNext() %}
+          <a href="{{ cursor.next.status.permalink }}" class="text-sm text-gray-500 hover:text-blue-600">{{ cursor.next.spec.title[:30] }} &rarr;</a>
+          {% endif %}
+        </div>
+      </article>
+    </div>
+    {% include "modules/sidebar" %}
+  </section>
+
+  {# ——— Footer ——— #}
+  <footer class="mt-10 bg-white py-8 dark:bg-slate-800">
+    <div class="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500 dark:text-slate-300 lg:px-6">
+      &copy; {{ site.title }} &middot; Powered by Halo
+    </div>
+  </footer>
+
+</body>
+</html>

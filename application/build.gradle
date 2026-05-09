@@ -45,6 +45,7 @@ checkstyle {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 
     flatDir {
@@ -87,6 +88,7 @@ tasks.named('jar') {
 
 dependencies {
     implementation project(':api')
+    implementation 'run.halo.halot:halot-core:0.1.0-SNAPSHOT'
     implementation libs.r2dbc.migrate.starter
     // Fix https://github.com/halo-dev/halo/issues/7289
     // Build from https://github.com/halo-dev/thymeleaf/commit/d23498ea297059deff04ba8c3578de59c73ccf03
@@ -253,4 +255,14 @@ tasks.register('publishToAllRegistries') {
     group = 'publishing'
     description = 'Build and publish the Docker image to all configured registries.'
     dependsOn tasks.named('publishToGhcr'), tasks.named('publishToDockerHub')
+}
+
+tasks.register('packageThemeEarthHalot', Zip) {
+    group = 'theme'
+    description = 'Package the theme-earth-halot theme into a zip file.'
+    from layout.projectDirectory.dir('src/main/resources/themes/theme-earth-halot')
+    archiveFileName = 'theme-earth-halot.zip'
+    destinationDirectory = layout.projectDirectory.dir('src/main/resources/themes')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }

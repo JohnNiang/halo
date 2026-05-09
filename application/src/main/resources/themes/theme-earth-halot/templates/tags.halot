@@ -1,0 +1,19 @@
+{# Tags list page #}
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"/><title>Tags — {{ site.title }}</title><link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/main-BaWd_1hx.css"></head>
+<body class="bg-slate-50 dark:bg-slate-900">
+  <header class="sticky top-0 z-10 flex h-16 items-center bg-white px-4 shadow-sm dark:bg-gray-800 lg:px-6">
+    <a href="/" class="mr-6 flex items-center gap-2">{% if site.logo %}<img src="{{ site.logo }}" alt="logo" class="h-8 w-auto"/>{% endif %}<span class="text-lg font-medium text-gray-900 dark:text-slate-100">{{ site.title }}</span></a>
+  </header>
+  <section class="mx-auto mt-6 max-w-3xl px-4 lg:px-6">
+    <h1 class="mb-6 text-3xl font-bold text-gray-900 dark:text-slate-100">Tags</h1>
+    {% set tags = tagFinder.listAll() %}
+    {% if tags %}
+    <div class="flex flex-wrap gap-3">
+      {% for tag in tags %}
+      <a href="{{ tag.status.permalink }}" class="rounded-full bg-white px-4 py-2 text-sm text-gray-600 shadow hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-300">{{ tag.spec.displayName }} ({{ tag.status.postCount or 0 }})</a>
+      {% endfor %}
+    </div>
+    {% else %}<p class="text-gray-400">No tags.</p>{% endif %}
+  </section>
+  <footer class="mt-10 bg-white py-8 dark:bg-slate-800"><div class="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500 dark:text-slate-300 lg:px-6">&copy; {{ site.title }} &middot; Powered by Halo</div></footer>
+</body></html>

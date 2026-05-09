@@ -1,0 +1,50 @@
+{# Sidebar — reusable module #}
+<aside class="hidden md:block">
+  <div class="sticky top-20 space-y-6">
+
+    {# Profile widget #}
+    <div class="rounded-xl bg-white p-4 shadow dark:bg-slate-800">
+      {% if site.logo %}
+      <img src="{{ site.logo }}" alt="{{ site.title }}" class="mx-auto size-16 rounded-full" />
+      {% endif %}
+      <h3 class="mt-2 text-center text-lg font-medium dark:text-slate-100">{{ site.title }}</h3>
+      {% if site.subtitle %}
+      <p class="mt-1 text-center text-sm text-gray-500 dark:text-slate-400">{{ site.subtitle }}</p>
+      {% endif %}
+    </div>
+
+    {# Tag cloud widget #}
+    {% set tags = tagFinder.listAll() %}
+    {% if tags %}
+    <div class="rounded-xl bg-white p-4 shadow dark:bg-slate-800">
+      <h3 class="mb-3 text-base font-medium dark:text-slate-100">Tags</h3>
+      <div class="flex flex-wrap gap-2">
+        {% for tag in tags %}
+        <a href="{{ tag.status.permalink }}"
+           class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-300">
+          {{ tag.spec.displayName }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Category widget #}
+    {% set categories = categoryFinder.listAll() %}
+    {% if categories %}
+    <div class="rounded-xl bg-white p-4 shadow dark:bg-slate-800">
+      <h3 class="mb-3 text-base font-medium dark:text-slate-100">Categories</h3>
+      <ul class="space-y-1">
+        {% for cat in categories %}
+        <li>
+          <a href="{{ cat.status.permalink }}"
+             class="text-sm text-gray-600 hover:text-blue-600 dark:text-slate-300">{{ cat.spec.displayName }}
+             <span class="text-gray-400">({{ cat.status.postCount or 0 }})</span></a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+</aside>
