@@ -256,3 +256,13 @@ tasks.register('publishToAllRegistries') {
     description = 'Build and publish the Docker image to all configured registries.'
     dependsOn tasks.named('publishToGhcr'), tasks.named('publishToDockerHub')
 }
+
+tasks.register('packageThemeEarthHalot', Zip) {
+    group = 'theme'
+    description = 'Package the theme-earth-halot theme into a zip file.'
+    from layout.projectDirectory.dir('src/main/resources/themes/theme-earth-halot')
+    archiveFileName = 'theme-earth-halot.zip'
+    destinationDirectory = layout.projectDirectory.dir('src/main/resources/themes')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}

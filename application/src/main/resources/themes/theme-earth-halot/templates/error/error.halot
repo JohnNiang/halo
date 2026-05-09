@@ -1,0 +1,12 @@
+{# Error page #}
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"/><title>Error — {{ site.title }}</title><link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/main-BaWd_1hx.css"></head>
+<body class="bg-slate-50 dark:bg-slate-900">
+  <header class="sticky top-0 z-10 flex h-16 items-center bg-white px-4 shadow-sm dark:bg-gray-800 lg:px-6">
+    <a href="/" class="mr-6 flex items-center gap-2">{% if site.logo %}<img src="{{ site.logo }}" alt="logo" class="h-8 w-auto"/>{% endif %}<span class="text-lg font-medium text-gray-900 dark:text-slate-100">{{ site.title }}</span></a>
+  </header>
+  <section class="mx-auto mt-20 max-w-md px-4 text-center">
+    <h1 class="text-6xl font-bold text-gray-300 dark:text-slate-600">{{ status or 404 }}</h1>
+    <p class="mt-4 text-lg text-gray-500 dark:text-slate-400">{{ error or 'Page not found.' }}</p>
+    <a href="/" class="mt-6 inline-block rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700">&larr; Go Home</a>
+  </section>
+</body></html>

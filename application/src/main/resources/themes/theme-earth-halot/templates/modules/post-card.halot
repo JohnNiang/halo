@@ -1,0 +1,48 @@
+{# Post card — reusable module for index, archives, category, tag pages #}
+<div class="group flex flex-col overflow-hidden rounded-xl bg-white shadow-md ring-black transition-all duration-500 hover:shadow-lg dark:bg-slate-800 dark:ring-slate-700">
+  {% if post.spec.cover %}
+  <div class="aspect-h-9 aspect-w-16">
+    <a href="{{ post.status.permalink }}" title="{{ post.spec.title }}">
+      <img src="{{ post.spec.cover }}" alt="{{ post.spec.title }}"
+           class="size-full object-cover transition-all duration-500 group-hover:scale-105" />
+    </a>
+    {% if post.spec.pinned %}
+    <div class="absolute left-2 top-1.5" title="Pinned">
+      <div class="i-bx-arrow-to-top size-5 text-sky-600"></div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="flex flex-1 flex-col justify-between p-4">
+    <div>
+      <a href="{{ post.status.permalink }}" class="line-clamp-2 text-base font-medium text-gray-800 transition-all hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-400">
+        {{ post.spec.title }}
+      </a>
+      <p class="mt-2 line-clamp-3 text-sm font-light text-gray-600 dark:text-slate-400">
+        {% if post.status.excerpt %}
+        {{ post.status.excerpt }}
+        {% else %}
+        {{ post.content.content[:150] }}
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        {% if post.owner.avatar %}
+        <img src="{{ post.owner.avatar }}" class="size-6 rounded-full" alt="{{ post.owner.displayName }}" />
+        {% endif %}
+        <span>{{ post.owner.displayName }}</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span>{{ post.stats.visit or 0 }} views</span>
+        {% if post.categories %}
+        <a href="{{ post.categories[0].status.permalink }}"
+           class="text-blue-500 hover:underline">{{ post.categories[0].spec.displayName }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

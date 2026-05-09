@@ -1,0 +1,18 @@
+apiVersion: theme.halo.run/v1alpha1
+kind: Theme
+metadata:
+  name: theme-earth-halot
+spec:
+  displayName: Earth Halot
+  author:
+    name: Halo
+    website: https://www.halo.run
+  description: Earth theme ported to Halot template engine.
+  logo: https://www.halo.run/logo
+  settingName: "theme-earth-setting"
+  configMapName: "theme-earth-configMap"
+  version: 0.1.0
+  requires: ">=2.22.0"
+  license:
+    - name: "GPL-3.0"
+      url: "https://github.com/halo-dev/theme-earth/blob/main/LICENSE"

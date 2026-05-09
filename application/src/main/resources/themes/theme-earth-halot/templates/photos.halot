@@ -1,0 +1,20 @@
+{# Photos page #}
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"/><title>Photos — {{ site.title }}</title><link rel="stylesheet" crossorigin href="/themes/theme-earth-halot/assets/main-BaWd_1hx.css"></head>
+<body class="bg-slate-50 dark:bg-slate-900">
+  <header class="sticky top-0 z-10 flex h-16 items-center bg-white px-4 shadow-sm dark:bg-gray-800 lg:px-6">
+    <a href="/" class="mr-6 flex items-center gap-2">{% if site.logo %}<img src="{{ site.logo }}" alt="logo" class="h-8 w-auto"/>{% endif %}<span class="text-lg font-medium text-gray-900 dark:text-slate-100">{{ site.title }}</span></a>
+  </header>
+  <section class="mx-auto mt-6 max-w-5xl px-4 lg:px-6">
+    <h1 class="mb-6 text-3xl font-bold text-gray-900 dark:text-slate-100">Photos</h1>
+    {% if photos %}
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      {% for photo in photos %}
+      <a href="{{ photo.spec.url }}" target="_blank" class="aspect-square overflow-hidden rounded-xl bg-white shadow dark:bg-slate-800">
+        <img src="{{ photo.spec.url }}" alt="" class="size-full object-cover transition-transform hover:scale-105"/>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}<p class="text-gray-400">No photos.</p>{% endif %}
+  </section>
+  <footer class="mt-10 bg-white py-8 dark:bg-slate-800"><div class="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500 dark:text-slate-300 lg:px-6">&copy; {{ site.title }} &middot; Powered by Halo</div></footer>
+</body></html>
