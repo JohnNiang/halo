@@ -2,6 +2,7 @@ package run.halo.app.security.authentication.rememberme;
 
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import run.halo.app.infra.utils.ReactiveUtils;
  * @author guqing
  * @since 2.17.0
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RememberMeTokenRevoker {
@@ -26,6 +28,8 @@ public class RememberMeTokenRevoker {
     @Async
     @EventListener(PasswordChangedEvent.class)
     public void onPasswordChanged(PasswordChangedEvent event) {
+        log.info("Revoking all remember-me tokens for user '{}' due to password change", event.getUsername());
         tokenRepository.removeUserTokens(event.getUsername()).block(BLOCKING_TIMEOUT);
+        log.info("Revoked all remember-me tokens for user '{}'", event.getUsername());
     }
 }

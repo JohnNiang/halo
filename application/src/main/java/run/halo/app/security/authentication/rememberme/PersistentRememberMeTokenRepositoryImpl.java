@@ -4,6 +4,7 @@ import static run.halo.app.extension.ExtensionUtil.defaultSort;
 import static run.halo.app.extension.index.query.Queries.equal;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.RememberMeToken;
@@ -17,6 +18,7 @@ import run.halo.app.infra.ReactiveExtensionPaginatedOperatorImpl;
  *
  * @see RememberMeToken
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class PersistentRememberMeTokenRepositoryImpl implements PersistentRememberMeTokenRepository {
@@ -40,6 +42,7 @@ class PersistentRememberMeTokenRepositoryImpl implements PersistentRememberMeTok
 
     @Override
     public Mono<Void> removeUserTokens(String username) {
+        log.info("Removing all remember-me tokens for user '{}'", username);
         var listOptions =
                 ListOptions.builder().andQuery(equal("spec.username", username)).build();
         return paginatedOperator
@@ -49,6 +52,7 @@ class PersistentRememberMeTokenRepositoryImpl implements PersistentRememberMeTok
 
     @Override
     public Mono<Void> removeToken(String series) {
+        log.info("Removing remember-me token for series '{}'", series);
         return getTokenExtensionForSeries(series).flatMap(client::delete).then();
     }
 
