@@ -1079,47 +1079,6 @@
         ]
       }
     },
-    "/apis/api.notification.halo.run/v1alpha1/subscriptions/{name}/unsubscribe": {
-      "get": {
-        "description": "Unsubscribe a subscription",
-        "operationId": "Unsubscribe",
-        "parameters": [
-          {
-            "description": "Subscription name",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Unsubscribe token",
-            "in": "query",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "default response"
-          }
-        },
-        "tags": [
-          "NotificationV1alpha1Public"
-        ]
-      }
-    },
     "/apis/api.plugin.halo.run/v1alpha1/plugins/{name}/available": {
       "get": {
         "description": "Gets plugin available by name.",

@@ -2,8 +2,9 @@ package run.halo.app.notification.endpoint;
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
 import org.springdoc.core.fn.builders.parameter.Builder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -14,16 +15,18 @@ import reactor.core.publisher.Mono;
 import run.halo.app.notification.NotificationService;
 
 import static org.springdoc.webflux.core.fn.SpringdocRouteBuilder.route;
-import static org.springframework.web.reactive.function.server.RequestPredicates.*;
-import static run.halo.app.extension.router.QueryParamBuildUtil.sortParameter;
 
 @Component
-@RequiredArgsConstructor
 public class UserNotificationEndpoint {
 
     private final NotificationService notificationService;
 
-    public RouterFunction<ServerResponse> endpoint() {
+    public UserNotificationEndpoint(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
+    @Bean
+    RouterFunction<ServerResponse> userNotificationEndpoints() {
         var tag = "uc.api.halo.run/v1alpha1/Notification";
         return route()
                 .GET("/apis/uc.api.halo.run/v1alpha1/notifications", this::listNotifications, builder -> {
@@ -37,13 +40,15 @@ public class UserNotificationEndpoint {
                     builder.operationId("GetUnreadNotificationCount").tag(tag);
                 })
                 .PUT("/apis/uc.api.halo.run/v1alpha1/notifications/{id}/mark-as-read", this::markAsRead, builder -> {
-                    builder.operationId("MarkNotificationAsRead").tag(tag);
+                    builder.operationId("MarkNotificationAsRead").tag(tag)
+                            .parameter(Builder.parameterBuilder().name("id").in(ParameterIn.PATH).implementation(Long.class));
                 })
                 .PUT("/apis/uc.api.halo.run/v1alpha1/notifications/mark-as-read", this::markBatchAsRead, builder -> {
                     builder.operationId("MarkNotificationsAsRead").tag(tag);
                 })
                 .DELETE("/apis/uc.api.halo.run/v1alpha1/notifications/{id}", this::deleteNotification, builder -> {
-                    builder.operationId("DeleteNotification").tag(tag);
+                    builder.operationId("DeleteNotification").tag(tag)
+                            .parameter(Builder.parameterBuilder().name("id").in(ParameterIn.PATH).implementation(Long.class));
                 })
                 .DELETE("/apis/uc.api.halo.run/v1alpha1/notifications", this::deleteBatch, builder -> {
                     builder.operationId("DeleteNotifications").tag(tag);
@@ -66,7 +71,7 @@ public class UserNotificationEndpoint {
     private Mono<ServerResponse> unreadCount(ServerRequest request) {
         return getUsername()
                 .flatMap(notificationService::countUnread)
-                .flatMap(count -> ServerResponse.ok().bodyValue(java.util.Map.of("count", count)));
+                .flatMap(count -> ServerResponse.ok().bodyValue(Map.of("count", count)));
     }
 
     private Mono<ServerResponse> markAsRead(ServerRequest request) {
@@ -78,7 +83,7 @@ public class UserNotificationEndpoint {
 
     @SuppressWarnings("unchecked")
     private Mono<ServerResponse> markBatchAsRead(ServerRequest request) {
-        return request.bodyToMono(java.util.Map.class)
+        return request.bodyToMono(Map.class)
                 .flatMap(body -> {
                     var ids = ((List<Number>) body.get("ids")).stream().map(Number::longValue).toList();
                     return getUsername().flatMap(username -> notificationService.markAsRead(username, ids));
@@ -95,7 +100,7 @@ public class UserNotificationEndpoint {
 
     @SuppressWarnings("unchecked")
     private Mono<ServerResponse> deleteBatch(ServerRequest request) {
-        return request.bodyToMono(java.util.Map.class)
+        return request.bodyToMono(Map.class)
                 .flatMap(body -> {
                     var ids = ((List<Number>) body.get("ids")).stream().map(Number::longValue).toList();
                     return getUsername().flatMap(username -> notificationService.delete(username, ids));

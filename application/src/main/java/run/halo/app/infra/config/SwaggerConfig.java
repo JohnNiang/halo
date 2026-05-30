@@ -77,11 +77,7 @@ public class SwaggerConfig {
                 .group("apis_public.api_v1alpha1")
                 .displayName("Public API V1alpha1")
                 .pathsToMatch("/apis/api.*/**")
-                .pathsToExclude(
-                        "/apis/api.console.*/v1alpha1/**",
-                        // compatible with legacy issues
-                        "/apis/api.notification.halo.run/v1alpha1/userspaces/**",
-                        "/apis/api.notification.halo.run/v1alpha1/notifiers/**")
+                .pathsToExclude("/apis/api.console.*/v1alpha1/**")
                 .build();
     }
 
@@ -99,11 +95,7 @@ public class SwaggerConfig {
         return GroupedOpenApi.builder()
                 .group("apis_uc.api_v1alpha1")
                 .displayName("User-center API V1alpha1")
-                .pathsToMatch(
-                        "/apis/uc.api.*/v1alpha1/**",
-                        // compatible with legacy issues
-                        "/apis/api.notification.halo.run/v1alpha1/userspaces/**",
-                        "/apis/api.notification.halo.run/v1alpha1/notifiers/**")
+                .pathsToMatch("/apis/uc.api.*/v1alpha1/**")
                 .build();
     }
 
@@ -122,7 +114,6 @@ public class SwaggerConfig {
                         "/apis/metrics.halo.run/v1alpha1/**",
                         "/apis/storage.halo.run/v1alpha1/**",
                         "/apis/plugin.halo.run/v1alpha1/**",
-                        "/apis/notification.halo.run/**",
                         "/apis/migration.halo.run/**")
                 .build();
     }

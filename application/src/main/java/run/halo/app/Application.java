@@ -17,7 +17,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @EnableScheduling
 @SpringBootApplication(scanBasePackages = "run.halo.app", exclude = IntegrationAutoConfiguration.class)
-@ConfigurationPropertiesScan(basePackages = "run.halo.app.infra.properties")
+@ConfigurationPropertiesScan(basePackages = {"run.halo.app.infra.properties", "run.halo.app.notification"})
 public class Application {
 
     public static void main(String[] args) {
