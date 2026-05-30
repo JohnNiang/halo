@@ -27,7 +27,6 @@ import reactor.core.Exceptions;
 import run.halo.app.core.extension.AnnotationSetting;
 import run.halo.app.core.extension.Setting;
 import run.halo.app.core.extension.Theme;
-import run.halo.app.core.extension.notification.NotificationTemplate;
 import run.halo.app.extension.ConfigMap;
 import run.halo.app.extension.Extension;
 import run.halo.app.extension.ExtensionClient;
@@ -278,8 +277,6 @@ class ThemeReconciler implements Reconciler<Request> {
         private Set<AllowedExtension> getRules(Theme theme) {
             var rules = new HashSet<AllowedExtension>();
             rules.add(AllowedExtension.of(AnnotationSetting.class));
-            rules.add(AllowedExtension.of(NotificationTemplate.class));
-
             var configMapName = theme.getSpec().getConfigMapName();
             if (StringUtils.isNotBlank(configMapName)) {
                 rules.add(AllowedExtension.of(ConfigMap.class, configMapName));

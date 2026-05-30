@@ -1,156 +1,111 @@
 package run.halo.app.notification.endpoint;
 
-import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
-import static org.springdoc.core.fn.builders.content.Builder.contentBuilder;
-import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
-import static org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuilder;
-
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import java.util.List;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.fn.builders.schema.Builder;
-import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
-import org.springframework.http.MediaType;
+import org.springdoc.core.fn.builders.parameter.Builder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.server.RequestPredicates;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
-import run.halo.app.core.extension.endpoint.CustomEndpoint;
-import run.halo.app.core.extension.notification.Notification;
-import run.halo.app.extension.GroupVersion;
-import run.halo.app.extension.ListResult;
-import run.halo.app.notification.UserNotificationQuery;
-import run.halo.app.notification.UserNotificationService;
+import run.halo.app.notification.NotificationService;
 
-/**
- * Custom notification endpoint to managing notification for authenticated user.
- *
- * @author guqing
- * @since 2.10.0
- */
+import static org.springdoc.webflux.core.fn.SpringdocRouteBuilder.route;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
+import static run.halo.app.extension.router.QueryParamBuildUtil.sortParameter;
+
 @Component
 @RequiredArgsConstructor
-public class UserNotificationEndpoint implements CustomEndpoint {
+public class UserNotificationEndpoint {
 
-    private final UserNotificationService notificationService;
+    private final NotificationService notificationService;
 
-    @Override
     public RouterFunction<ServerResponse> endpoint() {
-        return SpringdocRouteBuilder.route()
-                .nest(RequestPredicates.path("/userspaces/{username}"), userspaceScopedApis())
-                .build();
-    }
-
-    Supplier<RouterFunction<ServerResponse>> userspaceScopedApis() {
-        var tag = "NotificationV1alpha1Uc";
-        return () -> SpringdocRouteBuilder.route()
-                .GET("/notifications", this::listNotification, builder -> {
-                    builder.operationId("ListUserNotifications")
-                            .description("List notifications for the authenticated user.")
+        var tag = "uc.api.halo.run/v1alpha1/Notification";
+        return route()
+                .GET("/apis/uc.api.halo.run/v1alpha1/notifications", this::listNotifications, builder -> {
+                    builder.operationId("ListNotifications")
                             .tag(tag)
-                            .parameter(parameterBuilder()
-                                    .in(ParameterIn.PATH)
-                                    .name("username")
-                                    .description("Username")
-                                    .required(true))
-                            .response(responseBuilder()
-                                    .implementation(ListResult.generateGenericClass(Notification.class)));
-                    UserNotificationQuery.buildParameters(builder);
+                            .parameter(Builder.parameterBuilder().name("unread").in(ParameterIn.QUERY).implementation(Boolean.class))
+                            .parameter(Builder.parameterBuilder().name("page").in(ParameterIn.QUERY).implementation(Integer.class))
+                            .parameter(Builder.parameterBuilder().name("size").in(ParameterIn.QUERY).implementation(Integer.class));
                 })
-                .PUT(
-                        "/notifications/{name}/mark-as-read",
-                        this::markNotificationAsRead,
-                        builder -> builder.operationId("MarkNotificationAsRead")
-                                .description("Mark the specified notification as read.")
-                                .tag(tag)
-                                .parameter(parameterBuilder()
-                                        .in(ParameterIn.PATH)
-                                        .name("username")
-                                        .description("Username")
-                                        .required(true))
-                                .parameter(parameterBuilder()
-                                        .in(ParameterIn.PATH)
-                                        .name("name")
-                                        .description("Notification name")
-                                        .required(true))
-                                .response(responseBuilder().implementation(Notification.class)))
-                .PUT(
-                        "/notifications/-/mark-specified-as-read",
-                        this::markNotificationsAsRead,
-                        builder -> builder.operationId("MarkNotificationsAsRead")
-                                .description("Mark the specified notifications as read.")
-                                .tag(tag)
-                                .parameter(parameterBuilder()
-                                        .in(ParameterIn.PATH)
-                                        .name("username")
-                                        .description("Username")
-                                        .required(true))
-                                .requestBody(requestBodyBuilder()
-                                        .required(true)
-                                        .content(contentBuilder()
-                                                .mediaType(MediaType.APPLICATION_JSON_VALUE)
-                                                .schema(Builder.schemaBuilder()
-                                                        .implementation(MarkSpecifiedRequest.class))))
-                                .response(responseBuilder().implementationArray(String.class)))
-                .DELETE(
-                        "/notifications/{name}",
-                        this::deleteNotification,
-                        builder -> builder.operationId("DeleteSpecifiedNotification")
-                                .description("Delete the specified notification.")
-                                .tag(tag)
-                                .parameter(parameterBuilder()
-                                        .in(ParameterIn.PATH)
-                                        .name("username")
-                                        .description("Username")
-                                        .required(true))
-                                .parameter(parameterBuilder()
-                                        .in(ParameterIn.PATH)
-                                        .name("name")
-                                        .description("Notification name")
-                                        .required(true))
-                                .response(responseBuilder().implementation(Notification.class)))
+                .GET("/apis/uc.api.halo.run/v1alpha1/notifications/unread-count", this::unreadCount, builder -> {
+                    builder.operationId("GetUnreadNotificationCount").tag(tag);
+                })
+                .PUT("/apis/uc.api.halo.run/v1alpha1/notifications/{id}/mark-as-read", this::markAsRead, builder -> {
+                    builder.operationId("MarkNotificationAsRead").tag(tag);
+                })
+                .PUT("/apis/uc.api.halo.run/v1alpha1/notifications/mark-as-read", this::markBatchAsRead, builder -> {
+                    builder.operationId("MarkNotificationsAsRead").tag(tag);
+                })
+                .DELETE("/apis/uc.api.halo.run/v1alpha1/notifications/{id}", this::deleteNotification, builder -> {
+                    builder.operationId("DeleteNotification").tag(tag);
+                })
+                .DELETE("/apis/uc.api.halo.run/v1alpha1/notifications", this::deleteBatch, builder -> {
+                    builder.operationId("DeleteNotifications").tag(tag);
+                })
                 .build();
     }
 
-    private Mono<ServerResponse> deleteNotification(ServerRequest request) {
-        var name = request.pathVariable("name");
-        var username = request.pathVariable("username");
-        return notificationService
-                .deleteByName(username, name)
-                .flatMap(notification -> ServerResponse.ok().bodyValue(notification));
-    }
-
-    @Override
-    public GroupVersion groupVersion() {
-        return GroupVersion.parseAPIVersion("api.notification.halo.run/v1alpha1");
-    }
-
-    record MarkSpecifiedRequest(List<String> names) {}
-
-    private Mono<ServerResponse> listNotification(ServerRequest request) {
-        var username = request.pathVariable("username");
-        var query = new UserNotificationQuery(request.exchange(), username);
-        return notificationService
-                .listByUser(username, query)
+    private Mono<ServerResponse> listNotifications(ServerRequest request) {
+        return getUsername()
+                .flatMapMany(username -> {
+                    var unread = request.queryParam("unread").map(Boolean::parseBoolean).orElse(null);
+                    var page = request.queryParam("page").map(Integer::parseInt).orElse(0);
+                    var size = request.queryParam("size").map(Integer::parseInt).orElse(20);
+                    return notificationService.listByUser(username, unread, page * size, size);
+                })
+                .collectList()
                 .flatMap(notifications -> ServerResponse.ok().bodyValue(notifications));
     }
 
-    private Mono<ServerResponse> markNotificationAsRead(ServerRequest request) {
-        var username = request.pathVariable("username");
-        var name = request.pathVariable("name");
-        return notificationService
-                .markAsRead(username, name)
-                .flatMap(notification -> ServerResponse.ok().bodyValue(notification));
+    private Mono<ServerResponse> unreadCount(ServerRequest request) {
+        return getUsername()
+                .flatMap(notificationService::countUnread)
+                .flatMap(count -> ServerResponse.ok().bodyValue(java.util.Map.of("count", count)));
     }
 
-    Mono<ServerResponse> markNotificationsAsRead(ServerRequest request) {
-        var username = request.pathVariable("username");
-        return request.bodyToMono(MarkSpecifiedRequest.class)
-                .flatMapMany(requestBody -> notificationService.markSpecifiedAsRead(username, requestBody.names))
-                .collectList()
-                .flatMap(names -> ServerResponse.ok().bodyValue(names));
+    private Mono<ServerResponse> markAsRead(ServerRequest request) {
+        var id = Long.parseLong(request.pathVariable("id"));
+        return getUsername()
+                .flatMap(username -> notificationService.markAsRead(username, id))
+                .then(ServerResponse.ok().build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Mono<ServerResponse> markBatchAsRead(ServerRequest request) {
+        return request.bodyToMono(java.util.Map.class)
+                .flatMap(body -> {
+                    var ids = ((List<Number>) body.get("ids")).stream().map(Number::longValue).toList();
+                    return getUsername().flatMap(username -> notificationService.markAsRead(username, ids));
+                })
+                .then(ServerResponse.ok().build());
+    }
+
+    private Mono<ServerResponse> deleteNotification(ServerRequest request) {
+        var id = Long.parseLong(request.pathVariable("id"));
+        return getUsername()
+                .flatMap(username -> notificationService.delete(username, id))
+                .then(ServerResponse.ok().build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Mono<ServerResponse> deleteBatch(ServerRequest request) {
+        return request.bodyToMono(java.util.Map.class)
+                .flatMap(body -> {
+                    var ids = ((List<Number>) body.get("ids")).stream().map(Number::longValue).toList();
+                    return getUsername().flatMap(username -> notificationService.delete(username, ids));
+                })
+                .then(ServerResponse.ok().build());
+    }
+
+    private Mono<String> getUsername() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication())
+                .map(Authentication::getName);
     }
 }

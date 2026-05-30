@@ -25,12 +25,10 @@ import run.halo.app.core.counter.CounterService;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.core.extension.content.SinglePage;
 import run.halo.app.core.extension.content.Snapshot;
-import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.extension.ExtensionClient;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.controller.Reconciler;
 import run.halo.app.infra.ExternalUrlSupplier;
-import run.halo.app.notification.NotificationCenter;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 
 /**
@@ -57,18 +55,10 @@ class SinglePageReconcilerTest {
     private ExternalUrlSupplier externalUrlSupplier;
 
     @Mock
-    NotificationCenter notificationCenter;
-
-    @Mock
     ExtensionGetter extensionGetter;
 
     @InjectMocks
     private SinglePageReconciler singlePageReconciler;
-
-    @BeforeEach
-    void setUp() {
-        lenient().when(notificationCenter.subscribe(any(), any())).thenReturn(Mono.empty());
-    }
 
     @Test
     void reconcile() {
@@ -218,21 +208,4 @@ class SinglePageReconcilerTest {
         return page;
     }
 
-    @Test
-    void subscribeNewCommentNotificationTest() {
-        var page = pageV1();
-
-        singlePageReconciler.subscribeNewCommentNotification(page);
-
-        verify(notificationCenter)
-                .subscribe(
-                        assertArg(subscriber -> assertThat(subscriber.getName())
-                                .isEqualTo(page.getSpec().getOwner())),
-                        assertArg(argReason -> {
-                            var interestReason = new Subscription.InterestReason();
-                            interestReason.setReasonType(NotificationReasonConst.NEW_COMMENT_ON_PAGE);
-                            interestReason.setExpression("props.pageOwner == 'null'");
-                            assertThat(argReason).isEqualTo(interestReason);
-                        }));
-    }
 }

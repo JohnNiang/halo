@@ -1,0 +1,28 @@
+categories:
+  - name: new-comment-on-post
+    displayName: New comment on my post
+    description: Someone comments on one of my posts
+    uiPermission: uc:posts:publish
+
+  - name: new-comment-on-single-page
+    displayName: New comment on my page
+    description: Someone comments on one of my pages
+    uiPermission: system:singlepages:manage
+
+  - name: someone-replied-to-you
+    displayName: Someone replied to me
+    description: Someone replied to one of my comments
+
+  - name: email-verification
+    displayName: Email verification
+    description: Verify my email address
+    hidden: true
+
+  - name: reset-password-by-email
+    displayName: Reset password
+    description: Reset my password via email
+    hidden: true
+
+  - name: new-device-login
+    displayName: New device login
+    description: A new device logged into my account

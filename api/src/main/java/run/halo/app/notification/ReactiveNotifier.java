@@ -4,17 +4,29 @@ import org.pf4j.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 /**
- * Notifier to notify user.
+ * Notifier extension point for delivering notifications through a channel (email, SMS, etc.).
+ * Each notifier owns its own content rendering.
  *
  * @author guqing
- * @since 2.10.0
+ * @since 2.20.0
  */
 public interface ReactiveNotifier extends ExtensionPoint {
 
     /**
-     * Notify user.
-     *
-     * @param context notification context must not be null
+     * Returns the unique name of this notifier (e.g., "email-notifier", "sms-notifier").
      */
-    Mono<Void> notify(NotificationContext context);
+    String name();
+
+    /**
+     * Delivers the notification through this notifier's channel.
+     * The notifier is responsible for rendering content from the notification's
+     * {@code messageKey} and {@code messageArgs}.
+     */
+    Mono<Void> notify(Notification notification);
+
+    /**
+     * Returns whether this notifier supports the given recipient.
+     * For example, an email notifier checks if the user has a verified email address.
+     */
+    boolean supports(String recipient);
 }

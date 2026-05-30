@@ -18,7 +18,6 @@ import org.springframework.util.Assert;
 import reactor.core.publisher.Mono;
 import run.halo.app.content.ContentWrapper;
 import run.halo.app.content.ExcerptGenerator;
-import run.halo.app.content.NotificationReasonConst;
 import run.halo.app.content.SinglePageService;
 import run.halo.app.content.comment.CommentService;
 import run.halo.app.core.counter.CounterService;
@@ -27,7 +26,6 @@ import run.halo.app.core.extension.content.Constant;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.core.extension.content.SinglePage;
 import run.halo.app.core.extension.content.Snapshot;
-import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.event.post.SinglePageUpdatedEvent;
 import run.halo.app.extension.*;
 import run.halo.app.extension.controller.Controller;
@@ -41,7 +39,6 @@ import run.halo.app.infra.ConditionStatus;
 import run.halo.app.infra.ExternalUrlSupplier;
 import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.infra.utils.ReactiveUtils;
-import run.halo.app.notification.NotificationCenter;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 
 /**
@@ -70,8 +67,6 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
 
     private final ExternalUrlSupplier externalUrlSupplier;
 
-    private final NotificationCenter notificationCenter;
-
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -87,8 +82,6 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
                 client.update(singlePage);
             }
 
-            subscribeNewCommentNotification(singlePage);
-
             // reconcile spec first
             reconcileSpec(request.name());
             // then
@@ -102,17 +95,6 @@ public class SinglePageReconciler implements Reconciler<Reconciler.Request> {
     @Override
     public Controller setupWith(ControllerBuilder builder) {
         return builder.extension(new SinglePage()).build();
-    }
-
-    void subscribeNewCommentNotification(SinglePage page) {
-        var subscriber = new Subscription.Subscriber();
-        subscriber.setName(page.getSpec().getOwner());
-
-        var interestReason = new Subscription.InterestReason();
-        interestReason.setReasonType(NotificationReasonConst.NEW_COMMENT_ON_PAGE);
-        interestReason.setExpression(
-                "props.pageOwner == '%s'".formatted(page.getSpec().getOwner()));
-        notificationCenter.subscribe(subscriber, interestReason).block(BLOCKING_TIMEOUT);
     }
 
     private void reconcileSpec(String name) {

@@ -35,7 +35,6 @@ import run.halo.app.core.extension.content.Post.PostPhase;
 import run.halo.app.core.extension.content.Post.VisibleEnum;
 import run.halo.app.core.extension.content.Snapshot;
 import run.halo.app.core.extension.content.Tag;
-import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.event.post.*;
 import run.halo.app.extension.*;
 import run.halo.app.extension.controller.Controller;
@@ -48,7 +47,6 @@ import run.halo.app.infra.Condition;
 import run.halo.app.infra.ConditionStatus;
 import run.halo.app.infra.utils.HaloUtils;
 import run.halo.app.infra.utils.ReactiveUtils;
-import run.halo.app.notification.NotificationCenter;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 
 /**
@@ -78,7 +76,6 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
     private final ExtensionGetter extensionGetter;
 
     private final ApplicationEventPublisher eventPublisher;
-    private final NotificationCenter notificationCenter;
 
     @Override
     public Result reconcile(Request request) {
@@ -100,8 +97,6 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
             populateLabels(post, events);
 
             schedulePublishIfNecessary(post);
-
-            subscribeNewCommentNotification(post);
 
             var status = post.getStatus();
             if (status == null) {
@@ -260,17 +255,6 @@ public class PostReconciler implements Reconciler<Reconciler.Request> {
             throw new RequeueException(
                     Result.requeue(Duration.between(now, publishTime)), "Requeue for scheduled publish.");
         }
-    }
-
-    void subscribeNewCommentNotification(Post post) {
-        var subscriber = new Subscription.Subscriber();
-        subscriber.setName(post.getSpec().getOwner());
-
-        var interestReason = new Subscription.InterestReason();
-        interestReason.setReasonType(NotificationReasonConst.NEW_COMMENT_ON_POST);
-        interestReason.setExpression(
-                "props.postOwner == '%s'".formatted(post.getSpec().getOwner()));
-        notificationCenter.subscribe(subscriber, interestReason).block(BLOCKING_TIMEOUT);
     }
 
     private void publishPost(Post post, Set<ApplicationEvent> events) {
