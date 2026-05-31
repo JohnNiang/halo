@@ -27,12 +27,6 @@ import {
   MenuV1alpha1PublicApi,
   MetricsV1alpha1PublicApi,
   MigrationV1alpha1ConsoleApi,
-  NotificationTemplateV1alpha1Api,
-  NotificationV1alpha1Api,
-  NotificationV1alpha1PublicApi,
-  NotificationV1alpha1UcApi,
-  NotifierDescriptorV1alpha1Api,
-  NotifierV1alpha1ConsoleApi,
   PersonalAccessTokenV1alpha1Api,
   PersonalAccessTokenV1alpha1UcApi,
   PluginV1alpha1Api,
@@ -44,8 +38,6 @@ import {
   PostV1alpha1ConsoleApi,
   PostV1alpha1PublicApi,
   PostV1alpha1UcApi,
-  ReasonTypeV1alpha1Api,
-  ReasonV1alpha1Api,
   ReplyV1alpha1Api,
   ReplyV1alpha1ConsoleApi,
   ReverseProxyV1alpha1Api,
@@ -58,7 +50,6 @@ import {
   SinglePageV1alpha1PublicApi,
   SnapshotV1alpha1Api,
   SnapshotV1alpha1UcApi,
-  SubscriptionV1alpha1Api,
   SystemConfigV1alpha1ConsoleApi,
   SystemV1alpha1ConsoleApi,
   SystemV1alpha1PublicApi,
@@ -72,6 +63,7 @@ import {
   UserPreferenceV1alpha1UcApi,
   UserV1alpha1Api,
   UserV1alpha1ConsoleApi,
+  UcApiHaloRunV1alpha1NotificationApi,
 } from "../src";
 
 const defaultAxiosInstance = axios.create({
@@ -200,32 +192,6 @@ function createCoreApiClient(axiosInstance: AxiosInstance) {
       theme: new ThemeV1alpha1Api(undefined, baseURL, axiosInstance),
     },
 
-    // notification.halo.run
-    notification: {
-      notification: new NotificationV1alpha1Api(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-      notificationTemplate: new NotificationTemplateV1alpha1Api(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-      notifierDescriptor: new NotifierDescriptorV1alpha1Api(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-      reason: new ReasonV1alpha1Api(undefined, baseURL, axiosInstance),
-      reasonType: new ReasonTypeV1alpha1Api(undefined, baseURL, axiosInstance),
-      subscription: new SubscriptionV1alpha1Api(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-    },
-
     // migration.halo.run
     migration: {
       backup: new BackupV1alpha1Api(undefined, baseURL, axiosInstance),
@@ -308,13 +274,6 @@ function createConsoleApiClient(axiosInstance: AxiosInstance) {
       ),
       tag: new TagV1alpha1ConsoleApi(undefined, baseURL, axiosInstance),
     },
-    notification: {
-      notifier: new NotifierV1alpha1ConsoleApi(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-    },
     plugin: {
       plugin: new PluginV1alpha1ConsoleApi(undefined, baseURL, axiosInstance),
     },
@@ -387,13 +346,11 @@ function createUcApiClient(axiosInstance: AxiosInstance) {
       ),
       device: new DeviceV1alpha1UcApi(undefined, baseURL, axiosInstance),
     },
-    notification: {
-      notification: new NotificationV1alpha1UcApi(
-        undefined,
-        baseURL,
-        axiosInstance
-      ),
-    },
+    notification: new UcApiHaloRunV1alpha1NotificationApi(
+      undefined,
+      baseURL,
+      axiosInstance
+    ),
     user: {
       preference: new UserPreferenceV1alpha1UcApi(
         undefined,
@@ -467,11 +424,6 @@ function createPublicApiClient(axiosInstance: AxiosInstance) {
     metrics: {
       metrics: new MetricsV1alpha1PublicApi(undefined, baseURL, axiosInstance),
     },
-    notification: new NotificationV1alpha1PublicApi(
-      undefined,
-      baseURL,
-      axiosInstance
-    ),
     index: new IndexV1alpha1PublicApi(undefined, baseURL, axiosInstance),
   };
 }
