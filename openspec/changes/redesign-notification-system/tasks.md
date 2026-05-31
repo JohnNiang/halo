@@ -79,24 +79,24 @@
 
 ## 10. Frontend — API client regeneration
 
-- [ ] 10.1 Run `pnpm -C ui api-client:gen` to regenerate TypeScript API client from new OpenAPI specs
-- [ ] 10.2 Verify new notification API types and methods are generated correctly
+- [x] 10.1 Run `pnpm -C ui api-client:gen` to regenerate TypeScript API client from new OpenAPI specs
+- [x] 10.2 Verify new notification API types and methods are generated correctly
 
 ## 11. Frontend — notification pages
 
-- [ ] 11.1 Create notification list page with unread/read tabs, pagination, and unread count badge
-- [ ] 11.2 Create notification item component displaying category icon, title (rendered via i18n), content preview, relative timestamp
-- [ ] 11.3 Create notification detail/content view (full message rendered via i18n `$t(messageKey, messageArgs)`)
-- [ ] 11.4 Implement mark-as-read (single + batch "mark all as read")
-- [ ] 11.5 Implement delete (single + batch selection with Shift/Ctrl multi-select)
-- [ ] 11.6 Add i18n keys for all notification categories and message templates
+- [x] 11.1 Create notification list page with unread/read tabs, pagination, and unread count badge
+- [x] 11.2 Create notification item component displaying category icon, title (rendered via i18n), content preview, relative timestamp
+- [x] 11.3 Create notification detail/content view (full message rendered via i18n `$t(messageKey, messageArgs)`)
+- [x] 11.4 Implement mark-as-read (single + batch "mark all as read")
+- [x] 11.5 Implement delete (single + batch selection with Shift/Ctrl multi-select)
+- [x] 11.6 Add i18n keys for all notification categories and message templates
 
 ## 12. Frontend — notification preferences page
 
-- [ ] 12.1 Create preferences page rendering the category × notifier matrix (rows = categories, columns = notifiers)
-- [ ] 12.2 Implement toggle switches to enable/disable notifiers per category
-- [ ] 12.3 Wire preferences API calls with optimistic UI updates
-- [ ] 12.4 Hide categories marked as `hidden: true` from the preference matrix
+- [x] 12.1 Create preferences page rendering the category × notifier matrix (rows = categories, columns = notifiers)
+- [x] 12.2 Implement toggle switches to enable/disable notifiers per category
+- [x] 12.3 Wire preferences API calls with optimistic UI updates
+- [x] 12.4 Hide categories marked as `hidden: true` from the preference matrix
 
 ## 13. Wire up existing notification callers
 

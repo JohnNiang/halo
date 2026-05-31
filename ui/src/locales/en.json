@@ -1262,5 +1262,17 @@
   "core.snapshots.diff_mode.legend.modified": "This line represents modification",
   "core.post_snapshots.title": "Post snapshot history",
   "core.page_snapshots.title": "Page snapshot history",
-  "core.dashboard.widgets.presets.upvotes_stats.title": "Upvotes"
+  "core.dashboard.widgets.presets.upvotes_stats.title": "Upvotes",
+  "notification.new-comment-on-post.title": "New comment on your post",
+  "notification.new-comment-on-post.body": "{commenter} commented on \"{postTitle}\"",
+  "notification.new-comment-on-single-page.title": "New comment on your page",
+  "notification.new-comment-on-single-page.body": "{commenter} commented on \"{pageTitle}\"",
+  "notification.someone-replied-to-you.title": "Someone replied to you",
+  "notification.someone-replied-to-you.body": "{replier} replied to your comment: {content}",
+  "notification.email-verification.title": "Email verification",
+  "notification.email-verification.body": "Your verification code is {code}, valid for {expirationAtMinutes} minutes",
+  "notification.reset-password-by-email.title": "Reset your password",
+  "notification.reset-password-by-email.body": "Click the link to reset your password: {link}",
+  "notification.new-device-login.title": "New device login",
+  "notification.new-device-login.body": "New login from {os} / {browser} at {ipAddress} on {loginTime}"
 }

@@ -11,7 +11,6 @@ import ViewsStatsWidget from "./presets/core/view-stats/ViewsStatsWidget.vue";
 import PostStatsWidget from "./presets/posts/PostStatsWidget.vue";
 import RecentPublishedWidget from "./presets/posts/RecentPublishedWidget.vue";
 import SinglePageStatsWidget from "./presets/single-pages/SinglePageStatsWidget.vue";
-import NotificationWidget from "./presets/users/NotificationWidget.vue";
 import UserStatsWidget from "./presets/users/UserStatsWidget.vue";
 
 export const internalWidgetDefinitions: DashboardWidgetDefinition[] = [
@@ -198,18 +197,6 @@ export const internalWidgetDefinitions: DashboardWidgetDefinition[] = [
         "core:refresh-search-engine",
       ],
     },
-    defaultSize: {
-      w: 6,
-      h: 12,
-      minH: 6,
-      minW: 3,
-    },
-  },
-  {
-    id: "core:notifications",
-    component: markRaw(NotificationWidget),
-    group: "core.dashboard.widgets.groups.other",
-    defaultConfig: {},
     defaultSize: {
       w: 6,
       h: 12,

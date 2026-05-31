@@ -4,21 +4,13 @@ import { coreApiClient } from "@halo-dev/api-client";
 import {
   IconSettings,
   VCard,
-  VLoading,
   VPageHeader,
   VTabbar,
 } from "@halo-dev/components";
-import { utils } from "@halo-dev/ui-shared";
 import { useQuery } from "@tanstack/vue-query";
 import { useRouteQuery } from "@vueuse/router";
 import type { Component, Raw } from "vue";
-import {
-  defineAsyncComponent,
-  markRaw,
-  provide,
-  shallowRef,
-  type Ref,
-} from "vue";
+import { markRaw, provide, shallowRef, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SettingTab from "./tabs/Setting.vue";
 
@@ -62,21 +54,6 @@ const { data: setting } = useQuery({
 
       if (!activeTab.value) {
         activeTab.value = tabs.value[0].id;
-      }
-
-      // TODO: use integrations center to refactor this
-      if (utils.permission.has(["system:notifier:configuration"])) {
-        tabs.value = [
-          ...tabs.value,
-          {
-            id: "notification",
-            label: "通知设置",
-            component: defineAsyncComponent({
-              loader: () => import("./tabs/Notifications.vue"),
-              loadingComponent: VLoading,
-            }),
-          },
-        ];
       }
     }
   },
