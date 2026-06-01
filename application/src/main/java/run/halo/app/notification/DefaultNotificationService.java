@@ -155,15 +155,17 @@ public class DefaultNotificationService implements NotificationService {
         n.setMessageKey(row.get("message_key", String.class));
         var argsObj = row.get("message_args");
         if (argsObj != null) {
+            log.info("message_args type: {}, value: {}", argsObj.getClass().getName(), argsObj);
             if (argsObj instanceof Map<?, ?> m) {
                 n.setMessageArgs((Map<String, Object>) m);
-            } else if (argsObj instanceof String s && StringUtils.hasText(s)) {
+            } else if (argsObj instanceof String s && StringUtils.hasText(s) && !"{}".equals(s)) {
                 try {
                     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                     n.setMessageArgs(mapper.readValue(s,
                             new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
                 } catch (Exception e) {
-                    log.warn("Failed to deserialize message_args: {}", s, e);
+                    log.warn("Failed to deserialize message_args (type={}): {}",
+                            argsObj.getClass().getName(), s, e);
                 }
             }
         }
