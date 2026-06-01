@@ -153,14 +153,21 @@ public class DefaultNotificationService implements NotificationService {
         n.setRecipient(row.get("recipient", String.class));
         n.setCategory(row.get("category", String.class));
         n.setMessageKey(row.get("message_key", String.class));
-        var argsJson = row.get("message_args", String.class);
-        if (StringUtils.hasText(argsJson)) {
-            n.setMessageArgs(JsonUtils.jsonToObject(argsJson, Map.class));
+        var argsObj = row.get("message_args");
+        if (argsObj != null) {
+            var argsJson = argsObj instanceof String s ? s : argsObj.toString();
+            if (StringUtils.hasText(argsJson)) {
+                try {
+                    n.setMessageArgs(JsonUtils.jsonToObject(argsJson, Map.class));
+                } catch (Exception ignored) {
+                    // ignore deserialization errors
+                }
+            }
         }
         n.setSubjectUrl(row.get("subject_url", String.class));
         n.setUnread(Boolean.TRUE.equals(row.get("is_unread", Boolean.class)));
-        n.setCreatedAt(row.get("created_at", Instant.class));
-        n.setReadAt(row.get("read_at", Instant.class));
+        n.setCreatedAt(convertToInstant(row.get("created_at")));
+        n.setReadAt(convertToInstant(row.get("read_at")));
         return n;
     }
 
