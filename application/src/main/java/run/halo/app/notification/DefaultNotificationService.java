@@ -159,7 +159,8 @@ public class DefaultNotificationService implements NotificationService {
                 n.setMessageArgs((Map<String, Object>) m);
             } else if (argsObj instanceof String s && StringUtils.hasText(s)) {
                 try {
-                    n.setMessageArgs(JsonUtils.jsonToObject(s, Map.class));
+                    n.setMessageArgs(JsonUtils.DEFAULT_JSON_MAPPER.readValue(s,
+                            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
                 } catch (Exception e) {
                     log.warn("Failed to deserialize message_args: {}", s, e);
                 }
