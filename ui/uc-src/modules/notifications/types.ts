@@ -10,13 +10,15 @@ export interface Notification {
   readAt: string | null;
 }
 
-export interface NotificationListResponse {
-  items: Notification[];
-  total: number;
-  page: number;
-  size: number;
-  totalPages: number;
-}
+export type NotificationListResponse =
+  | Notification[]
+  | {
+      items: Notification[];
+      total: number;
+      page: number;
+      size: number;
+      totalPages: number;
+    };
 
 export interface UnreadCountResponse {
   count: number;

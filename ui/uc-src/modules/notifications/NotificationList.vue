@@ -67,8 +67,24 @@ const { data: unreadCountData } = useQuery({
 const unreadCount = computed(() => unreadCountData.value?.count ?? 0);
 
 const notifications = computed(() => {
-  const items = data.value?.items ?? [];
-  return Array.isArray(items) ? items : [];
+  if (Array.isArray(data.value)) return data.value as Notification[];
+  if (
+    data.value &&
+    typeof data.value === "object" &&
+    "items" in data.value &&
+    Array.isArray(data.value.items)
+  ) {
+    return data.value.items as Notification[];
+  }
+  return [];
+});
+
+const totalNotifications = computed(() => {
+  if (Array.isArray(data.value)) return data.value.length;
+  if (data.value && typeof data.value === "object" && "total" in data.value) {
+    return (data.value.total as number) ?? 0;
+  }
+  return 0;
 });
 
 const selectedIds = ref<Set<number>>(new Set());
@@ -267,10 +283,10 @@ watch(activeTab, () => {
     </VCard>
 
     <VPagination
-      v-if="(data?.totalPages ?? 0) > 1"
+      v-if="totalNotifications > 20"
       v-model:page="page"
       v-model:size="size"
-      :total="data?.total ?? 0"
+      :total="totalNotifications"
       :page-size-options="[10, 20, 50]"
     />
   </div>
