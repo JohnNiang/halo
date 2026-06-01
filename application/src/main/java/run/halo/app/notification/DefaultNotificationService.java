@@ -155,12 +155,13 @@ public class DefaultNotificationService implements NotificationService {
         n.setMessageKey(row.get("message_key", String.class));
         var argsObj = row.get("message_args");
         if (argsObj != null) {
-            var argsJson = argsObj instanceof String s ? s : argsObj.toString();
-            if (StringUtils.hasText(argsJson)) {
+            if (argsObj instanceof Map<?, ?> m) {
+                n.setMessageArgs((Map<String, Object>) m);
+            } else if (argsObj instanceof String s && StringUtils.hasText(s)) {
                 try {
-                    n.setMessageArgs(JsonUtils.jsonToObject(argsJson, Map.class));
-                } catch (Exception ignored) {
-                    // ignore deserialization errors
+                    n.setMessageArgs(JsonUtils.jsonToObject(s, Map.class));
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize message_args: {}", s, e);
                 }
             }
         }
