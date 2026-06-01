@@ -113,4 +113,4 @@
 - [ ] 14.2 Run `./gradlew :application:test` for all backend tests
 - [ ] 14.3 Run `pnpm -C ui typecheck && pnpm -C ui lint` for frontend validation
 - [ ] 14.4 Run `pnpm -C ui test:unit` for frontend unit tests
-- [ ] 14.5 Build full project with `./gradlew build` to verify packaging
+- [x] 14.5 Build full project with `./gradlew build` to verify packaging

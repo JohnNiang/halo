@@ -48,7 +48,7 @@ public class DefaultNotificationService implements NotificationService {
         var messageArgsJson = request.messageArgs() != null
                 ? JsonUtils.objectToJson(request.messageArgs())
                 : "{}";
-        return r2dbcTemplate.getDatabaseClient().sql("""
+        var spec = r2dbcTemplate.getDatabaseClient().sql("""
                         INSERT INTO notifications (recipient, category, message_key, message_args, subject_url, created_at)
                         VALUES (:recipient, :category, :messageKey, :messageArgs, :subjectUrl, :createdAt)
                         """)
@@ -56,9 +56,13 @@ public class DefaultNotificationService implements NotificationService {
                 .bind("category", request.category())
                 .bind("messageKey", request.messageKey())
                 .bind("messageArgs", messageArgsJson)
-                .bind("subjectUrl", request.subjectUrl())
-                .bind("createdAt", Instant.now())
-                .filter((statement, executeFunction) -> statement.returnGeneratedValues("id", "created_at")
+                .bind("createdAt", Instant.now());
+        if (request.subjectUrl() != null) {
+            spec = spec.bind("subjectUrl", request.subjectUrl());
+        } else {
+            spec = spec.bindNull("subjectUrl", String.class);
+        }
+        return spec.filter((statement, executeFunction) -> statement.returnGeneratedValues("id", "created_at")
                         .execute())
                 .map(row -> {
                     var notification = new Notification();
