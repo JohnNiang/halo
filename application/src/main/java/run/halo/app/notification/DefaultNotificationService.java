@@ -55,15 +55,15 @@ public class DefaultNotificationService implements NotificationService {
                 .bind("recipient", recipient)
                 .bind("category", request.category())
                 .bind("messageKey", request.messageKey())
-                .bind("messageArgs", messageArgsJson)
-                .bind("createdAt", Instant.now());
+                .bind("messageArgs", messageArgsJson);
         if (request.subjectUrl() != null) {
             spec = spec.bind("subjectUrl", request.subjectUrl());
         } else {
             spec = spec.bindNull("subjectUrl", String.class);
         }
-        return spec.filter((statement, executeFunction) -> statement.returnGeneratedValues("id", "created_at")
-                        .execute())
+        var now = Instant.now();
+        spec = spec.bind("createdAt", now);
+        return spec.filter((statement, executeFunction) -> statement.returnGeneratedValues("id").execute())
                 .map(row -> {
                     var notification = new Notification();
                     notification.setId(row.get("id", Long.class));
@@ -73,7 +73,7 @@ public class DefaultNotificationService implements NotificationService {
                     notification.setMessageArgs(request.messageArgs());
                     notification.setSubjectUrl(request.subjectUrl());
                     notification.setUnread(true);
-                    notification.setCreatedAt(row.get("created_at", Instant.class));
+                    notification.setCreatedAt(now);
                     return new NotificationPersistedEvent(notification);
                 })
                 .one();
