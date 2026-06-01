@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-import run.halo.app.core.extension.Device;
 import run.halo.app.notification.NotificationRequest;
 import run.halo.app.notification.NotificationService;
 
@@ -40,9 +39,7 @@ public class NewDeviceLoginListener {
                         "os", device.getStatus().getOs(),
                         "browser", device.getStatus().getBrowser(),
                         "ipAddress", device.getSpec().getIpAddress(),
-                        "loginTime", DATE_TIME_FORMATTER.format(device.getSpec().getLastAuthenticatedTime())
-                ),
-                null
-        ));
+                        "loginTime", DATE_TIME_FORMATTER.format(device.getSpec().getLastAuthenticatedTime())),
+                null));
     }
 }

@@ -31,24 +31,22 @@ public class DefaultNotificationService implements NotificationService {
     @Override
     @Transactional
     public Mono<Void> notify(NotificationRequest request) {
-        return categoryRegistry.exists(request.category())
-                .flatMap(exists -> {
-                    if (!exists) {
-                        return Mono.error(new IllegalArgumentException(
-                                "Unknown notification category: " + request.category()));
-                    }
-                    return Flux.fromIterable(request.recipients())
-                            .flatMap(recipient -> insertNotification(request, recipient))
-                            .doOnNext(eventPublisher::publishEvent)
-                            .then();
-                });
+        return categoryRegistry.exists(request.category()).flatMap(exists -> {
+            if (!exists) {
+                return Mono.error(new IllegalArgumentException("Unknown notification category: " + request.category()));
+            }
+            return Flux.fromIterable(request.recipients())
+                    .flatMap(recipient -> insertNotification(request, recipient))
+                    .doOnNext(eventPublisher::publishEvent)
+                    .then();
+        });
     }
 
     private Mono<NotificationPersistedEvent> insertNotification(NotificationRequest request, String recipient) {
-        var messageArgsJson = request.messageArgs() != null
-                ? JsonUtils.objectToJson(request.messageArgs())
-                : "{}";
-        var spec = r2dbcTemplate.getDatabaseClient().sql("""
+        var messageArgsJson = request.messageArgs() != null ? JsonUtils.objectToJson(request.messageArgs()) : "{}";
+        var spec = r2dbcTemplate
+                .getDatabaseClient()
+                .sql("""
                         INSERT INTO notifications (recipient, category, message_key, message_args, subject_url, created_at)
                         VALUES (:recipient, :category, :messageKey, :messageArgs, :subjectUrl, :createdAt)
                         """)
@@ -63,7 +61,8 @@ public class DefaultNotificationService implements NotificationService {
         }
         var now = Instant.now();
         spec = spec.bind("createdAt", now);
-        return spec.filter((statement, executeFunction) -> statement.returnGeneratedValues("id").execute())
+        return spec.filter((statement, executeFunction) ->
+                        statement.returnGeneratedValues("id").execute())
                 .map(row -> {
                     var notification = new Notification();
                     notification.setId(row.get("id", Long.class));
@@ -90,7 +89,9 @@ public class DefaultNotificationService implements NotificationService {
         }
         sql.append(" ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
 
-        var spec = r2dbcTemplate.getDatabaseClient().sql(sql.toString())
+        var spec = r2dbcTemplate
+                .getDatabaseClient()
+                .sql(sql.toString())
                 .bind("recipient", username)
                 .bind("limit", limit)
                 .bind("offset", offset);
@@ -102,7 +103,8 @@ public class DefaultNotificationService implements NotificationService {
 
     @Override
     public Mono<Long> countUnread(String username) {
-        return r2dbcTemplate.getDatabaseClient()
+        return r2dbcTemplate
+                .getDatabaseClient()
                 .sql("SELECT COUNT(*) FROM notifications WHERE recipient = :recipient AND is_unread = true")
                 .bind("recipient", username)
                 .map(row -> row.get(0, Long.class))
@@ -113,8 +115,10 @@ public class DefaultNotificationService implements NotificationService {
     @Override
     @Transactional
     public Mono<Void> markAsRead(String username, Long notificationId) {
-        return r2dbcTemplate.getDatabaseClient()
-                .sql("UPDATE notifications SET is_unread = false, read_at = :now WHERE id = :id AND recipient = :recipient")
+        return r2dbcTemplate
+                .getDatabaseClient()
+                .sql(
+                        "UPDATE notifications SET is_unread = false, read_at = :now WHERE id = :id AND recipient = :recipient")
                 .bind("id", notificationId)
                 .bind("recipient", username)
                 .bind("now", Instant.now())
@@ -132,7 +136,8 @@ public class DefaultNotificationService implements NotificationService {
     @Override
     @Transactional
     public Mono<Void> delete(String username, Long notificationId) {
-        return r2dbcTemplate.getDatabaseClient()
+        return r2dbcTemplate
+                .getDatabaseClient()
                 .sql("DELETE FROM notifications WHERE id = :id AND recipient = :recipient")
                 .bind("id", notificationId)
                 .bind("recipient", username)
@@ -162,12 +167,11 @@ public class DefaultNotificationService implements NotificationService {
                     var trimmed = s.trim();
                     // H2 returns JSON column values as JSON-encoded strings
                     if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
-                        trimmed = trimmed.substring(1, trimmed.length() - 1)
-                                .replace("\\\"", "\"");
+                        trimmed = trimmed.substring(1, trimmed.length() - 1).replace("\\\"", "\"");
                     }
                     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                    n.setMessageArgs(mapper.readValue(trimmed,
-                            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
+                    n.setMessageArgs(mapper.readValue(
+                            trimmed, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
                 } catch (Exception e) {
                     log.warn("Failed to deserialize message_args", e);
                 }
@@ -189,7 +193,8 @@ public class DefaultNotificationService implements NotificationService {
 
     private Instant convertToInstant(Object value) {
         if (value instanceof Instant i) return i;
-        if (value instanceof java.time.LocalDateTime ldt) return ldt.atZone(java.time.ZoneOffset.UTC).toInstant();
+        if (value instanceof java.time.LocalDateTime ldt)
+            return ldt.atZone(java.time.ZoneOffset.UTC).toInstant();
         return null;
     }
 }

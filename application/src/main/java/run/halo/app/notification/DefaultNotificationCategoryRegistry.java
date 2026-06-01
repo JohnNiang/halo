@@ -2,7 +2,6 @@ package run.halo.app.notification;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,8 +46,7 @@ public class DefaultNotificationCategoryRegistry implements NotificationCategory
                                 (String) entry.get("displayName"),
                                 (String) entry.getOrDefault("description", ""),
                                 (String) entry.getOrDefault("uiPermission", null),
-                                Boolean.TRUE.equals(entry.get("hidden"))
-                        );
+                                Boolean.TRUE.equals(entry.get("hidden")));
                         categories.put(category.name(), category);
                         log.info("Registered notification category: {}", category.name());
                     }
@@ -64,9 +62,8 @@ public class DefaultNotificationCategoryRegistry implements NotificationCategory
 
     @Override
     public Mono<List<NotificationCategory>> getCategories() {
-        return Mono.fromSupplier(() -> categories.values().stream()
-                .filter(c -> !c.hidden())
-                .toList());
+        return Mono.fromSupplier(
+                () -> categories.values().stream().filter(c -> !c.hidden()).toList());
     }
 
     @Override

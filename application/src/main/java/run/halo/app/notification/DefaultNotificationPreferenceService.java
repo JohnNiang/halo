@@ -24,13 +24,13 @@ public class DefaultNotificationPreferenceService implements NotificationPrefere
 
     @Override
     public Mono<Map<String, Set<String>>> getPreferences(String username) {
-        return r2dbcTemplate.getDatabaseClient()
+        return r2dbcTemplate
+                .getDatabaseClient()
                 .sql("SELECT category, notifier, enabled FROM notification_preferences WHERE user_id = :userId")
                 .bind("userId", username)
                 .map(row -> Map.entry(
                         (String) row.get("category"),
-                        Map.entry((String) row.get("notifier"), Boolean.TRUE.equals(row.get("enabled")))
-                ))
+                        Map.entry((String) row.get("notifier"), Boolean.TRUE.equals(row.get("enabled")))))
                 .all()
                 .collectList()
                 .map(rows -> {
@@ -39,7 +39,8 @@ public class DefaultNotificationPreferenceService implements NotificationPrefere
                         var category = entry.getKey();
                         var notifierEntry = entry.getValue();
                         if (notifierEntry.getValue()) {
-                            result.computeIfAbsent(category, k -> new HashSet<>()).add(notifierEntry.getKey());
+                            result.computeIfAbsent(category, k -> new HashSet<>())
+                                    .add(notifierEntry.getKey());
                         }
                     }
                     return result;
@@ -49,7 +50,8 @@ public class DefaultNotificationPreferenceService implements NotificationPrefere
     @Override
     @Transactional
     public Mono<Void> savePreferences(String username, Map<String, Set<String>> preferences) {
-        return r2dbcTemplate.getDatabaseClient()
+        return r2dbcTemplate
+                .getDatabaseClient()
                 .sql("DELETE FROM notification_preferences WHERE user_id = :userId")
                 .bind("userId", username)
                 .then()
@@ -57,8 +59,10 @@ public class DefaultNotificationPreferenceService implements NotificationPrefere
                     var inserts = preferences.entrySet().stream()
                             .flatMap(catEntry -> catEntry.getValue().stream()
                                     .map(notifier -> Map.entry(catEntry.getKey(), notifier)))
-                            .map(e -> r2dbcTemplate.getDatabaseClient()
-                                    .sql("INSERT INTO notification_preferences (user_id, category, notifier, enabled) VALUES (:userId, :category, :notifier, true)")
+                            .map(e -> r2dbcTemplate
+                                    .getDatabaseClient()
+                                    .sql(
+                                            "INSERT INTO notification_preferences (user_id, category, notifier, enabled) VALUES (:userId, :category, :notifier, true)")
                                     .bind("userId", username)
                                     .bind("category", e.getKey())
                                     .bind("notifier", e.getValue())
@@ -70,8 +74,10 @@ public class DefaultNotificationPreferenceService implements NotificationPrefere
 
     @Override
     public Mono<Set<String>> getEnabledNotifiers(String username, String category) {
-        return r2dbcTemplate.getDatabaseClient()
-                .sql("SELECT notifier FROM notification_preferences WHERE user_id = :userId AND category = :category AND enabled = true")
+        return r2dbcTemplate
+                .getDatabaseClient()
+                .sql(
+                        "SELECT notifier FROM notification_preferences WHERE user_id = :userId AND category = :category AND enabled = true")
                 .bind("userId", username)
                 .bind("category", category)
                 .map(row -> (String) row.get("notifier"))

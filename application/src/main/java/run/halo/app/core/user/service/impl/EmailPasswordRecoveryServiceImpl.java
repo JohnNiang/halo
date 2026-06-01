@@ -6,13 +6,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.core.token.Sha512DigestUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 import run.halo.app.core.extension.User;
 import run.halo.app.core.user.service.*;
 import run.halo.app.extension.ReactiveExtensionClient;
@@ -103,15 +101,14 @@ public class EmailPasswordRecoveryServiceImpl implements EmailPasswordRecoverySe
                 .save(resetToken)
                 .then(externalLinkProcessor.processLink(uri))
                 .flatMap(link -> {
-                    log.debug("Generated reset password token for user '{}' and email '{}': {}",
-                            username, email, token);
+                    log.debug(
+                            "Generated reset password token for user '{}' and email '{}': {}", username, email, token);
                     return notificationService.notify(new NotificationRequest(
                             java.util.Set.of(username),
                             RESET_PASSWORD_BY_EMAIL_REASON_TYPE,
                             "notification.reset-password-by-email",
                             java.util.Map.of("link", link, "expirationAtMinutes", LINK_EXPIRATION_MINUTES),
-                            null
-                    ));
+                            null));
                 });
     }
 

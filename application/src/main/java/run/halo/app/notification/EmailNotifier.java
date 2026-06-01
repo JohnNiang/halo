@@ -1,15 +1,12 @@
 package run.halo.app.notification;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.MessageSource;
 import org.springframework.data.util.Pair;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.stereotype.Component;
@@ -22,8 +19,8 @@ import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.notification.EmailSenderHelper.EmailSenderConfig;
 
 /**
- * Email notifier that sends notifications via email.
- * SMTP configuration is stored in a Secret named "email-notifier-config".
+ * Email notifier that sends notifications via email. SMTP configuration is stored in a Secret named
+ * "email-notifier-config".
  *
  * @author guqing
  * @since 2.10.0
@@ -48,21 +45,19 @@ public class EmailNotifier implements ReactiveNotifier {
 
     @Override
     public Mono<Void> notify(Notification notification) {
-        return fetchSenderConfig()
-                .flatMap(config -> {
-                    if (!config.isEnable()) {
-                        log.debug("Email notifier is disabled, skipping.");
-                        return Mono.empty();
-                    }
-                    return resolveEmail(notification.getRecipient())
-                            .flatMap(toEmail -> {
-                                var sender = getOrCreateMailSender(config);
-                                var preparator = createMessage(config, toEmail, notification);
-                                return Mono.fromRunnable(() -> sender.send(preparator))
-                                        .subscribeOn(Schedulers.boundedElastic())
-                                        .then();
-                            });
-                });
+        return fetchSenderConfig().flatMap(config -> {
+            if (!config.isEnable()) {
+                log.debug("Email notifier is disabled, skipping.");
+                return Mono.empty();
+            }
+            return resolveEmail(notification.getRecipient()).flatMap(toEmail -> {
+                var sender = getOrCreateMailSender(config);
+                var preparator = createMessage(config, toEmail, notification);
+                return Mono.fromRunnable(() -> sender.send(preparator))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .then();
+            });
+        });
     }
 
     @Override
@@ -91,12 +86,14 @@ public class EmailNotifier implements ReactiveNotifier {
     }
 
     private JavaMailSender getOrCreateMailSender(EmailSenderConfig config) {
-        return senderRef.updateAndGet(pair -> {
-            if (pair != null && pair.getFirst().equals(config)) {
-                return pair;
-            }
-            return Pair.of(config, emailSenderHelper.createJavaMailSender(config));
-        }).getSecond();
+        return senderRef
+                .updateAndGet(pair -> {
+                    if (pair != null && pair.getFirst().equals(config)) {
+                        return pair;
+                    }
+                    return Pair.of(config, emailSenderHelper.createJavaMailSender(config));
+                })
+                .getSecond();
     }
 
     private MimeMessagePreparator createMessage(EmailSenderConfig config, String toEmail, Notification notification) {
@@ -121,10 +118,7 @@ public class EmailNotifier implements ReactiveNotifier {
 
     private String renderBody(Notification notification) {
         return messageSource.getMessage(
-                notification.getMessageKey() + ".body",
-                toArgs(notification.getMessageArgs()),
-                "",
-                Locale.getDefault());
+                notification.getMessageKey() + ".body", toArgs(notification.getMessageArgs()), "", Locale.getDefault());
     }
 
     private Object[] toArgs(java.util.Map<String, Object> args) {

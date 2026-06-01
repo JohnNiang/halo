@@ -3,8 +3,8 @@ package run.halo.app.notification;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * Published after a notification is persisted to the database.
- * Consumed by the dispatch service via {@code @TransactionalEventListener}.
+ * Published after a notification is persisted to the database. Consumed by the dispatch service via
+ * {@code @TransactionalEventListener}.
  */
 public class NotificationPersistedEvent extends ApplicationEvent {
 

@@ -136,8 +136,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
                 EMAIL_VERIFICATION_REASON_TYPE,
                 "notification.email-verification",
                 java.util.Map.of("code", code, "expirationAtMinutes", CODE_EXPIRATION_MINUTES),
-                null
-        ));
+                null));
     }
 
     static class EmailVerificationManager {

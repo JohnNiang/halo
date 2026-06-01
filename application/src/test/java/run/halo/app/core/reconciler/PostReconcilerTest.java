@@ -56,8 +56,7 @@ class PostReconcilerTest {
     private PostReconciler postReconciler;
 
     @BeforeEach
-    void setUp() {
-    }
+    void setUp() {}
 
     @Test
     void reconcile() {
@@ -231,5 +230,4 @@ class PostReconcilerTest {
             assertThat(value.getStatus().getLastModifyTime()).isNull();
         }
     }
-
 }

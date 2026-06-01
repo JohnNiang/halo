@@ -28,7 +28,8 @@ public class NotificationCleanupTask {
             return;
         }
         var cutoff = Instant.now().minus(Duration.ofDays(properties.getRetentionDays()));
-        r2dbcTemplate.getDatabaseClient()
+        r2dbcTemplate
+                .getDatabaseClient()
                 .sql("DELETE FROM notifications WHERE is_unread = false AND created_at < :cutoff")
                 .bind("cutoff", cutoff)
                 .fetch()

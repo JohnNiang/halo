@@ -11,38 +11,24 @@ import reactor.core.publisher.Mono;
  */
 public interface NotificationService {
 
-    /**
-     * Persists one notification per recipient. Category is validated against the registry.
-     */
+    /** Persists one notification per recipient. Category is validated against the registry. */
     Mono<Void> notify(NotificationRequest request);
 
-    /**
-     * Lists notifications for a user, optionally filtered by unread status.
-     */
+    /** Lists notifications for a user, optionally filtered by unread status. */
     Flux<Notification> listByUser(String username, Boolean unread, int offset, int limit);
 
-    /**
-     * Counts unread notifications for a user.
-     */
+    /** Counts unread notifications for a user. */
     Mono<Long> countUnread(String username);
 
-    /**
-     * Marks a single notification as read. Only the recipient may do this.
-     */
+    /** Marks a single notification as read. Only the recipient may do this. */
     Mono<Void> markAsRead(String username, Long notificationId);
 
-    /**
-     * Marks multiple notifications as read in batch.
-     */
+    /** Marks multiple notifications as read in batch. */
     Mono<Void> markAsRead(String username, Iterable<Long> notificationIds);
 
-    /**
-     * Deletes a single notification owned by the user.
-     */
+    /** Deletes a single notification owned by the user. */
     Mono<Void> delete(String username, Long notificationId);
 
-    /**
-     * Deletes multiple notifications in batch.
-     */
+    /** Deletes multiple notifications in batch. */
     Mono<Void> delete(String username, Iterable<Long> notificationIds);
 }

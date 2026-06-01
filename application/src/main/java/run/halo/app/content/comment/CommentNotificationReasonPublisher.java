@@ -5,7 +5,6 @@ import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -17,8 +16,8 @@ import run.halo.app.core.extension.content.SinglePage;
 import run.halo.app.event.post.CommentCreatedEvent;
 import run.halo.app.event.post.ReplyCreatedEvent;
 import run.halo.app.extension.ExtensionClient;
-import run.halo.app.extension.Ref;
 import run.halo.app.extension.GroupVersionKind;
+import run.halo.app.extension.Ref;
 import run.halo.app.notification.NotificationRequest;
 import run.halo.app.notification.NotificationService;
 
@@ -72,13 +71,14 @@ public class CommentNotificationReasonPublisher {
             var replyDisplayName = defaultIfBlank(replyOwner.getDisplayName(), replyOwner.getName());
             var content = reply.getSpec().getContent();
 
-            notificationService.notify(new NotificationRequest(
-                    Set.of(recipient),
-                    NotificationReasonConst.SOMEONE_REPLIED_TO_YOU,
-                    "notification.someone-replied-to-you",
-                    Map.of("replier", replyDisplayName, "content", content),
-                    null
-            )).subscribe();
+            notificationService
+                    .notify(new NotificationRequest(
+                            Set.of(recipient),
+                            NotificationReasonConst.SOMEONE_REPLIED_TO_YOU,
+                            "notification.someone-replied-to-you",
+                            Map.of("replier", replyDisplayName, "content", content),
+                            null))
+                    .subscribe();
         });
     }
 
@@ -102,13 +102,18 @@ public class CommentNotificationReasonPublisher {
 
         var displayName = defaultIfBlank(commentOwner.getDisplayName(), commentOwner.getName());
 
-        notificationService.notify(new NotificationRequest(
-                Set.of(recipient),
-                NotificationReasonConst.NEW_COMMENT_ON_POST,
-                "notification.new-comment-on-post",
-                Map.of("commenter", displayName, "postTitle", post.getSpec().getTitle()),
-                post.getStatusOrDefault().getPermalink()
-        )).subscribe();
+        notificationService
+                .notify(new NotificationRequest(
+                        Set.of(recipient),
+                        NotificationReasonConst.NEW_COMMENT_ON_POST,
+                        "notification.new-comment-on-post",
+                        Map.of(
+                                "commenter",
+                                displayName,
+                                "postTitle",
+                                post.getSpec().getTitle()),
+                        post.getStatusOrDefault().getPermalink()))
+                .subscribe();
     }
 
     private void publishForPage(Comment comment) {
@@ -131,13 +136,18 @@ public class CommentNotificationReasonPublisher {
 
         var displayName = defaultIfBlank(commentOwner.getDisplayName(), commentOwner.getName());
 
-        notificationService.notify(new NotificationRequest(
-                Set.of(recipient),
-                NotificationReasonConst.NEW_COMMENT_ON_PAGE,
-                "notification.new-comment-on-single-page",
-                Map.of("commenter", displayName, "pageTitle", page.getSpec().getTitle()),
-                page.getStatusOrDefault().getPermalink()
-        )).subscribe();
+        notificationService
+                .notify(new NotificationRequest(
+                        Set.of(recipient),
+                        NotificationReasonConst.NEW_COMMENT_ON_PAGE,
+                        "notification.new-comment-on-single-page",
+                        Map.of(
+                                "commenter",
+                                displayName,
+                                "pageTitle",
+                                page.getSpec().getTitle()),
+                        page.getStatusOrDefault().getPermalink()))
+                .subscribe();
     }
 
     private boolean isOwnerEqual(Comment.CommentOwner a, Comment.CommentOwner b) {

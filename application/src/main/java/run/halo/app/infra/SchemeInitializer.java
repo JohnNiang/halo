@@ -32,8 +32,6 @@ import run.halo.app.core.extension.content.Reply.ReplySpec;
 import run.halo.app.core.extension.content.SinglePage.SinglePageSpec;
 import run.halo.app.core.extension.content.Tag.TagSpec;
 import run.halo.app.core.extension.content.Tag.TagStatus;
-import run.halo.app.core.extension.notification.Notification;
-import run.halo.app.core.extension.notification.Notification.NotificationSpec;
 import run.halo.app.extension.*;
 import run.halo.app.extension.index.IndexSpecs;
 import run.halo.app.infra.utils.JsonUtils;

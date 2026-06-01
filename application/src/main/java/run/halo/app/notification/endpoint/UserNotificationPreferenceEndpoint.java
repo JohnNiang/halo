@@ -1,6 +1,7 @@
 package run.halo.app.notification.endpoint;
 
-import java.util.List;
+import static org.springdoc.webflux.core.fn.SpringdocRouteBuilder.route;
+
 import java.util.Map;
 import java.util.Set;
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,6 @@ import run.halo.app.notification.NotificationPreferenceService;
 import run.halo.app.notification.ReactiveNotifier;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 
-import static org.springdoc.webflux.core.fn.SpringdocRouteBuilder.route;
-
 @Component
 public class UserNotificationPreferenceEndpoint {
 
@@ -25,9 +24,10 @@ public class UserNotificationPreferenceEndpoint {
     private final NotificationCategoryRegistry categoryRegistry;
     private final ExtensionGetter extensionGetter;
 
-    public UserNotificationPreferenceEndpoint(NotificationPreferenceService preferenceService,
-                                              NotificationCategoryRegistry categoryRegistry,
-                                              ExtensionGetter extensionGetter) {
+    public UserNotificationPreferenceEndpoint(
+            NotificationPreferenceService preferenceService,
+            NotificationCategoryRegistry categoryRegistry,
+            ExtensionGetter extensionGetter) {
         this.preferenceService = preferenceService;
         this.categoryRegistry = categoryRegistry;
         this.extensionGetter = extensionGetter;
@@ -36,8 +36,7 @@ public class UserNotificationPreferenceEndpoint {
     @Bean
     RouterFunction<ServerResponse> userNotificationPreferenceEndpoints() {
         var tag = "uc.api.halo.run/v1alpha1/Notification";
-        return route()
-                .GET("/apis/uc.api.halo.run/v1alpha1/notification-preferences", this::getPreferences, builder -> {
+        return route().GET("/apis/uc.api.halo.run/v1alpha1/notification-preferences", this::getPreferences, builder -> {
                     builder.operationId("GetNotificationPreferences").tag(tag);
                 })
                 .PUT("/apis/uc.api.halo.run/v1alpha1/notification-preferences", this::savePreferences, builder -> {
@@ -47,30 +46,26 @@ public class UserNotificationPreferenceEndpoint {
     }
 
     private Mono<ServerResponse> getPreferences(ServerRequest request) {
-        return getUsername().flatMap(username ->
-                preferenceService.getPreferences(username)
-                        .flatMap(prefs ->
-                                categoryRegistry.getCategories().map(categories -> {
-                                    var notifiers = extensionGetter.getExtensionList(ReactiveNotifier.class)
-                                            .stream()
-                                            .map(ReactiveNotifier::name)
-                                            .toList();
-                                    return Map.of(
-                                            "categories", categories,
-                                            "notifiers", notifiers,
-                                            "preferences", prefs
-                                    );
-                                })
-                        )
-                        .flatMap(result -> ServerResponse.ok().bodyValue(result))
-        );
+        return getUsername()
+                .flatMap(username -> preferenceService
+                        .getPreferences(username)
+                        .flatMap(prefs -> categoryRegistry.getCategories().map(categories -> {
+                            var notifiers = extensionGetter.getExtensionList(ReactiveNotifier.class).stream()
+                                    .map(ReactiveNotifier::name)
+                                    .toList();
+                            return Map.of(
+                                    "categories", categories,
+                                    "notifiers", notifiers,
+                                    "preferences", prefs);
+                        }))
+                        .flatMap(result -> ServerResponse.ok().bodyValue(result)));
     }
 
     @SuppressWarnings("unchecked")
     private Mono<ServerResponse> savePreferences(ServerRequest request) {
         return request.bodyToMono(Map.class)
                 .flatMap(body -> getUsername().flatMap(username -> {
-                    var rawPrefs = (Map<String, ?>)(Map) body;
+                    var rawPrefs = (Map<String, ?>) (Map) body;
                     Map<String, Set<String>> preferences = new java.util.HashMap<>();
                     rawPrefs.forEach((key, value) -> {
                         if (value instanceof java.util.List<?> list) {
