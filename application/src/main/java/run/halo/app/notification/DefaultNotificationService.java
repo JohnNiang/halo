@@ -160,12 +160,18 @@ public class DefaultNotificationService implements NotificationService {
                 n.setMessageArgs((Map<String, Object>) m);
             } else if (argsObj instanceof String s && StringUtils.hasText(s) && !"{}".equals(s)) {
                 try {
+                    var trimmed = s.trim();
+                    // H2 may return JSON column value double-quoted
+                    if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+                        trimmed = trimmed.substring(1, trimmed.length() - 1);
+                        trimmed = trimmed.replace("\\\"", "\"");
+                    }
                     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                    n.setMessageArgs(mapper.readValue(s,
+                    n.setMessageArgs(mapper.readValue(trimmed,
                             new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
                 } catch (Exception e) {
-                    log.warn("Failed to deserialize message_args (type={}): {}",
-                            argsObj.getClass().getName(), s, e);
+                    log.warn("Failed to deserialize message_args (type={}, length={}): {}",
+                            argsObj.getClass().getName(), s.length(), s.substring(0, Math.min(200, s.length())), e);
                 }
             }
         }
