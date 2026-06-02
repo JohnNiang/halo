@@ -42,7 +42,7 @@ public class DefaultNotificationDispatchService {
                     var notifiers = extensionGetter.getExtensionList(ReactiveNotifier.class);
                     return reactor.core.publisher.Flux.fromIterable(notifiers)
                             .filter(n -> enabledNotifiers.isEmpty() || enabledNotifiers.contains(n.name()))
-                            .filter(n -> n.supports(notification.getRecipient()));
+                            .filterWhen(n -> n.supports(notification.getRecipient()));
                 })
                 .flatMap(notifier -> {
                     var dispatchId = createDispatch(notification, notifier.name());
@@ -110,18 +110,32 @@ public class DefaultNotificationDispatchService {
                     return Mono.delay(delay)
                             .then(r2dbcTemplate
                                     .getDatabaseClient()
-                                    .sql("SELECT notification_id, notifier FROM notification_dispatches WHERE id = :id")
+                                    .sql("""
+                                            SELECT d.notifier, n.id, n.recipient, n.category, n.message_key,
+                                                   n.message_args, n.subject_url
+                                            FROM notification_dispatches d
+                                            JOIN notifications n ON d.notification_id = n.id
+                                            WHERE d.id = :id
+                                            """)
                                     .bind("id", dispatchId)
-                                    .map(row -> {
+                                    .map((row, meta) -> {
                                         var n = new Notification();
-                                        n.setId(row.get("notification_id", Long.class));
+                                        n.setId(row.get("id", Long.class));
+                                        n.setRecipient(row.get("recipient", String.class));
+                                        n.setCategory(row.get("category", String.class));
+                                        n.setMessageKey(row.get("message_key", String.class));
+                                        var argsObj = row.get("message_args");
+                                        if (argsObj instanceof java.util.Map<?, ?> m) {
+                                            n.setMessageArgs((java.util.Map<String, Object>) m);
+                                        }
+                                        n.setSubjectUrl(row.get("subject_url", String.class));
                                         return n;
                                     })
                                     .one())
                             .flatMap(notification -> {
                                 var notifiers = extensionGetter.getExtensionList(ReactiveNotifier.class);
                                 return reactor.core.publisher.Flux.fromIterable(notifiers)
-                                        .filter(n -> n.supports(notification.getRecipient()))
+                                        .filterWhen(n -> n.supports(notification.getRecipient()))
                                         .next()
                                         .flatMap(n -> n.notify(notification)
                                                 .then(markDispatchSent(dispatchId))

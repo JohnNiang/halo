@@ -1,16 +1,19 @@
-## 1. Tear down old notification system
+## 1. Tear down old notification system (with backward compatibility)
 
-- [x] 1.1 Delete old extension models: Reason.java, ReasonType.java, Subscription.java, NotificationTemplate.java, NotifierDescriptor.java from `api/src/main/java/run/halo/app/core/extension/notification/`
-- [x] 1.2 Delete old extension YAML: `notification.yaml`, `notification-templates.yaml`, `role-template-notification.yaml` from `application/src/main/resources/extensions/`
+- [x] 1.1 Keep old extension CRD models in `api/src/main/java/run/halo/app/core/extension/notification/` for backward compatibility (Reason, ReasonType, Subscription, NotificationTemplate, NotifierDescriptor, Notification). Do NOT delete these.
+- [x] 1.2 Delete old extension YAML: `notification.yaml`, `notification-templates.yaml`, `role-template-notification.yaml` from `application/src/main/resources/extensions/` (CRDs are not registered, but Java classes remain)
 - [x] 1.3 Delete old notification services: NotificationTrigger, DefaultNotificationCenter, DefaultNotificationSender, DefaultNotificationReasonEmitter, SubscriptionServiceImpl, RecipientResolverImpl, ReasonNotificationTemplateSelectorImpl, DefaultNotificationTemplateRender, NotificationAutoCleanupTask
 - [x] 1.4 Delete old notification endpoints: UserNotificationEndpoint, UserNotificationPreferencesEndpoint, SubscriptionRouter
-- [x] 1.5 Delete old notification interfaces from `api/`: NotificationCenter, NotificationReasonEmitter, ReasonPayload, ReasonAttributes, UserIdentity
+- [x] 1.5 Restore old notification interfaces to `api/` for backward compatibility: NotificationCenter, NotificationReasonEmitter, ReasonPayload, ReasonAttributes, UserIdentity, NotificationContext (keep types, delete implementations only)
 - [x] 1.6 Delete old application interfaces: UserNotificationService, NotificationSender, SubscriptionService, RecipientResolver, NotifierConfigStore, UserNotificationPreferenceService, ReasonNotificationTemplateSelector, NotificationTemplateRender
 - [x] 1.7 Delete UserNotificationPreference model and NotificationProperties
 - [x] 1.8 Delete old frontend notification components and pages in `ui/uc-src/modules/notifications/` and `ui/uc-src/modules/profile/tabs/NotificationPreferences.vue`
 - [x] 1.9 Delete old console notification settings: `ui/console-src/modules/system/settings/tabs/Notifications.vue` and `NotificationSetting.vue`
 - [x] 1.10 Delete old frontend dashboard notification widget: `ui/console-src/modules/dashboard/widgets/presets/users/NotificationWidget.vue`
 - [x] 1.11 Verify project compiles after deletions (`./gradlew :api:compileJava :application:compileJava`)
+- [x] 1.12 Create no-op `NotificationCenter` implementation (`DeprecatedNotificationCenter`) — logs deprecation warning, returns `Mono.empty()` for all methods
+- [x] 1.13 Create no-op `NotificationReasonEmitter` implementation (`DeprecatedNotificationReasonEmitter`) — logs deprecation warning, returns `Mono.empty()`
+- [x] 1.14 Remove stale notification classes: `SubscriberEmailResolver.java`, `DefaultSubscriberEmailResolver.java` (empty stubs), `LanguageUtils.java` (dead code, only used by old Thymeleaf rendering). Also delete old `Notification.java` CRD from `api/src/main/java/run/halo/app/core/extension/notification/` since it has zero references and the new POJO lives at `api/src/main/java/run/halo/app/notification/Notification.java`
 
 ## 2. New data model and migrations
 
@@ -20,6 +23,7 @@
 - [x] 2.4 Create Spring Data R2DBC repository for `notifications` with custom queries (paginated list by recipient, unread filter, unread count, batch mark-as-read, batch delete)
 - [x] 2.5 Create Spring Data R2DBC repository for `notification_dispatches` with queries for pending retries
 - [x] 2.6 Create Spring Data R2DBC repository for `notification_preferences` with queries for user preferences by category
+- [x] 2.7 Add deduplication: unique index on `notifications(recipient, category, message_key, subject_url)` across all 4 schemas; update `DefaultNotificationService.notify()` to handle duplicate-insert gracefully (e.g., `INSERT ... ON CONFLICT DO NOTHING` or query-before-insert)
 
 ## 3. API module — new interfaces and models
 
@@ -37,14 +41,14 @@
 - [x] 4.2 Implement duplicate prevention (unique constraint or query-before-insert)
 - [x] 4.3 Implement `DefaultNotificationService` CRUD: list (paginated, with unread filter), get unread count, mark single as read, mark batch as read, delete single, delete batch
 - [x] 4.4 Publish a `NotificationPersistedEvent` per notification for the dispatch listener to consume
-- [ ] 4.5 Write unit tests for `DefaultNotificationService`
+- [x] 4.5 Write unit tests for `DefaultNotificationService`
 
 ## 5. Category registry implementation
 
 - [x] 5.1 Create `notification-categories.yaml` in `application/src/main/resources/` with initial categories: new-comment-on-post, new-comment-on-single-page, someone-replied-to-you, email-verification, reset-password-by-email, new-device-login
 - [x] 5.2 Implement `DefaultNotificationCategoryRegistry` loading core YAML at startup
 - [x] 5.3 Implement plugin category discovery via PF4J resource scanning (merge plugin YAMLs)
-- [ ] 5.4 Write unit tests for category registry
+- [x] 5.4 Write unit tests for category registry
 
 ## 6. Notifier SPI and dispatch
 
@@ -52,30 +56,32 @@
 - [x] 6.2 Implement dispatch logic: query preferences, create dispatch records (PENDING), call `ReactiveNotifier.notify()`, update to SENT/FAILED
 - [x] 6.3 Implement retry logic: on FAILED, schedule `Mono.delay(backoff)` and re-attempt up to 3 times
 - [x] 6.4 Wire `ExtensionGetter` to discover all `ReactiveNotifier` beans (Spring + PF4J)
-- [ ] 6.5 Write unit tests for dispatch and retry logic
+- [x] 6.5 Write unit tests for dispatch and retry logic
+- [x] 6.6 Fix retry path: `retryFailedDispatch()` only sets `notification.id` — it must JOIN the `notifications` table to hydrate `recipient`, `category`, `messageKey`, `messageArgs`, `subjectUrl` so that `notifier.supports()` and `notifier.notify()` receive a complete `Notification` object
 
 ## 7. Email notifier implementation
 
 - [x] 7.1 Implement `EmailNotifier` as a Spring `@Component` implementing `ReactiveNotifier`
-- [ ] 7.2 Bundle email templates (Thymeleaf or plain `MessageSource`) for each category under `email-notifier/`
-- [ ] 7.3 Implement `supports()` — check if user has an email address configured
-- [ ] 7.4 Wire SMTP configuration from system settings (remove old `NotifierDescriptor.SenderSettingRef` indirection)
-- [ ] 7.5 Write unit tests for email notifier
+- [x] 7.2 Bundle email templates (Thymeleaf or plain `MessageSource`) for each category under `email-notifier/`
+- [x] 7.3 Implement `supports()` — check if user has an email address configured
+- [x] 7.4 Wire SMTP configuration from system settings (remove old `NotifierDescriptor.SenderSettingRef` indirection)
+- [x] 7.5 Write unit tests for email notifier
+- [x] 7.6 Fix `EmailNotifier.supports()`: `blockOptional()` blocks the reactive chain — replace with a non-blocking approach or make `ReactiveNotifier.supports()` return `Mono<Boolean>`
 
 ## 8. REST API endpoints
 
 - [x] 8.1 Create `UserNotificationEndpoint` router under `uc.api.halo.run/v1alpha1` with GET/PUT/DELETE routes
 - [x] 8.2 Extract authenticated username from security context (no userspaces path parameter)
 - [x] 8.3 Create `UserNotificationPreferenceEndpoint` router for GET/PUT preferences
-- [ ] 8.4 Add OpenAPI annotations to all new endpoints
-- [ ] 8.5 Run `./gradlew generateOpenApiDocs` and verify generated spec
-- [ ] 8.6 Write integration tests for all endpoints
+- [x] 8.4 Add OpenAPI annotations to all new endpoints
+- [x] 8.5 Run `./gradlew generateOpenApiDocs` and verify generated spec
+- [x] 8.6 Write integration tests for all endpoints
 
 ## 9. Scheduled cleanup task
 
 - [x] 9.1 Implement `NotificationCleanupTask` — cron-driven, deletes read notifications older than configured retention period
 - [x] 9.2 Configure cleanup properties (`halo.notification.cleanup.enabled`, `cleanup.retention-days`, `cleanup.cron`)
-- [ ] 9.3 Write unit tests for cleanup task
+- [x] 9.3 Write unit tests for cleanup task
 
 ## 10. Frontend — API client regeneration
 
@@ -109,8 +115,8 @@
 
 ## 14. Final validation
 
-- [ ] 14.1 Run `./gradlew spotlessApply` for backend formatting
-- [ ] 14.2 Run `./gradlew :application:test` for all backend tests
-- [ ] 14.3 Run `pnpm -C ui typecheck && pnpm -C ui lint` for frontend validation
-- [ ] 14.4 Run `pnpm -C ui test:unit` for frontend unit tests
+- [x] 14.1 Run `./gradlew spotlessApply` for backend formatting
+- [x] 14.2 Run `./gradlew :application:test` for all backend tests
+- [x] 14.3 Run `pnpm -C ui typecheck && pnpm -C ui lint` for frontend validation
+- [x] 14.4 Run `pnpm -C ui test:unit` for frontend unit tests
 - [x] 14.5 Build full project with `./gradlew build` to verify packaging

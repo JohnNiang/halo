@@ -61,8 +61,8 @@ public class EmailNotifier implements ReactiveNotifier {
     }
 
     @Override
-    public boolean supports(String recipient) {
-        return resolveEmail(recipient).hasElement().blockOptional().orElse(false);
+    public Mono<Boolean> supports(String recipient) {
+        return resolveEmail(recipient).hasElement();
     }
 
     private Mono<String> resolveEmail(String username) {

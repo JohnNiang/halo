@@ -15,7 +15,7 @@ CREATE
             category VARCHAR(100) NOT NULL,
             message_key VARCHAR(200) NOT NULL,
             message_args JSON,
-            subject_url VARCHAR(1000),
+            subject_url VARCHAR(1000) NOT NULL DEFAULT '',
             is_unread BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             read_at TIMESTAMP
@@ -33,6 +33,15 @@ CREATE
     notifications(
         recipient,
         created_at
+    );
+
+CREATE
+    UNIQUE INDEX IF NOT EXISTS idx_notifications_dedup ON
+    notifications(
+        recipient,
+        category,
+        message_key,
+        subject_url
     );
 
 CREATE

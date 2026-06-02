@@ -44,7 +44,9 @@ public class DefaultNotificationService implements NotificationService {
 
     private Mono<NotificationPersistedEvent> insertNotification(NotificationRequest request, String recipient) {
         var messageArgsJson = request.messageArgs() != null ? JsonUtils.objectToJson(request.messageArgs()) : "{}";
-        var spec = r2dbcTemplate
+        var subjectUrl = request.subjectUrl() != null ? request.subjectUrl() : "";
+        var now = Instant.now();
+        return r2dbcTemplate
                 .getDatabaseClient()
                 .sql("""
                         INSERT INTO notifications (recipient, category, message_key, message_args, subject_url, created_at)
@@ -53,15 +55,10 @@ public class DefaultNotificationService implements NotificationService {
                 .bind("recipient", recipient)
                 .bind("category", request.category())
                 .bind("messageKey", request.messageKey())
-                .bind("messageArgs", messageArgsJson);
-        if (request.subjectUrl() != null) {
-            spec = spec.bind("subjectUrl", request.subjectUrl());
-        } else {
-            spec = spec.bindNull("subjectUrl", String.class);
-        }
-        var now = Instant.now();
-        spec = spec.bind("createdAt", now);
-        return spec.filter((statement, executeFunction) ->
+                .bind("messageArgs", messageArgsJson)
+                .bind("subjectUrl", subjectUrl)
+                .bind("createdAt", now)
+                .filter((statement, executeFunction) ->
                         statement.returnGeneratedValues("id").execute())
                 .map(row -> {
                     var notification = new Notification();
@@ -75,7 +72,15 @@ public class DefaultNotificationService implements NotificationService {
                     notification.setCreatedAt(now);
                     return new NotificationPersistedEvent(notification);
                 })
-                .one();
+                .one()
+                .onErrorResume(org.springframework.dao.DuplicateKeyException.class, e -> {
+                    log.debug(
+                            "Duplicate notification skipped: recipient={}, category={}, messageKey={}",
+                            recipient,
+                            request.category(),
+                            request.messageKey());
+                    return Mono.empty();
+                });
     }
 
     @Override

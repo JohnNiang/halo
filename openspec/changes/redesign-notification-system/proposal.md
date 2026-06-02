@@ -4,8 +4,8 @@ The current notification system is massively over-engineered: a 9-step pipeline 
 
 ## What Changes
 
-- **BREAKING**: Remove all notification extension CRDs (Reason, ReasonType, Subscription, NotificationTemplate, NotifierDescriptor)
-- **BREAKING**: Replace extension-stored Notification with a dedicated SQL table (`notifications`) with proper indexes
+- **BREAKING**: Remove all notification extension CRD registrations (YAML files deleted); old CRD model classes and SPI interfaces preserved in `api/` for backward compatibility with no-op implementations in `application/`
+- **BREAKING**: Replace extension-stored Notification with a dedicated SQL table (`notifications`) with proper indexes; old CRD `Notification` class retained but not registered
 - **BREAKING**: Remove all current notification REST APIs and replace with new `uc.api.halo.run` endpoints
 - **BREAKING**: Remove Thymeleaf template rendering; notifications store structured i18n keys + args, rendered consumer-side
 - Add dedicated SQL tables for dispatch tracking (`notification_dispatches`) and user preferences (`notification_preferences`)
@@ -13,6 +13,7 @@ The current notification system is massively over-engineered: a 9-step pipeline 
 - Add `ReactiveNotifier` PF4J ExtensionPoint for plugin notifier channels
 - Add `@TransactionalEventListener(AFTER_COMMIT)` dispatch with event-driven retry (no cron polling)
 - Rewrite frontend notification pages against new APIs with consumer-side i18n rendering
+- Preserve old `NotificationCenter` and `NotificationReasonEmitter` interfaces with no-op implementations so existing plugins boot without errors
 
 ## Capabilities
 

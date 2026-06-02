@@ -74,10 +74,30 @@ Built-in notifiers are Spring `@Component` beans, plugin notifiers are PF4J exte
 
 **Rationale**: "Who should be notified about X" is domain logic, not notification infrastructure. The comment module knows who owns the post. The auth module knows who owns the device. The notification system just delivers to the recipients it's given.
 
+### 8. Backward compatibility: keep API types, provide no-op implementations
+
+**Decision**: Preserve all old public SPI interfaces and CRD model classes in the `api/` module. Provide no-op `@Component` implementations for `NotificationCenter` and `NotificationReasonEmitter` in the `application/` module that log deprecation warnings and return `Mono.empty()`. Do NOT restore extension YAML files — old CRDs are not registered, so the reconciler framework ignores them.
+
+**Rationale**: Existing plugins compiled against the old notification API may autowire `NotificationCenter` or `NotificationReasonEmitter`, or reference CRD model types like `Reason`, `Subscription`, `ReasonType`, `NotificationTemplate`, `NotifierDescriptor`. Deleting these types from `api/` would cause `NoClassDefFoundError` at plugin load time. Deleting the Spring beans would cause `NoSuchBeanDefinitionException` at startup. Keeping the types (without CRD registration) and providing no-op beans means plugins boot and run cleanly — their notification calls just become silent no-ops.
+
+**Types to keep in api/**:
+- Service interfaces: `NotificationCenter`, `NotificationReasonEmitter`
+- Value objects: `ReasonPayload`, `ReasonAttributes`, `UserIdentity`, `NotificationContext`
+- CRD models: `Reason`, `ReasonType`, `Subscription`, `NotificationTemplate`, `NotifierDescriptor`, `Notification` (old CRD, still in tree)
+
+**No-op beans to add in application/**:
+- `DeprecatedNotificationCenter implements NotificationCenter`
+- `DeprecatedNotificationReasonEmitter implements NotificationReasonEmitter`
+
+**Things NOT restored**:
+- Extension YAML (`notification.yaml`, `notification-templates.yaml`, `role-template-notification.yaml`) — no CRD registration
+- Old application services (reconcilers, template renderers, senders, config stores) — stay deleted
+
 ## Risks / Trade-offs
 
-- **[Risk] No deduplication without Reason CRD finalizers** → The notifications table itself provides dedup: a unique constraint on `(recipient, category, message_key, JSON_HASH(message_args))` prevents duplicate inserts within a window. If the same event fires twice, the second insert is a no-op.
+- **[Risk] No deduplication without Reason CRD finalizers** → The notifications table needs a unique index on `(recipient, category, message_key, subject_url)` with an `ON CONFLICT DO NOTHING` or equivalent pattern. This is NOT yet implemented — the current schema only has an auto-increment PK and blind INSERTs, so duplicate events create duplicate rows. Pending: task 2.7.
 - **[Risk] @TransactionalEventListener failure means notification is persisted but never dispatched** → The cleanup task picks up notifications without corresponding dispatch records and creates pending dispatches. This is a safety net, not the primary path.
+- **[Risk] Retry dispatches silently fail** → `retryFailedDispatch()` loads only `notification_id` from the dispatches table and creates a bare `Notification` with null `recipient`, `category`, etc. This causes `notifier.supports(recipient)` to always reject and `notify()` to fail silently. Must JOIN the `notifications` table to hydrate the full object. Pending: task 6.6.
 - **[Risk] Plugin notifiers are discovered at startup** → If a plugin registers a notifier after startup, it won't be available until restart. Acceptable for now; dynamic registration can be added later if needed.
 - **[Trade-off] No built-in unsubscribe mechanism** → Without subscriptions, there's no unsubscribe token to embed in emails. Callers that want opt-out must implement it at the domain level (e.g., a user setting "don't email me about comments").
 - **[Trade-off] Consumer-side rendering means email/SMS rendering is duplicated per notifier** → Each notifier bundles its own templates/MessageSource. This is intentional — an email template and an SMS template are fundamentally different formats anyway.

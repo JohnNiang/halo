@@ -25,5 +25,5 @@ public interface ReactiveNotifier extends ExtensionPoint {
      * Returns whether this notifier supports the given recipient. For example, an email notifier checks if the user has
      * a verified email address.
      */
-    boolean supports(String recipient);
+    Mono<Boolean> supports(String recipient);
 }

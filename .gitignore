@@ -100,4 +100,5 @@ coverage
 !src/build
 storybook-static
 tsconfig.tsbuildinfo
-.tgz.crew
+.tgz
+.crew
