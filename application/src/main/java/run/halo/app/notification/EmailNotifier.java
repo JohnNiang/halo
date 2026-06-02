@@ -1,27 +1,28 @@
 package run.halo.app.notification;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.MessageSource;
 import org.springframework.data.util.Pair;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import run.halo.app.core.extension.notification.Subscription;
+import run.halo.app.core.extension.User;
+import run.halo.app.extension.ReactiveExtensionClient;
+import run.halo.app.extension.Secret;
 import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.notification.EmailSenderHelper.EmailSenderConfig;
 
 /**
- * A notifier that can send email.
+ * Email notifier that sends notifications via email. SMTP configuration is stored in a Secret named
+ * "email-notifier-config".
  *
  * @author guqing
- * @see ReactiveNotifier
- * @see JavaMailSenderImpl
  * @since 2.10.0
  */
 @Slf4j
@@ -29,89 +30,114 @@ import run.halo.app.notification.EmailSenderHelper.EmailSenderConfig;
 @RequiredArgsConstructor
 public class EmailNotifier implements ReactiveNotifier {
 
-    private final SubscriberEmailResolver subscriberEmailResolver;
-    private final NotificationTemplateRender notificationTemplateRender;
+    private static final String SECRET_NAME = "email-notifier-config";
+    private static final String SENDER_KEY = "sender";
+
     private final EmailSenderHelper emailSenderHelper;
-    private final AtomicReference<Pair<EmailSenderConfig, JavaMailSender>> emailSenderConfigPairRef =
-            new AtomicReference<>();
+    private final ReactiveExtensionClient client;
+    private final MessageSource messageSource;
+    private final AtomicReference<Pair<EmailSenderConfig, JavaMailSender>> senderRef = new AtomicReference<>();
 
     @Override
-    public Mono<Void> notify(NotificationContext context) {
-        JsonNode senderConfig = context.getSenderConfig();
-        var emailSenderConfig = JsonUtils.DEFAULT_JSON_MAPPER.convertValue(senderConfig, EmailSenderConfig.class);
+    public String name() {
+        return "email-notifier";
+    }
 
-        if (!emailSenderConfig.isEnable()) {
-            log.debug("Email notifier is disabled, skip sending email.");
-            return Mono.empty();
-        }
+    @Override
+    public Mono<Void> notify(Notification notification) {
+        return fetchSenderConfig().flatMap(config -> {
+            if (!config.isEnable()) {
+                log.debug("Email notifier is disabled, skipping.");
+                return Mono.empty();
+            }
+            return resolveEmail(notification.getRecipient()).flatMap(toEmail -> {
+                var sender = getOrCreateMailSender(config);
+                var preparator = createMessage(config, toEmail, notification);
+                return Mono.fromRunnable(() -> sender.send(preparator))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .then();
+            });
+        });
+    }
 
-        JavaMailSender javaMailSender = getJavaMailSender(emailSenderConfig);
+    @Override
+    public Mono<Boolean> supports(String recipient) {
+        return resolveEmail(recipient).hasElement();
+    }
 
-        String recipient = context.getMessage().getRecipient();
-        var subscriber = new Subscription.Subscriber();
-        subscriber.setName(recipient);
-        var payload = context.getMessage().getPayload();
-        return subscriberEmailResolver
-                .resolve(subscriber)
-                .flatMap(toEmail -> {
-                    if (StringUtils.isBlank(toEmail)) {
-                        log.debug("Cannot resolve email for subscriber: [{}], skip sending email.", subscriber);
-                        return Mono.empty();
+    private Mono<String> resolveEmail(String username) {
+        return client.fetch(User.class, username)
+                .filter(user -> user.getSpec().isEmailVerified())
+                .map(user -> user.getSpec().getEmail());
+    }
+
+    private Mono<EmailSenderConfig> fetchSenderConfig() {
+        return client.fetch(Secret.class, SECRET_NAME)
+                .map(secret -> {
+                    var configData = secret.getStringData();
+                    if (configData == null || !configData.containsKey(SENDER_KEY)) {
+                        var disabled = new EmailSenderConfig();
+                        disabled.setEnable(false);
+                        return disabled;
                     }
-                    var htmlMono = appendHtmlBodyFooter(payload.getAttributes()).doOnNext(footer -> {
-                        if (StringUtils.isNotBlank(payload.getHtmlBody())) {
-                            payload.setHtmlBody(payload.getHtmlBody() + "\n" + footer);
-                        }
-                    });
-                    var rawMono = appendRawBodyFooter(payload.getAttributes()).doOnNext(footer -> {
-                        if (StringUtils.isNotBlank(payload.getRawBody())) {
-                            payload.setRawBody(payload.getRawBody() + "\n" + footer);
-                        }
-                    });
-                    return Mono.when(htmlMono, rawMono).thenReturn(toEmail);
+                    return JsonUtils.jsonToObject(configData.get(SENDER_KEY), EmailSenderConfig.class);
                 })
-                .map(toEmail -> getMimeMessagePreparator(toEmail, emailSenderConfig, payload))
-                .publishOn(Schedulers.boundedElastic())
-                .doOnNext(javaMailSender::send)
-                .then();
+                .defaultIfEmpty(new EmailSenderConfig());
     }
 
-    private MimeMessagePreparator getMimeMessagePreparator(
-            String toEmail, EmailSenderConfig emailSenderConfig, NotificationContext.MessagePayload payload) {
-        return emailSenderHelper.createMimeMessagePreparator(
-                emailSenderConfig, toEmail, payload.getTitle(), payload.getRawBody(), payload.getHtmlBody());
-    }
-
-    JavaMailSender getJavaMailSender(EmailSenderConfig emailSenderConfig) {
-        return emailSenderConfigPairRef
+    private JavaMailSender getOrCreateMailSender(EmailSenderConfig config) {
+        return senderRef
                 .updateAndGet(pair -> {
-                    if (pair != null && pair.getFirst().equals(emailSenderConfig)) {
+                    if (pair != null && pair.getFirst().equals(config)) {
                         return pair;
                     }
-                    return Pair.of(emailSenderConfig, emailSenderHelper.createJavaMailSender(emailSenderConfig));
+                    return Pair.of(config, emailSenderHelper.createJavaMailSender(config));
                 })
                 .getSecond();
     }
 
-    Mono<String> appendRawBodyFooter(ReasonAttributes attributes) {
-        return notificationTemplateRender.render("""
-            ---
-            如果您不想再收到此类通知，点击链接退订: [(${unsubscribeUrl})]
-            [(${site.title})]
-            """, attributes);
+    private MimeMessagePreparator createMessage(EmailSenderConfig config, String toEmail, Notification notification) {
+        var title = renderTitle(notification);
+        var body = renderBody(notification);
+        return mimeMessage -> {
+            var helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom(config.getSender(), config.getDisplayName());
+            helper.setSubject(title);
+            helper.setText(body, buildHtml(title, body));
+            helper.setTo(toEmail);
+        };
     }
 
-    Mono<String> appendHtmlBodyFooter(ReasonAttributes attributes) {
-        return notificationTemplateRender.render("""
-            <div class="footer" style="font-size: 12px; color: #666;">
-            <a th:href="${site.url}" th:text="${site.title}"></a>
-            <p class="unsubscribe">
-            &mdash;<br />请勿直接回复此邮件，
-            <a th:href="|${site.url}/uc/notifications|">查看通知</a>
-            或
-            <a th:href="${unsubscribeUrl}">取消订阅</a>。
-            </p>
-            </div>
-            """, attributes);
+    private String renderTitle(Notification notification) {
+        return messageSource.getMessage(
+                notification.getMessageKey() + ".title",
+                toArgs(notification.getMessageArgs()),
+                "Notification",
+                Locale.getDefault());
+    }
+
+    private String renderBody(Notification notification) {
+        return messageSource.getMessage(
+                notification.getMessageKey() + ".body", toArgs(notification.getMessageArgs()), "", Locale.getDefault());
+    }
+
+    private Object[] toArgs(java.util.Map<String, Object> args) {
+        if (args == null || args.isEmpty()) {
+            return new Object[0];
+        }
+        return args.values().toArray();
+    }
+
+    private String buildHtml(String title, String body) {
+        return """
+                <html><body>
+                <h2>%s</h2>
+                <p>%s</p>
+                </body></html>
+                """.formatted(escapeHtml(title), escapeHtml(body));
+    }
+
+    private String escapeHtml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }

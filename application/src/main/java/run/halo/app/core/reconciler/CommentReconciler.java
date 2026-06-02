@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import run.halo.app.content.comment.ReplyNotificationSubscriptionHelper;
 import run.halo.app.content.comment.ReplyService;
 import run.halo.app.core.counter.MeterUtils;
 import run.halo.app.core.extension.Counter;
@@ -45,8 +44,6 @@ public class CommentReconciler implements Reconciler<Reconciler.Request> {
     private final ReplyService replyService;
     private final ApplicationEventPublisher eventPublisher;
 
-    private final ReplyNotificationSubscriptionHelper replyNotificationSubscriptionHelper;
-
     @Override
     public Result reconcile(Request request) {
         client.fetch(Comment.class, request.name()).ifPresent(comment -> {
@@ -58,7 +55,6 @@ public class CommentReconciler implements Reconciler<Reconciler.Request> {
                 return;
             }
             if (addFinalizers(comment.getMetadata(), Set.of(FINALIZER_NAME))) {
-                replyNotificationSubscriptionHelper.subscribeNewReplyReasonForComment(comment);
                 client.update(comment);
                 eventPublisher.publishEvent(new CommentCreatedEvent(this, comment));
             }

@@ -441,72 +441,6 @@
         ]
       }
     },
-    "/apis/api.console.halo.run/v1alpha1/notifiers/{name}/sender-config": {
-      "get": {
-        "description": "Fetch sender config of notifier",
-        "operationId": "FetchSenderConfig",
-        "parameters": [
-          {
-            "description": "Notifier name",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            },
-            "description": "default response"
-          }
-        },
-        "tags": [
-          "NotifierV1alpha1Console"
-        ]
-      },
-      "post": {
-        "description": "Save sender config of notifier",
-        "operationId": "SaveSenderConfig",
-        "parameters": [
-          {
-            "description": "Notifier name",
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "content": {},
-            "description": "default response"
-          }
-        },
-        "tags": [
-          "NotifierV1alpha1Console"
-        ]
-      }
-    },
     "/apis/api.console.halo.run/v1alpha1/plugins": {
       "get": {
         "description": "List plugins using query criteria and sort params",
@@ -3196,31 +3130,6 @@
         ]
       }
     },
-    "/apis/console.api.notification.halo.run/v1alpha1/notifiers/default-email-notifier/verify-connection": {
-      "post": {
-        "description": "Verify email sender config.",
-        "operationId": "VerifyEmailSenderConfig",
-        "requestBody": {
-          "content": {
-            "*/*": {
-              "schema": {
-                "$ref": "#/components/schemas/EmailConfigValidationRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "content": {},
-            "description": "default response"
-          }
-        },
-        "tags": [
-          "NotifierV1alpha1Console"
-        ]
-      }
-    },
     "/apis/console.api.security.halo.run/v1alpha1/users/{username}/disable": {
       "post": {
         "description": "Disable user by username",
@@ -4315,38 +4224,6 @@
           },
           "user": {
             "$ref": "#/components/schemas/User"
-          }
-        }
-      },
-      "EmailConfigValidationRequest": {
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": "string",
-            "description": "Gets email display name."
-          },
-          "enable": {
-            "type": "boolean"
-          },
-          "encryption": {
-            "type": "string"
-          },
-          "host": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "port": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "sender": {
-            "type": "string",
-            "description": "Gets email sender address."
-          },
-          "username": {
-            "type": "string"
           }
         }
       },

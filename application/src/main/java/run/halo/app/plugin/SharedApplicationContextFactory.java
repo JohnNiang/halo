@@ -18,8 +18,6 @@ import run.halo.app.infra.BackupRootGetter;
 import run.halo.app.infra.ExternalLinkProcessor;
 import run.halo.app.infra.ExternalUrlSupplier;
 import run.halo.app.infra.SystemInfoGetter;
-import run.halo.app.notification.NotificationCenter;
-import run.halo.app.notification.NotificationReasonEmitter;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 import run.halo.app.security.LoginHandlerEnhancer;
 import run.halo.app.security.authentication.CryptoService;
@@ -54,9 +52,6 @@ public enum SharedApplicationContextFactory {
                 "serverSecurityContextRepository", rootContext.getBean(ServerSecurityContextRepository.class));
         beanFactory.registerSingleton("attachmentService", rootContext.getBean(AttachmentService.class));
         beanFactory.registerSingleton("backupRootGetter", rootContext.getBean(BackupRootGetter.class));
-        beanFactory.registerSingleton(
-                "notificationReasonEmitter", rootContext.getBean(NotificationReasonEmitter.class));
-        beanFactory.registerSingleton("notificationCenter", rootContext.getBean(NotificationCenter.class));
         beanFactory.registerSingleton("externalLinkProcessor", rootContext.getBean(ExternalLinkProcessor.class));
         beanFactory.registerSingleton("postContentService", rootContext.getBean(PostContentService.class));
         beanFactory.registerSingleton("cacheManager", rootContext.getBean(CacheManager.class));

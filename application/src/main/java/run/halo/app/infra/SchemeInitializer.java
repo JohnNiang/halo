@@ -32,9 +32,6 @@ import run.halo.app.core.extension.content.Reply.ReplySpec;
 import run.halo.app.core.extension.content.SinglePage.SinglePageSpec;
 import run.halo.app.core.extension.content.Tag.TagSpec;
 import run.halo.app.core.extension.content.Tag.TagStatus;
-import run.halo.app.core.extension.notification.*;
-import run.halo.app.core.extension.notification.Notification.NotificationSpec;
-import run.halo.app.core.extension.notification.Subscription.InterestReason;
 import run.halo.app.extension.*;
 import run.halo.app.extension.index.IndexSpecs;
 import run.halo.app.infra.utils.JsonUtils;
@@ -519,54 +516,7 @@ class SchemeInitializer implements SmartLifecycle {
         schemeManager.register(Backup.class);
 
         // notification.halo.run
-        schemeManager.register(ReasonType.class);
-        schemeManager.register(Reason.class);
-        schemeManager.register(NotificationTemplate.class, indexSpecs -> {
-            indexSpecs.add(
-                    IndexSpecs.<NotificationTemplate, String>single("spec.reasonSelector.reasonType", String.class)
-                            .indexFunc(template -> Optional.ofNullable(template.getSpec())
-                                    .map(NotificationTemplate.Spec::getReasonSelector)
-                                    .map(NotificationTemplate.ReasonSelector::getReasonType)
-                                    .orElse(null)));
-        });
-        schemeManager.register(Subscription.class, indexSpecs -> {
-            indexSpecs.add(IndexSpecs.<Subscription, String>single("spec.reason.reasonType", String.class)
-                    .indexFunc(sub -> Optional.ofNullable(sub.getSpec())
-                            .map(Subscription.Spec::getReason)
-                            .map(InterestReason::getReasonType)
-                            .orElse(null)));
-            indexSpecs.add(IndexSpecs.<Subscription, String>single("spec.reason.subject", String.class)
-                    .indexFunc(sub -> Optional.ofNullable(sub.getSpec())
-                            .map(Subscription.Spec::getReason)
-                            .map(InterestReason::getSubject)
-                            .map(Object::toString)
-                            .orElse(null)));
-            indexSpecs.add(IndexSpecs.<Subscription, String>single("spec.reason.expression", String.class)
-                    .indexFunc(sub -> Optional.ofNullable(sub.getSpec())
-                            .map(Subscription.Spec::getReason)
-                            .map(InterestReason::getExpression)
-                            .orElse(null)));
-            indexSpecs.add(IndexSpecs.<Subscription, String>single("spec.subscriber", String.class)
-                    .indexFunc(sub -> Optional.ofNullable(sub.getSpec())
-                            .map(Subscription.Spec::getSubscriber)
-                            .map(Object::toString)
-                            .orElse(null)));
-        });
-        schemeManager.register(NotifierDescriptor.class);
-        schemeManager.register(Notification.class, indexSpecs -> {
-            indexSpecs.add(IndexSpecs.<Notification, Boolean>single("spec.unread", Boolean.class)
-                    .indexFunc(notification -> Optional.ofNullable(notification.getSpec())
-                            .map(NotificationSpec::isUnread)
-                            .orElse(false)));
-            indexSpecs.add(IndexSpecs.<Notification, String>single("spec.reason", String.class)
-                    .indexFunc(notification -> Optional.ofNullable(notification.getSpec())
-                            .map(NotificationSpec::getReason)
-                            .orElse(null)));
-            indexSpecs.add(IndexSpecs.<Notification, String>single("spec.recipient", String.class)
-                    .indexFunc(notification -> Optional.ofNullable(notification.getSpec())
-                            .map(NotificationSpec::getRecipient)
-                            .orElse(null)));
-        });
+        // Old notification extension types removed — will be replaced with dedicated SQL tables
     }
 
     @Override

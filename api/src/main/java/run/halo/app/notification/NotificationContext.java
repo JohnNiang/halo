@@ -5,7 +5,13 @@ import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * @author guqing
+ * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility.
+ */
 @Data
+@Deprecated
 public class NotificationContext {
 
     private Message message;

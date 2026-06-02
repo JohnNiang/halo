@@ -2,20 +2,17 @@ package run.halo.app.security.device;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-import run.halo.app.core.extension.Device;
-import run.halo.app.core.extension.notification.Reason;
-import run.halo.app.core.extension.notification.Subscription;
-import run.halo.app.notification.NotificationCenter;
-import run.halo.app.notification.NotificationReasonEmitter;
-import run.halo.app.notification.ReasonAttributes;
-import run.halo.app.notification.UserIdentity;
+import run.halo.app.notification.NotificationRequest;
+import run.halo.app.notification.NotificationService;
 
 /**
- * Sends a notification when a new device login,It listens for {@link NewDeviceLoginEvent} asynchronously.
+ * Sends a notification when a new device logs in.
  *
  * @author guqing
  * @since 2.17.0
@@ -23,45 +20,26 @@ import run.halo.app.notification.UserIdentity;
 @Component
 @RequiredArgsConstructor
 public class NewDeviceLoginListener {
+
     private static final String REASON_TYPE = "new-device-login";
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss O").withZone(ZoneOffset.systemDefault());
-    private final NotificationCenter notificationCenter;
-    private final NotificationReasonEmitter notificationReasonEmitter;
+
+    private final NotificationService notificationService;
 
     @EventListener
     Mono<Void> onApplicationEvent(NewDeviceLoginEvent event) {
-        return subscribeForNewDeviceLoginReason(event.getDevice()).then(sendNewDeviceNotification(event.getDevice()));
-    }
-
-    Mono<Void> sendNewDeviceNotification(Device device) {
-        return notificationReasonEmitter.emit(REASON_TYPE, builder -> {
-            var attributes = new ReasonAttributes();
-            attributes.put("principalName", device.getSpec().getPrincipalName());
-            attributes.put("os", device.getStatus().getOs());
-            attributes.put("browser", device.getStatus().getBrowser());
-            attributes.put("ipAddress", device.getSpec().getIpAddress());
-            attributes.put(
-                    "loginTime", DATE_TIME_FORMATTER.format(device.getSpec().getLastAuthenticatedTime()));
-            builder.attributes(attributes)
-                    .author(UserIdentity.of(device.getSpec().getPrincipalName()))
-                    .subject(Reason.Subject.builder()
-                            .apiVersion(Device.GROUP + "/" + Device.VERSION)
-                            .kind(Device.KIND)
-                            .name(device.getMetadata().getName())
-                            .title("在新设备上登录")
-                            .build());
-        });
-    }
-
-    Mono<Void> subscribeForNewDeviceLoginReason(Device device) {
+        var device = event.getDevice();
         var principalName = device.getSpec().getPrincipalName();
-        var subscriber = new Subscription.Subscriber();
-        subscriber.setName(principalName);
-
-        var reason = new Subscription.InterestReason();
-        reason.setReasonType(REASON_TYPE);
-        reason.setExpression("props.principalName == '%s'".formatted(principalName));
-        return notificationCenter.subscribe(subscriber, reason).then();
+        return notificationService.notify(new NotificationRequest(
+                Set.of(principalName),
+                REASON_TYPE,
+                "notification.new-device-login",
+                Map.of(
+                        "os", device.getStatus().getOs(),
+                        "browser", device.getStatus().getBrowser(),
+                        "ipAddress", device.getSpec().getIpAddress(),
+                        "loginTime", DATE_TIME_FORMATTER.format(device.getSpec().getLastAuthenticatedTime())),
+                null));
     }
 }

@@ -18,6 +18,7 @@ import run.halo.app.extension.GVK;
  * @see NotificationTemplate
  * @see Reason
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility with existing plugins.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -27,6 +28,7 @@ import run.halo.app.extension.GVK;
         kind = "ReasonType",
         plural = "reasontypes",
         singular = "reasontype")
+@Deprecated
 public class ReasonType extends AbstractExtension {
     public static final String LOCALIZED_RESOURCE_NAME_ANNO = "notification.halo.run/localized-resource-name";
 

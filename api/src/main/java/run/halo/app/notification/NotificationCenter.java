@@ -9,7 +9,10 @@ import run.halo.app.core.extension.notification.Subscription;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, use {@link NotificationService} instead. Kept for backward compatibility with existing
+ *     plugins.
  */
+@Deprecated
 public interface NotificationCenter {
 
     /**

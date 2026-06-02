@@ -1,170 +1,113 @@
-<script lang="ts" setup>
-import type { Notification } from "@halo-dev/api-client";
-import { ucApiClient } from "@halo-dev/api-client";
-import { Dialog, Toast, VStatusDot } from "@halo-dev/components";
-import { stores, utils } from "@halo-dev/ui-shared";
-import { useMutation, useQueryClient } from "@tanstack/vue-query";
-import sanitize from "sanitize-html";
-import { computed, ref, watch } from "vue";
+<script setup lang="ts">
+import { VEntity, VEntityField, VButton } from "@halo-dev/components";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import type { Notification } from "../types";
 
-const queryClient = useQueryClient();
 const { t } = useI18n();
 
-const props = withDefaults(
-  defineProps<{
-    notification: Notification;
-    isSelected: boolean;
-    isSelectMode?: boolean;
-    isChecked?: boolean;
-  }>(),
-  {
-    isSelectMode: false,
-    isChecked: false,
+const props = defineProps<{
+  notification: Notification;
+  selectMode: boolean;
+  selected: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "toggle-select"): void;
+  (e: "mark-as-read"): void;
+  (e: "delete"): void;
+}>();
+
+const title = computed(() => {
+  const key = props.notification.messageKey + ".title";
+  const args = props.notification.messageArgs ?? {};
+  try {
+    return t(key, args);
+  } catch {
+    return props.notification.messageKey ?? "";
   }
-);
-
-const { currentUser } = stores.currentUser();
-
-const isRead = ref();
-
-const { mutate: handleMarkAsRead } = useMutation({
-  mutationKey: ["notification-mark-as-read"],
-  mutationFn: async ({ refetch }: { refetch: boolean }) => {
-    const { data } =
-      await ucApiClient.notification.notification.markNotificationAsRead({
-        name: props.notification.metadata.name,
-        username: currentUser?.user.metadata.name as string,
-      });
-
-    if (refetch) {
-      await queryClient.invalidateQueries({ queryKey: ["user-notifications"] });
-    }
-
-    return data;
-  },
-  onSuccess() {
-    isRead.value = true;
-  },
 });
 
-function handleDelete() {
-  Dialog.warning({
-    title: t("core.uc_notification.operations.delete.title"),
-    description: t("core.uc_notification.operations.delete.description"),
-    confirmText: t("core.common.buttons.confirm"),
-    cancelText: t("core.common.buttons.cancel"),
-    confirmType: "danger",
-    async onConfirm() {
-      await ucApiClient.notification.notification.deleteSpecifiedNotification({
-        name: props.notification.metadata.name,
-        username: currentUser?.user.metadata.name as string,
-      });
+const body = computed(() => {
+  const key = props.notification.messageKey + ".body";
+  const args = props.notification.messageArgs ?? {};
+  try {
+    return t(key, args);
+  } catch {
+    return "";
+  }
+});
 
-      await queryClient.invalidateQueries({ queryKey: ["user-notifications"] });
-
-      Toast.success(t("core.common.toast.delete_success"));
-    },
-  });
+function timeAgo(dateStr: string): string {
+  if (!dateStr) return "";
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
 }
-
-watch(
-  () => props.isSelected,
-  (value) => {
-    if (value && props.notification.spec?.unread) {
-      handleMarkAsRead({ refetch: false });
-    }
-  },
-  {
-    immediate: true,
-  }
-);
-
-const content = computed(() => {
-  // Clean html tags
-  return sanitize(props.notification.spec?.htmlContent || "", {
-    allowedTags: [],
-    allowedAttributes: {},
-  });
-});
 </script>
+
 <template>
-  <div
-    class="group relative flex cursor-pointer flex-col gap-2 p-4"
-    :class="{ 'bg-gray-50': isSelected || isChecked }"
+  <VEntity
+    :class="{ 'bg-gray-50': selected }"
+    class="cursor-pointer transition-colors hover:bg-gray-50"
   >
-    <div
-      v-if="isSelected || isChecked"
-      class="absolute inset-y-0 left-0 w-0.5 bg-primary"
-    ></div>
-    <div class="flex items-center gap-2">
-      <!-- Checkbox shown in batch select mode -->
-      <div
-        v-if="isSelectMode"
-        class="flex h-4 w-4 flex-none items-center justify-center rounded border transition-colors"
-        :class="
-          isChecked
-            ? 'border-primary bg-primary'
-            : 'border-gray-300 bg-white'
-        "
-      >
-        <svg
-          v-if="isChecked"
-          class="h-3 w-3 text-white"
-          viewBox="0 0 12 12"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+    <template v-if="selectMode" #checkbox>
+      <input
+        type="checkbox"
+        :checked="selected"
+        class="h-4 w-4 rounded border-gray-300"
+        @change="emit('toggle-select')"
+      />
+    </template>
+    <template #start>
+      <VEntityField>
+        <template #title>
+          <div class="flex items-center gap-2">
+            <span
+              v-if="notification.unread"
+              class="inline-block h-2 w-2 rounded-full bg-blue-500"
+            />
+            <span :class="{ 'font-semibold': notification.unread }">
+              {{ title }}
+            </span>
+          </div>
+        </template>
+        <template #description>
+          <span class="line-clamp-1 text-sm text-gray-500">
+            {{ body }}
+          </span>
+        </template>
+      </VEntityField>
+    </template>
+    <template v-if="!selectMode" #end>
+      <VEntityField>
+        <template #description>
+          <span class="text-xs text-gray-400">
+            {{ timeAgo(notification.createdAt) }}
+          </span>
+        </template>
+      </VEntityField>
+      <div class="flex items-center gap-1">
+        <VButton
+          v-if="notification.unread"
+          size="xs"
+          @click="emit('mark-as-read')"
         >
-          <path
-            d="M2 6l3 3 5-5"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+          {{ t("core.uc_notification.operations.mark_as_read.button") }}
+        </VButton>
+        <VButton size="xs" type="danger" @click="emit('delete')">
+          {{ t("core.uc_notification.operations.delete.title") }}
+        </VButton>
       </div>
-      <div class="flex min-w-0 flex-1 items-center justify-between">
-        <div
-          class="truncate text-sm"
-          :class="{ 'font-semibold': notification.spec?.unread && !isRead }"
-        >
-          {{ notification.spec?.title }}
-        </div>
-        <VStatusDot
-          v-if="notification.metadata.deletionTimestamp"
-          v-tooltip="$t('core.common.status.deleting')"
-          state="warning"
-          animate
-        />
-      </div>
-    </div>
-    <div
-      v-if="notification.spec?.htmlContent"
-      class="line-clamp-1 text-xs text-gray-600"
-    >
-      {{ content }}
-    </div>
-    <div class="flex h-6 items-end justify-between">
-      <div class="text-xs text-gray-600">
-        {{ utils.date.timeAgo(notification.metadata.creationTimestamp) }}
-      </div>
-      <!-- Action buttons: hidden in batch select mode -->
-      <div v-if="!isSelectMode" class="hidden space-x-2 group-hover:block">
-        <span
-          v-if="notification.spec?.unread && !isRead"
-          class="text-sm text-gray-600 hover:text-gray-900"
-          @click.stop="handleMarkAsRead({ refetch: true })"
-        >
-          {{ $t("core.uc_notification.operations.mark_as_read.button") }}
-        </span>
-        <span
-          class="text-sm text-red-600 hover:text-red-700"
-          @click.stop="handleDelete"
-        >
-          {{ $t("core.common.buttons.delete") }}
-        </span>
-      </div>
-    </div>
-  </div>
+    </template>
+  </VEntity>
 </template>

@@ -7,5 +7,7 @@ import java.util.HashMap;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility.
  */
+@Deprecated
 public class ReasonAttributes extends HashMap<String, Object> {}

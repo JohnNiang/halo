@@ -12,9 +12,11 @@ import run.halo.app.core.extension.notification.Reason;
  * @author guqing
  * @see Reason
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility.
  */
 @Data
 @AllArgsConstructor
+@Deprecated
 public class ReasonPayload {
     private Reason.Subject subject;
     private final UserIdentity author;

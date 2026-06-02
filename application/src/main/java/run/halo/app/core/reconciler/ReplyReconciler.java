@@ -8,7 +8,6 @@ import java.util.Set;
 import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import run.halo.app.content.comment.ReplyNotificationSubscriptionHelper;
 import run.halo.app.core.extension.content.Reply;
 import run.halo.app.event.post.ReplyChangedEvent;
 import run.halo.app.event.post.ReplyCreatedEvent;
@@ -33,8 +32,6 @@ public class ReplyReconciler implements Reconciler<Reconciler.Request> {
     private final ExtensionClient client;
     private final ApplicationEventPublisher eventPublisher;
 
-    private final ReplyNotificationSubscriptionHelper replyNotificationSubscriptionHelper;
-
     @Override
     public Result reconcile(Request request) {
         client.fetch(Reply.class, request.name()).ifPresent(reply -> {
@@ -43,7 +40,6 @@ public class ReplyReconciler implements Reconciler<Reconciler.Request> {
                 return;
             }
             if (addFinalizers(reply.getMetadata(), Set.of(FINALIZER_NAME))) {
-                replyNotificationSubscriptionHelper.subscribeNewReplyReasonForReply(reply);
                 client.update(reply);
                 eventPublisher.publishEvent(new ReplyCreatedEvent(this, reply));
             }

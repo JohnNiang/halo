@@ -17,6 +17,7 @@ import run.halo.app.extension.GVK;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility with existing plugins.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -26,6 +27,7 @@ import run.halo.app.extension.GVK;
         kind = "NotifierDescriptor",
         plural = "notifierDescriptors",
         singular = "notifierDescriptor")
+@Deprecated
 public class NotifierDescriptor extends AbstractExtension {
 
     @Schema

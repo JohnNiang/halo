@@ -18,10 +18,12 @@ import run.halo.app.notification.ReasonAttributes;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility with existing plugins.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @GVK(group = "notification.halo.run", version = "v1alpha1", kind = "Reason", plural = "reasons", singular = "reason")
+@Deprecated
 public class Reason extends AbstractExtension {
 
     @Schema

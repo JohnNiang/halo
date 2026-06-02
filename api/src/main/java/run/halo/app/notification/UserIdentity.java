@@ -10,6 +10,7 @@ import run.halo.app.infra.AnonymousUserConst;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility.
  */
 public record UserIdentity(String name) {
     public static final String SEPARATOR = "#";

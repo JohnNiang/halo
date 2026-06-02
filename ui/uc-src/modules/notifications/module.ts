@@ -12,12 +12,11 @@ export default definePlugin({
       meta: {
         title: "core.uc_notification.title",
         searchable: true,
-        hideFooter: true,
         menu: {
           name: "core.uc_sidebar.menu.items.notification",
           group: "dashboard",
           icon: markRaw(IconNotificationBadgeLine),
-          priority: 1,
+          priority: 10,
           mobile: true,
         },
       },
@@ -25,7 +24,7 @@ export default definePlugin({
         {
           path: "",
           name: "Notifications",
-          component: () => import("./Notifications.vue"),
+          component: () => import("./NotificationList.vue"),
         },
       ],
     },

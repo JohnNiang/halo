@@ -23,11 +23,9 @@ import run.halo.app.content.*;
 import run.halo.app.content.permalinks.PostPermalinkPolicy;
 import run.halo.app.core.extension.content.Post;
 import run.halo.app.core.extension.content.Snapshot;
-import run.halo.app.core.extension.notification.Subscription;
 import run.halo.app.event.post.PostPublishedEvent;
 import run.halo.app.extension.ExtensionClient;
 import run.halo.app.extension.controller.Reconciler;
-import run.halo.app.notification.NotificationCenter;
 import run.halo.app.plugin.extensionpoint.ExtensionGetter;
 
 /**
@@ -52,18 +50,13 @@ class PostReconcilerTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
-    private NotificationCenter notificationCenter;
-
-    @Mock
     private ExtensionGetter extensionGetter;
 
     @InjectMocks
     private PostReconciler postReconciler;
 
     @BeforeEach
-    void setUp() {
-        lenient().when(notificationCenter.subscribe(any(), any())).thenReturn(Mono.empty());
-    }
+    void setUp() {}
 
     @Test
     void reconcile() {
@@ -236,23 +229,5 @@ class PostReconcilerTest {
             Post value = captor.getValue();
             assertThat(value.getStatus().getLastModifyTime()).isNull();
         }
-    }
-
-    @Test
-    void subscribeNewCommentNotificationTest() {
-        Post post = TestPost.postV1();
-
-        postReconciler.subscribeNewCommentNotification(post);
-
-        verify(notificationCenter)
-                .subscribe(
-                        assertArg(subscriber -> assertThat(subscriber.getName())
-                                .isEqualTo(post.getSpec().getOwner())),
-                        assertArg(argReason -> {
-                            var interestReason = new Subscription.InterestReason();
-                            interestReason.setReasonType(NotificationReasonConst.NEW_COMMENT_ON_POST);
-                            interestReason.setExpression("props.postOwner == 'null'");
-                            assertThat(argReason).isEqualTo(interestReason);
-                        }));
     }
 }

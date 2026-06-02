@@ -1,159 +1,131 @@
-<script lang="ts" setup>
-import type { ReasonTypeNotifierRequest } from "@halo-dev/api-client";
-import { ucApiClient } from "@halo-dev/api-client";
-import { VLoading, VSwitch } from "@halo-dev/components";
-import { stores } from "@halo-dev/ui-shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
-import { cloneDeep } from "es-toolkit";
-import { storeToRefs } from "pinia";
-import { computed } from "vue";
+<script setup lang="ts">
+import { Toast, VButton, VLoading, VEmpty } from "@halo-dev/components";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import axios from "axios";
+import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
-const { currentUser } = storeToRefs(stores.currentUser());
-
+const { t } = useI18n();
 const queryClient = useQueryClient();
 
+const api = axios.create({ withCredentials: true });
+
 const { data, isLoading } = useQuery({
-  queryKey: ["notification-preferences"],
+  queryKey: ["uc:notification-preferences"],
   queryFn: async () => {
-    if (!currentUser.value) {
-      return null;
-    }
-
-    const { data } =
-      await ucApiClient.notification.notification.listUserNotificationPreferences(
-        {
-          username: currentUser.value?.user.metadata.name,
-        }
-      );
-
-    return data;
+    const { data } = await api.get(
+      "/apis/uc.api.halo.run/v1alpha1/notification-preferences"
+    );
+    return data as {
+      categories: Array<{
+        name: string;
+        displayName: string;
+        description: string;
+      }>;
+      notifiers: string[];
+      preferences: Record<string, string[]>;
+    };
   },
-  enabled: computed(() => !!currentUser.value),
 });
 
-const {
-  mutate,
-  isLoading: mutating,
-  variables,
-} = useMutation({
-  mutationKey: ["update-notification-preferences"],
-  mutationFn: async ({
-    state,
-    reasonTypeIndex,
-    notifierIndex,
-  }: {
-    state: boolean;
-    reasonTypeIndex: number;
-    notifierIndex: number;
-  }) => {
-    const preferences = cloneDeep(data.value);
+const localPreferences = ref<Record<string, string[]>>({});
 
-    if (!currentUser.value || !preferences) {
-      return;
+watch(
+  () => data.value?.preferences,
+  (prefs) => {
+    if (prefs) {
+      localPreferences.value = JSON.parse(JSON.stringify(prefs));
     }
+  },
+  { immediate: true }
+);
 
-    if (!preferences.stateMatrix) {
-      preferences.stateMatrix = [];
-    }
-
-    preferences.stateMatrix[reasonTypeIndex][notifierIndex] = state;
-
-    const reasonTypeNotifiers = data.value?.reasonTypes
-      ?.map((reasonType, currentReasonTypeIndex) => {
-        return {
-          reasonType: reasonType.name,
-          notifiers: data.value?.notifiers
-            ?.map((notifier, currentNotifierIndex) => {
-              if (
-                preferences.stateMatrix?.[currentReasonTypeIndex][
-                  currentNotifierIndex
-                ]
-              ) {
-                return notifier.name;
-              }
-            })
-            .filter(Boolean),
-        };
-      })
-      .filter(Boolean) as Array<ReasonTypeNotifierRequest>;
-
-    return await ucApiClient.notification.notification.saveUserNotificationPreferences(
-      {
-        username: currentUser.value.user.metadata.name,
-        reasonTypeNotifierCollectionRequest: {
-          reasonTypeNotifiers,
-        },
-      }
+const { mutate: savePreferences, isPending: isSaving } = useMutation({
+  mutationKey: ["uc:notification-preferences:save"],
+  mutationFn: async (prefs: Record<string, string[]>) => {
+    await api.put(
+      "/apis/uc.api.halo.run/v1alpha1/notification-preferences",
+      prefs
     );
   },
-  onSuccess() {
-    queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: ["uc:notification-preferences"],
+    });
+    Toast.success(t("core.common.toast.save_success"));
   },
 });
+
+function toggle(category: string, notifier: string, enabled: boolean) {
+  const next = { ...localPreferences.value };
+  if (!next[category]) {
+    next[category] = [];
+  }
+  if (enabled) {
+    if (!next[category].includes(notifier)) {
+      next[category] = [...next[category], notifier];
+    }
+  } else {
+    next[category] = next[category].filter((n) => n !== notifier);
+  }
+  localPreferences.value = next;
+}
 </script>
 
 <template>
   <VLoading v-if="isLoading" />
-
-  <Transition v-else appear name="fade">
-    <div class="box-border h-full w-full overflow-auto rounded-base border">
-      <table class="min-w-full divide-y divide-gray-100">
-        <thead class="bg-gray-50">
-          <tr>
-            <th
-              class="px-4 py-3 text-left text-sm font-semibold text-gray-900 sm:w-96"
-              scope="col"
-            >
-              {{ $t("core.uc_profile.notification-preferences.fields.type") }}
-            </th>
-            <th
-              v-for="notifier in data?.notifiers"
-              :key="notifier.name"
-              scope="col"
-              class="px-4 py-3 text-left text-sm font-semibold text-gray-900"
-            >
-              {{ notifier.displayName }}
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100 bg-white">
-          <template
-            v-for="(reasonType, index) in data?.reasonTypes"
-            :key="reasonType.name"
-          >
-            <HasPermission :permissions="reasonType.uiPermissions || []">
-              <tr>
-                <td
-                  class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900"
-                >
-                  {{ reasonType.displayName }}
-                </td>
-                <td
-                  v-for="(notifier, notifierIndex) in data?.notifiers"
-                  :key="notifier.name"
-                  class="whitespace-nowrap px-4 py-3 text-sm text-gray-500"
-                >
-                  <VSwitch
-                    :model-value="data?.stateMatrix?.[index][notifierIndex]"
-                    :loading="
-                      mutating &&
-                      variables?.reasonTypeIndex === index &&
-                      variables?.notifierIndex === notifierIndex
-                    "
-                    @change="
-                      mutate({
-                        state: !data?.stateMatrix?.[index][notifierIndex],
-                        reasonTypeIndex: index,
-                        notifierIndex: notifierIndex,
-                      })
-                    "
-                  />
-                </td>
-              </tr>
-            </HasPermission>
-          </template>
-        </tbody>
-      </table>
+  <VEmpty
+    v-else-if="!data || data.categories.length === 0"
+    title="No notification preferences available"
+  />
+  <div v-else class="flex flex-col gap-4">
+    <div
+      v-for="category in data.categories"
+      :key="category.name"
+      class="flex items-center justify-between rounded-lg border p-4"
+    >
+      <div>
+        <div class="font-medium">{{ category.displayName }}</div>
+        <div class="text-sm text-gray-500">{{ category.description }}</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div
+          v-for="notifier in data.notifiers"
+          :key="notifier"
+          class="flex items-center gap-2"
+        >
+          <span class="text-xs text-gray-500">{{ notifier }}</span>
+          <label class="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              class="peer sr-only"
+              :checked="
+                localPreferences[category.name]?.includes(notifier) ?? true
+              "
+              @change="
+                toggle(
+                  category.name,
+                  notifier,
+                  ($event.target as HTMLInputElement).checked
+                )
+              "
+            />
+            <div
+              class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white rtl:peer-checked:after:-translate-x-full"
+            />
+          </label>
+        </div>
+      </div>
     </div>
-  </Transition>
+
+    <div class="flex justify-end">
+      <VButton
+        type="primary"
+        :loading="isSaving"
+        @click="savePreferences(localPreferences)"
+      >
+        {{ t("core.common.buttons.save") }}
+      </VButton>
+    </div>
+  </div>
 </template>

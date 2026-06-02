@@ -18,6 +18,7 @@ import run.halo.app.extension.GVK;
  *
  * @author guqing
  * @since 2.10.0
+ * @deprecated since 2.20.0, kept for backward compatibility with existing plugins.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -27,6 +28,7 @@ import run.halo.app.extension.GVK;
         kind = "Subscription",
         plural = "subscriptions",
         singular = "subscription")
+@Deprecated
 public class Subscription extends AbstractExtension {
 
     @Schema
