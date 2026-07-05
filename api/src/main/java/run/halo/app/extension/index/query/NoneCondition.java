@@ -1,6 +1,6 @@
 package run.halo.app.extension.index.query;
 
-record NoneCondition(String indexName) implements IndexCondition {
+public record NoneCondition(String indexName) implements IndexCondition {
 
     @Override
     public Condition not() {

@@ -1,6 +1,6 @@
 package run.halo.app.extension.index.query;
 
-record StringStartsWithCondition(String indexName, String prefix) implements IndexCondition {
+public record StringStartsWithCondition(String indexName, String prefix) implements IndexCondition {
 
     @Override
     public Condition not() {

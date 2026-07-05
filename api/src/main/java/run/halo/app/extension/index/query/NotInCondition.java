@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 import org.springframework.util.Assert;
 
-record NotInCondition(String indexName, Collection<Object> keys) implements IndexCondition {
+public record NotInCondition(String indexName, Collection<Object> keys) implements IndexCondition {
 
     public NotInCondition {
         Assert.notNull(keys, "Keys of " + indexName + " must not be empty");
