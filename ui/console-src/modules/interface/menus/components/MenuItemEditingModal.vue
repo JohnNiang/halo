@@ -1,5 +1,10 @@
 <script lang="ts" setup>
-import type { Menu, MenuItem, Ref } from "@halo-dev/api-client";
+import type {
+  Menu,
+  MenuItem,
+  MenuItemTreeNode,
+  Ref,
+} from "@halo-dev/api-client";
 import { coreApiClient } from "@halo-dev/api-client";
 import { Toast, VButton, VModal, VSpace } from "@halo-dev/components";
 import { cloneDeep } from "es-toolkit";
@@ -8,14 +13,17 @@ import { useI18n } from "vue-i18n";
 import SubmitButton from "@/components/button/SubmitButton.vue";
 import type AnnotationsForm from "@/components/form/AnnotationsForm.vue";
 import { setFocus } from "@/formkit/utils/focus";
+import { flattenMenuItemTreeNodes } from "../utils";
 
 const props = withDefaults(
   defineProps<{
     menu: Menu;
+    menuItemTree?: MenuItemTreeNode[];
     parentMenuItem?: MenuItem;
     menuItem?: MenuItem;
   }>(),
   {
+    menuItemTree: () => [],
     parentMenuItem: undefined,
     menuItem: undefined,
   }
@@ -35,7 +43,7 @@ const formState = ref<MenuItem>({
     displayName: "",
     href: "",
     target: "_self",
-    children: [],
+    menuName: props.menu.metadata.name,
     priority: 0,
   },
   apiVersion: "v1alpha1",
@@ -72,6 +80,11 @@ const handleSaveMenuItem = async () => {
 
   try {
     saving.value = true;
+    formState.value.spec.menuName = props.menu.metadata.name;
+    if (!isUpdateMode) {
+      formState.value.spec.parent = selectedParentMenuItem.value || undefined;
+      formState.value.spec.priority = siblingCount.value;
+    }
 
     const menuItemRef = menuItemRefs.find(
       (ref) => ref.ref?.kind === selectedRefKind.value
@@ -97,28 +110,6 @@ const handleSaveMenuItem = async () => {
       const { data } = await coreApiClient.menuItem.createMenuItem({
         menuItem: formState.value,
       });
-
-      // if parent menu item is selected, add the new menu item to the parent menu item
-      if (selectedParentMenuItem.value) {
-        const { data: parentMenuItem } =
-          await coreApiClient.menuItem.getMenuItem({
-            name: selectedParentMenuItem.value,
-          });
-
-        await coreApiClient.menuItem.patchMenuItem({
-          name: selectedParentMenuItem.value,
-          jsonPatchInner: [
-            {
-              op: "add",
-              path: "/spec/children",
-              value: [
-                ...(parentMenuItem.spec.children || []),
-                data.metadata.name,
-              ],
-            },
-          ],
-        });
-      }
 
       emit("saved", data);
     }
@@ -205,6 +196,50 @@ const selectedRef = computed(() => {
 const selectedRefKind = ref<string>();
 const selectedRefName = ref<string>("");
 
+const parentMenuItemOptions = computed(() => {
+  const emptyOption = {
+    label: t("core.menu.menu_item_editing_modal.fields.parent.placeholder"),
+    value: "",
+  };
+  const options = flattenMenuItemTreeNodes(props.menuItemTree).map((node) => {
+    const menuItem = node.menuItem;
+    return {
+      label:
+        menuItem.status?.displayName ||
+        menuItem.spec.displayName ||
+        menuItem.metadata.name,
+      value: menuItem.metadata.name,
+    };
+  });
+  return [emptyOption, ...options];
+});
+
+const siblingCount = computed(() => {
+  if (!selectedParentMenuItem.value) {
+    return props.menuItemTree.length;
+  }
+  const parent = findMenuItemTreeNode(
+    props.menuItemTree,
+    selectedParentMenuItem.value
+  );
+  return parent?.children.length || 0;
+});
+
+function findMenuItemTreeNode(
+  nodes: MenuItemTreeNode[],
+  name: string
+): MenuItemTreeNode | undefined {
+  for (const node of nodes) {
+    if (node.menuItem.metadata.name === name) {
+      return node;
+    }
+    const child = findMenuItemTreeNode(node.children, name);
+    if (child) {
+      return child;
+    }
+  }
+}
+
 const onMenuItemSourceChange = () => {
   selectedRefName.value = "";
 };
@@ -222,7 +257,8 @@ onMounted(() => {
     }
   }
 
-  selectedParentMenuItem.value = props.parentMenuItem?.metadata.name || "";
+  selectedParentMenuItem.value =
+    props.parentMenuItem?.metadata.name || props.menuItem?.spec.parent || "";
 
   setFocus("displayNameInput");
 });
@@ -258,9 +294,8 @@ onMounted(() => {
                   'core.menu.menu_item_editing_modal.fields.parent.placeholder'
                 )
               "
-              type="menuItemSelect"
-              :clearable="true"
-              :menu-items="menu.spec.menuItems || []"
+              type="select"
+              :options="parentMenuItemOptions"
             />
 
             <FormKit
