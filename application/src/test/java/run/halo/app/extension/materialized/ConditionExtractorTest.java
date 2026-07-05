@@ -13,7 +13,6 @@ import run.halo.app.extension.index.query.EmptyCondition;
 import run.halo.app.extension.index.query.IndexCondition;
 import run.halo.app.extension.index.query.LabelCondition;
 import run.halo.app.extension.index.query.NotCondition;
-import run.halo.app.extension.index.query.OrCondition;
 import run.halo.app.extension.index.query.Queries;
 
 class ConditionExtractorTest {
@@ -123,19 +122,18 @@ class ConditionExtractorTest {
     }
 
     @Test
-    void orOfFieldAndLabelShouldExtractLabel() {
+    void orOfFieldAndLabelShouldNotExtractLabel() {
+        // Label conditions inside OR branches must NOT be extracted.
+        // Replacing them with EmptyCondition would make the OR match everything.
         var fieldCondition = Queries.equal("spec.email", "a@b.com");
         var labelCondition = Queries.labelEqual("app", "halo");
         var combined = fieldCondition.or(labelCondition);
 
         var result = extractor.extract(combined);
 
-        assertInstanceOf(OrCondition.class, result.fieldCondition());
-        var orResult = (OrCondition) result.fieldCondition();
-        assertEquals(fieldCondition, orResult.left());
-        assertInstanceOf(EmptyCondition.class, orResult.right());
-        assertEquals(1, result.labelConditions().size());
-        assertEquals(labelCondition, result.labelConditions().getFirst());
+        // The entire OR is left unchanged in the field tree
+        assertEquals(combined, result.fieldCondition());
+        assertTrue(result.labelConditions().isEmpty());
         assertTrue(result.roleConditions().isEmpty());
     }
 
@@ -156,6 +154,7 @@ class ConditionExtractorTest {
     @Test
     void complexNestedConditionShouldExtractCorrectly() {
         // AND(OR(field1, label1), role1)
+        // The OR is left as-is (label not extracted from OR). Only role1 is extracted.
         var fieldCondition = Queries.equal("spec.email", "a@b.com");
         var labelCondition = Queries.labelEqual("app", "halo");
         var roleCondition = Queries.in("roles", "admin");
@@ -165,25 +164,24 @@ class ConditionExtractorTest {
 
         var result = extractor.extract(combined);
 
-        // fieldCondition tree: AND(OR(field1, EMPTY), EMPTY)
+        // fieldCondition tree: AND(OR(field1, label1), EMPTY)
         assertInstanceOf(AndCondition.class, result.fieldCondition());
         var andResult = (AndCondition) result.fieldCondition();
 
-        assertInstanceOf(OrCondition.class, andResult.left());
-        var orResult = (OrCondition) andResult.left();
-        assertEquals(fieldCondition, orResult.left());
-        assertInstanceOf(EmptyCondition.class, orResult.right());
-
+        // OR branch is preserved as-is (label not extracted)
+        assertEquals(orCondition, andResult.left());
         assertInstanceOf(EmptyCondition.class, andResult.right());
 
-        assertEquals(1, result.labelConditions().size());
-        assertEquals(labelCondition, result.labelConditions().getFirst());
+        // Label was NOT extracted (it's inside an OR)
+        assertTrue(result.labelConditions().isEmpty());
+        // Role was extracted from the AND
         assertEquals(1, result.roleConditions().size());
     }
 
     @Test
     void deeplyNestedConditionsShouldExtractAll() {
         // AND(AND(field1, label1), OR(label2, role1))
+        // label1 extracted from AND; label2 and role1 NOT extracted from OR
         var field1 = Queries.equal("spec.name", "test");
         LabelCondition label1 = Queries.labelEqual("env", "prod");
         LabelCondition label2 = Queries.labelExists("tier");
@@ -199,22 +197,19 @@ class ConditionExtractorTest {
         assertInstanceOf(AndCondition.class, result.fieldCondition());
         var topAnd = (AndCondition) result.fieldCondition();
 
+        // Left: AND(field1, EMPTY) — label1 extracted from AND
         assertInstanceOf(AndCondition.class, topAnd.left());
         var leftAnd = (AndCondition) topAnd.left();
         assertEquals(field1, leftAnd.left());
         assertInstanceOf(EmptyCondition.class, leftAnd.right());
 
-        assertInstanceOf(OrCondition.class, topAnd.right());
-        var rightOr = (OrCondition) topAnd.right();
-        assertInstanceOf(EmptyCondition.class, rightOr.left());
-        assertInstanceOf(EmptyCondition.class, rightOr.right());
+        // Right: OR(label2, role1) preserved as-is — nothing extracted from OR
+        assertEquals(innerOr, topAnd.right());
 
-        // Verify extracted conditions
-        assertEquals(2, result.labelConditions().size());
-        assertEquals(label1, result.labelConditions().get(0));
-        assertEquals(label2, result.labelConditions().get(1));
-        assertEquals(1, result.roleConditions().size());
-        assertEquals(role1, result.roleConditions().getFirst());
+        // Verify extracted conditions: only label1 from the AND branch
+        assertEquals(1, result.labelConditions().size());
+        assertEquals(label1, result.labelConditions().getFirst());
+        assertTrue(result.roleConditions().isEmpty());
     }
 
     @Test
@@ -300,6 +295,36 @@ class ConditionExtractorTest {
         assertInstanceOf(NotCondition.class, result.fieldCondition());
         var notResult = (NotCondition) result.fieldCondition();
         assertEquals(fieldCondition, notResult.condition());
+        assertTrue(result.labelConditions().isEmpty());
+        assertTrue(result.roleConditions().isEmpty());
+    }
+
+    @Test
+    void orOfTwoLabelsShouldNotExtractEither() {
+        // OR(label1, label2) — both branches are label conditions;
+        // neither should be extracted to avoid the OR-matches-everything bug.
+        var label1 = Queries.labelEqual("env", "prod");
+        var label2 = Queries.labelExists("tier");
+        var combined = ((Condition) label1).or(label2);
+
+        var result = extractor.extract(combined);
+
+        // The entire OR is preserved as-is in the field tree
+        assertEquals(combined, result.fieldCondition());
+        assertTrue(result.labelConditions().isEmpty());
+        assertTrue(result.roleConditions().isEmpty());
+    }
+
+    @Test
+    void orOfLabelAndRoleShouldNotExtractEither() {
+        // OR(label, role) — both are special conditions; leave OR intact.
+        var labelCondition = Queries.labelEqual("app", "halo");
+        var roleCondition = Queries.in("roles", "admin");
+        var combined = ((Condition) labelCondition).or(roleCondition);
+
+        var result = extractor.extract(combined);
+
+        assertEquals(combined, result.fieldCondition());
         assertTrue(result.labelConditions().isEmpty());
         assertTrue(result.roleConditions().isEmpty());
     }

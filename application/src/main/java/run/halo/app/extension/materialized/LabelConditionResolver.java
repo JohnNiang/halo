@@ -100,17 +100,19 @@ public class LabelConditionResolver {
     }
 
     private ResolutionResult combine(ResolutionResult a, ResolutionResult b) {
-        // When combining: both positive → intersect.
-        // If one is negated, we need special handling.
-        // For simplicity, intersect the name sets and OR the negation flags.
-        // This handles the common case of multiple positive conditions.
+        // Both positive → intersect (AND semantics)
         if (!a.negated() && !b.negated()) {
             var result = new HashSet<>(a.names());
             result.retainAll(b.names());
             return new ResolutionResult(result, false);
         }
-        // For mixed negation, fall back to the names from the positive side
-        // minus the names from the negated side.
+        // Both negated → NOT A AND NOT B = NOT (A ∪ B): exclude the union
+        if (a.negated() && b.negated()) {
+            var combined = new HashSet<>(a.names());
+            combined.addAll(b.names());
+            return new ResolutionResult(Set.copyOf(combined), true);
+        }
+        // Mixed: one positive, one negated → positive minus negated
         var positiveNames = a.negated() ? b.names() : a.names();
         var negativeNames = a.negated() ? a.names() : b.names();
         var result = new HashSet<>(positiveNames);

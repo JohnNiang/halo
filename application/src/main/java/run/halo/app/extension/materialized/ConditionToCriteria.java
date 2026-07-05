@@ -92,8 +92,11 @@ public class ConditionToCriteria {
             case NotCondition c -> negate(c.condition());
             case AllCondition ignored -> Criteria.empty();
             case NoneCondition ignored -> createImpossibleCriteria();
-            default -> throw new UnsupportedOperationException(
-                "Unknown condition type: " + condition.getClass().getName());
+            default -> {
+                // Label/role conditions that were not extracted (e.g., inside OR branches)
+                // are treated as no-ops in the criteria tree.
+                yield Criteria.empty();
+            }
         };
     }
 
@@ -141,8 +144,10 @@ public class ConditionToCriteria {
             case NotCondition c -> convert(c.condition());
             case AllCondition ignored -> createImpossibleCriteria();
             case NoneCondition ignored -> Criteria.empty();
-            default -> throw new UnsupportedOperationException(
-                "Unknown condition type: " + condition.getClass().getName());
+            default -> {
+                // Label/role conditions left in the tree are treated as no-ops.
+                yield createImpossibleCriteria();
+            }
         };
     }
 

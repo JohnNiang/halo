@@ -55,13 +55,11 @@ public class ConditionExtractor {
             );
         }
         if (condition instanceof OrCondition orCondition) {
-            var leftResult = extract(orCondition.left());
-            var rightResult = extract(orCondition.right());
-            return new Result(
-                new OrCondition(leftResult.fieldCondition, rightResult.fieldCondition),
-                concat(leftResult.labelConditions, rightResult.labelConditions),
-                concat(leftResult.roleConditions, rightResult.roleConditions)
-            );
+            // Don't extract label/role from OR branches. If a label/role condition
+            // appears in an OR branch and is replaced with EmptyCondition (no-op),
+            // the entire OR would match everything. Instead, leave label/role conditions
+            // in the field tree; ConditionToCriteria treats them as Criteria.empty() (no-op).
+            return new Result(condition, List.of(), List.of());
         }
         if (condition instanceof NotCondition notCondition) {
             var innerResult = extract(notCondition.condition());

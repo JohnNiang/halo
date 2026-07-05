@@ -1,7 +1,6 @@
 package run.halo.app.extension.materialized;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
@@ -504,12 +503,13 @@ class ConditionToCriteriaTest {
     }
 
     @Test
-    void shouldThrowExceptionForUnknownConditionType() {
+    void shouldTreatUnknownConditionTypeAsEmpty() {
+        // Unknown conditions (e.g., label/role conditions left in OR branches)
+        // are treated as no-ops (Criteria.empty()) rather than throwing.
         var unknownCondition = new Condition() {};
 
-        assertThatThrownBy(() -> converter.convert(unknownCondition))
-            .isInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("Unknown condition type");
+        var criteria = converter.convert(unknownCondition);
+        assertThat(criteria).isEqualTo(Criteria.empty());
     }
 
     @Test

@@ -217,4 +217,28 @@ class LabelConditionResolverTest {
             })
             .verifyComplete();
     }
+
+    @Test
+    void shouldCombineTwoNegatedConditionsAsUnion() {
+        // NOT label1 AND NOT label2 = NOT (label1 ∪ label2)
+        // The combined result should have the union of excluded names with negated=true.
+        when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
+            eq("region"), eq("us-east")))
+            .thenReturn(Flux.just("ext-1", "ext-2"));
+        when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
+            eq("tier"), eq("free")))
+            .thenReturn(Flux.just("ext-2", "ext-3"));
+
+        var condition1 = new LabelNotEqualsCondition("region", "us-east");
+        var condition2 = new LabelNotEqualsCondition("tier", "free");
+
+        resolver.resolve(List.of(condition1, condition2))
+            .as(StepVerifier::create)
+            .assertNext(result -> {
+                // Should be the union of {ext-1, ext-2} and {ext-2, ext-3}
+                assertThat(result.names()).containsExactlyInAnyOrder("ext-1", "ext-2", "ext-3");
+                assertThat(result.negated()).isTrue();
+            })
+            .verifyComplete();
+    }
 }
