@@ -136,6 +136,24 @@ public class MaterializedUserStoreWriter {
     }
 
     private Mono<Void> upsertUser(UserPo userPo) {
-        return userRepository.save(userPo).then();
+        // R2DBC save() with @Version always tries UPDATE first when @Id is set,
+        // which fails with OptimisticLockingFailureException if the row doesn't exist yet.
+        // To work around this, we check existence first:
+        // - If found, copy the existing version so UPDATE matches correctly.
+        // - If not found, null out the version so R2DBC treats it as a new INSERT.
+        return userRepository.existsById(userPo.getName())
+            .flatMap(exists -> {
+                if (exists) {
+                    return userRepository.findById(userPo.getName())
+                        .map(existing -> {
+                            userPo.setVersion(existing.getVersion());
+                            return userPo;
+                        })
+                        .flatMap(userRepository::save);
+                }
+                userPo.setVersion(null);
+                return userRepository.save(userPo);
+            })
+            .then();
     }
 }

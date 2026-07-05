@@ -70,17 +70,23 @@ public class ConditionToCriteria {
             case BetweenCondition c -> convertBetween(c);
             case NotBetweenCondition c -> convertNotBetween(c);
             case StringContainsCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like("%" + c.keyword() + "%");
+                Criteria.where(mapColumn(c.indexName())).like("%" + c.keyword() + "%")
+                    .ignoreCase(true);
             case StringStartsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like(c.prefix() + "%");
+                Criteria.where(mapColumn(c.indexName())).like(c.prefix() + "%")
+                    .ignoreCase(true);
             case StringEndsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like("%" + c.suffix());
+                Criteria.where(mapColumn(c.indexName())).like("%" + c.suffix())
+                    .ignoreCase(true);
             case StringNotContainsCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.keyword() + "%");
+                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.keyword() + "%")
+                    .ignoreCase(true);
             case StringNotStartsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike(c.prefix() + "%");
+                Criteria.where(mapColumn(c.indexName())).notLike(c.prefix() + "%")
+                    .ignoreCase(true);
             case StringNotEndsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.suffix());
+                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.suffix())
+                    .ignoreCase(true);
             case AndCondition c -> convert(c.left()).and(convert(c.right()));
             case OrCondition c -> convert(c.left()).or(convert(c.right()));
             case NotCondition c -> negate(c.condition());
@@ -111,17 +117,23 @@ public class ConditionToCriteria {
             case BetweenCondition c -> convert(c.not());
             case NotBetweenCondition c -> convert(c.not());
             case StringContainsCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.keyword() + "%");
+                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.keyword() + "%")
+                    .ignoreCase(true);
             case StringStartsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike(c.prefix() + "%");
+                Criteria.where(mapColumn(c.indexName())).notLike(c.prefix() + "%")
+                    .ignoreCase(true);
             case StringEndsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.suffix());
+                Criteria.where(mapColumn(c.indexName())).notLike("%" + c.suffix())
+                    .ignoreCase(true);
             case StringNotContainsCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like("%" + c.keyword() + "%");
+                Criteria.where(mapColumn(c.indexName())).like("%" + c.keyword() + "%")
+                    .ignoreCase(true);
             case StringNotStartsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like(c.prefix() + "%");
+                Criteria.where(mapColumn(c.indexName())).like(c.prefix() + "%")
+                    .ignoreCase(true);
             case StringNotEndsWithCondition c ->
-                Criteria.where(mapColumn(c.indexName())).like("%" + c.suffix());
+                Criteria.where(mapColumn(c.indexName())).like("%" + c.suffix())
+                    .ignoreCase(true);
             // De Morgan's laws
             case AndCondition c -> negate(c.left()).or(negate(c.right()));
             case OrCondition c -> negate(c.left()).and(negate(c.right()));

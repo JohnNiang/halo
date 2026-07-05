@@ -133,6 +133,36 @@ public class UserSqlQueryEngine {
     }
 
     /**
+     * List user names matching the given options, with pagination.
+     *
+     * @param options list options with label and/or field selectors
+     * @param sort    sort order
+     * @param page    pagination info (1-based page number)
+     * @return mono of list result containing the current page of names and total count
+     */
+    public Mono<ListResult<String>> listNamesBy(ListOptions options, Sort sort, PageRequest page) {
+        var result = conditionExtractor.extract(options.toCondition());
+        return Mono.zip(
+                resolveLabelNames(result.labelConditions()),
+                resolveRoleNames(result.roleConditions())
+            )
+            .flatMap(tuple -> {
+                var labelNames = tuple.getT1();
+                var roleNames = tuple.getT2();
+                var nameSet = combineNameSets(labelNames, roleNames);
+                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+                var query = Query.query(criteria).sort(mapSort(sort)).with(toPageable(page));
+                var items = entityOperations.select(UserPo.class).matching(query).all()
+                    .map(UserPo::getName)
+                    .collectList();
+                var count = entityOperations.count(Query.query(criteria), UserPo.class);
+                return Mono.zip(items, count);
+            })
+            .map(tuple -> new ListResult<>(page.getPageNumber(), page.getPageSize(),
+                tuple.getT2(), tuple.getT1()));
+    }
+
+    /**
      * List user names matching the given options.
      *
      * @param options list options with label and/or field selectors
@@ -200,9 +230,21 @@ public class UserSqlQueryEngine {
     private Criteria buildCriteria(Condition fieldCondition, Set<String> nameSet) {
         var criteria = conditionToCriteria.convert(fieldCondition);
         if (!nameSet.isEmpty()) {
-            criteria = criteria.and(Criteria.where("name").in(nameSet));
+            var shortNames = nameSet.stream()
+                .map(UserSqlQueryEngine::extractShortName)
+                .collect(java.util.stream.Collectors.toSet());
+            criteria = criteria.and(Criteria.where("name").in(shortNames));
         }
         return criteria;
+    }
+
+    /**
+     * Extracts the short name from a full store name.
+     * For example, "/registry/users/admin" → "admin".
+     */
+    static String extractShortName(String storeName) {
+        int lastSlash = storeName.lastIndexOf('/');
+        return lastSlash >= 0 ? storeName.substring(lastSlash + 1) : storeName;
     }
 
     private User convertUserPoToUser(UserPo po) {

@@ -331,20 +331,20 @@ class UserSqlQueryEngineTest {
         return user;
     }
 
-    private ExtensionLabel createLabel(String extensionName, String key, String value) {
+    private ExtensionLabel createLabel(String userName, String key, String value) {
         var label = new ExtensionLabel();
         var id = new ExtensionLabelId();
-        id.setExtensionName(extensionName);
+        id.setExtensionName("/registry/users/" + userName);
         id.setLabelKey(key);
         label.setId(id);
         label.setLabelValue(value);
         return label;
     }
 
-    private UserRole createRole(String storeName, String roleName) {
+    private UserRole createRole(String userName, String roleName) {
         var role = new UserRole();
         var id = new UserRoleId();
-        id.setStoreName(storeName);
+        id.setStoreName("/registry/users/" + userName);
         id.setRoleName(roleName);
         role.setId(id);
         return role;

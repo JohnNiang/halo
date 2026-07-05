@@ -2,7 +2,9 @@ package run.halo.app.extension.materialized;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +54,9 @@ class MaterializedUserStoreWriterTest {
         writer = new MaterializedUserStoreWriter(
             userRepository, labelRepository, roleRepository, schemeManager
         );
+        // Default: no existing user in the table (insert scenario)
+        lenient().when(userRepository.existsById(anyString())).thenReturn(Mono.just(false));
+        lenient().when(userRepository.findById(anyString())).thenReturn(Mono.empty());
     }
 
     @Test
@@ -102,7 +107,14 @@ class MaterializedUserStoreWriterTest {
         var user = createUser("admin", "Updated Admin", "updated@example.com");
         user.getMetadata().setVersion(2L);
 
+        // Simulate existing user in the database with version 1
+        var existingPo = new UserPo();
+        existingPo.setName("admin");
+        existingPo.setVersion(1L);
+
         when(schemeManager.get(User.class)).thenReturn(buildUserScheme());
+        when(userRepository.existsById("admin")).thenReturn(Mono.just(true));
+        when(userRepository.findById("admin")).thenReturn(Mono.just(existingPo));
         when(userRepository.save(any())).thenReturn(Mono.empty());
         when(labelRepository.deleteByExtensionName(any())).thenReturn(Mono.empty());
         when(roleRepository.deleteByStoreName(any())).thenReturn(Mono.empty());
@@ -114,7 +126,8 @@ class MaterializedUserStoreWriterTest {
         var userPoCaptor = ArgumentCaptor.forClass(UserPo.class);
         verify(userRepository).save(userPoCaptor.capture());
         assertThat(userPoCaptor.getValue().getDisplayName()).isEqualTo("Updated Admin");
-        assertThat(userPoCaptor.getValue().getVersion()).isEqualTo(2L);
+        // upsertUser copies the existing version from the database for the UPDATE
+        assertThat(userPoCaptor.getValue().getVersion()).isEqualTo(1L);
     }
 
     @Test
@@ -216,7 +229,8 @@ class MaterializedUserStoreWriterTest {
         assertThat(po.isDisabled()).isTrue();
         assertThat(po.getCreationTimestamp()).isEqualTo(now);
         assertThat(po.getDeletionTimestamp()).isEqualTo(now);
-        assertThat(po.getVersion()).isEqualTo(5L);
+        // For a new user (not found in DB), version is nulled out for INSERT
+        assertThat(po.getVersion()).isNull();
     }
 
     @Test
