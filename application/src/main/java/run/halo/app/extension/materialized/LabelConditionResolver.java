@@ -31,82 +31,90 @@ public class LabelConditionResolver {
     }
 
     /**
-     * Resolve label conditions to matching extension store names.
+     * Result of resolving label conditions.
+     *
+     * @param names       matching extension store names
+     * @param negated     whether the overall condition is negated (true = these are names to EXCLUDE)
+     */
+    public record ResolutionResult(Set<String> names, boolean negated) {}
+
+    /**
+     * Resolve label conditions to a {@link ResolutionResult}.
      * Multiple conditions are intersected (AND semantics).
-     * Returns empty set if no conditions provided.
+     * Returns empty (negated=false) if no conditions provided.
      *
      * @param conditions list of label conditions to resolve
-     * @return mono of set of matching extension store names
+     * @return mono of resolution result
      */
-    public Mono<Set<String>> resolve(List<LabelCondition> conditions) {
+    public Mono<ResolutionResult> resolve(List<LabelCondition> conditions) {
         if (conditions.isEmpty()) {
-            return Mono.just(Set.of());
+            return Mono.just(new ResolutionResult(Set.of(), false));
         }
         return Flux.fromIterable(conditions)
             .concatMap(this::resolveSingle)
-            .reduce(this::intersect);
+            .reduce(this::combine);
     }
 
-    private Mono<Set<String>> resolveSingle(LabelCondition condition) {
+    private Mono<ResolutionResult> resolveSingle(LabelCondition condition) {
         return switch (condition) {
             case LabelEqualsCondition c -> labelRepository
                 .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), c.labelValue())
                 .collectList()
-                .map(HashSet::new);
+                .map(names -> new ResolutionResult(new HashSet<>(names), false));
             case LabelNotEqualsCondition c -> resolveNotEquals(c);
             case LabelExistsCondition c -> labelRepository
                 .findExtensionNamesByLabelKey(c.labelKey())
                 .collectList()
-                .map(HashSet::new);
+                .map(names -> new ResolutionResult(new HashSet<>(names), false));
             case LabelNotExistsCondition ignored ->
                 // Cannot be resolved without knowing all extension names.
-                // Return empty set; the caller must handle this case.
-                Mono.just(Set.of());
+                Mono.just(new ResolutionResult(Set.of(), false));
             case LabelInCondition c -> Flux.fromIterable(c.labelValues())
                 .concatMap(value -> labelRepository
                     .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), value))
                 .collectList()
-                .map(HashSet::new);
+                .map(names -> new ResolutionResult(new HashSet<>(names), false));
             case LabelNotInCondition c -> resolveNotIn(c);
             default -> throw new UnsupportedOperationException(
                 "Unknown label condition type: " + condition.getClass().getName());
         };
     }
 
-    private Mono<Set<String>> resolveNotEquals(LabelNotEqualsCondition c) {
-        return labelRepository.findExtensionNamesByLabelKey(c.labelKey())
+    private Mono<ResolutionResult> resolveNotEquals(LabelNotEqualsCondition c) {
+        // Positive: find names that have the label with the given value.
+        // These are the names to EXCLUDE.
+        return labelRepository
+            .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), c.labelValue())
             .collectList()
-            .map(HashSet::new)
-            .flatMap(allForKey -> labelRepository
-                .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), c.labelValue())
-                .collectList()
-                .map(exactMatches -> {
-                    var result = new HashSet<>(allForKey);
-                    result.removeAll(new HashSet<>(exactMatches));
-                    return result;
-                })
-            );
+            .map(names -> new ResolutionResult(new HashSet<>(names), true));
     }
 
-    private Mono<Set<String>> resolveNotIn(LabelNotInCondition c) {
-        return labelRepository.findExtensionNamesByLabelKey(c.labelKey())
+    private Mono<ResolutionResult> resolveNotIn(LabelNotInCondition c) {
+        // Positive: find names that have the label with any of the given values.
+        // These are the names to EXCLUDE.
+        return Flux.fromIterable(c.labelValues())
+            .concatMap(value -> labelRepository
+                .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), value))
             .collectList()
-            .map(HashSet::new)
-            .flatMap(allForKey -> Flux.fromIterable(c.labelValues())
-                .concatMap(value -> labelRepository
-                    .findExtensionNamesByLabelKeyAndLabelValue(c.labelKey(), value))
-                .collectList()
-                .map(excludedNames -> {
-                    var result = new HashSet<>(allForKey);
-                    result.removeAll(new HashSet<>(excludedNames));
-                    return result;
-                })
-            );
+            .map(names -> new ResolutionResult(new HashSet<>(names), true));
     }
 
-    private Set<String> intersect(Set<String> a, Set<String> b) {
-        var result = new HashSet<>(a);
-        result.retainAll(b);
-        return result;
+    private ResolutionResult combine(ResolutionResult a, ResolutionResult b) {
+        // When combining: both positive → intersect.
+        // If one is negated, we need special handling.
+        // For simplicity, intersect the name sets and OR the negation flags.
+        // This handles the common case of multiple positive conditions.
+        if (!a.negated() && !b.negated()) {
+            var result = new HashSet<>(a.names());
+            result.retainAll(b.names());
+            return new ResolutionResult(result, false);
+        }
+        // For mixed negation, fall back to the names from the positive side
+        // minus the names from the negated side.
+        var positiveNames = a.negated() ? b.names() : a.names();
+        var negativeNames = a.negated() ? a.names() : b.names();
+        var result = new HashSet<>(positiveNames);
+        result.removeAll(negativeNames);
+        return new ResolutionResult(result, false);
     }
 }

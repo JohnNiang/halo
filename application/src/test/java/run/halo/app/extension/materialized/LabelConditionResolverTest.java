@@ -13,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import run.halo.app.extension.index.query.LabelCondition;
 import run.halo.app.extension.index.query.LabelEqualsCondition;
@@ -43,10 +42,13 @@ class LabelConditionResolverTest {
     }
 
     @Test
-    void shouldReturnEmptySetForEmptyConditions() {
+    void shouldReturnEmptyResultForEmptyConditions() {
         resolver.resolve(List.of())
             .as(StepVerifier::create)
-            .expectNext(Set.of())
+            .assertNext(result -> {
+                assertThat(result.names()).isEmpty();
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
@@ -60,7 +62,10 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .expectNext(Set.of("user-1", "user-2"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder("user-1", "user-2");
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
@@ -73,23 +78,29 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .expectNext(Set.of("user-1", "user-2", "user-3"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder(
+                    "user-1", "user-2", "user-3");
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
     @Test
     void shouldResolveLabelNotEqualsCondition() {
-        when(labelRepository.findExtensionNamesByLabelKey(eq("halo.run/hidden-user")))
-            .thenReturn(Flux.just("user-1", "user-2", "user-3"));
         when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
             eq("halo.run/hidden-user"), eq("true")))
             .thenReturn(Flux.just("user-1"));
 
         var condition = new LabelNotEqualsCondition("halo.run/hidden-user", "true");
 
+        // NotEquals returns the EXCLUDED names with negated=true
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .expectNext(Set.of("user-2", "user-3"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder("user-1");
+                assertThat(result.negated()).isTrue();
+            })
             .verifyComplete();
     }
 
@@ -106,15 +117,16 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .assertNext(result -> assertThat(result).containsExactlyInAnyOrder(
-                "post-1", "post-2", "post-3"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder(
+                    "post-1", "post-2", "post-3");
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
     @Test
     void shouldResolveLabelNotInCondition() {
-        when(labelRepository.findExtensionNamesByLabelKey(eq("category")))
-            .thenReturn(Flux.just("post-1", "post-2", "post-3", "post-4"));
         when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
             eq("category"), eq("tech")))
             .thenReturn(Flux.just("post-1"));
@@ -124,15 +136,18 @@ class LabelConditionResolverTest {
 
         var condition = new LabelNotInCondition("category", List.of("tech", "news"));
 
+        // NotIn returns the EXCLUDED names with negated=true
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .assertNext(result -> assertThat(result).containsExactlyInAnyOrder(
-                "post-3", "post-4"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder("post-1", "post-2");
+                assertThat(result.negated()).isTrue();
+            })
             .verifyComplete();
     }
 
     @Test
-    void shouldIntersectMultipleConditions() {
+    void shouldIntersectMultiplePositiveConditions() {
         when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
             eq("type"), eq("article")))
             .thenReturn(Flux.just("ext-1", "ext-2", "ext-3"));
@@ -145,13 +160,15 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition1, condition2))
             .as(StepVerifier::create)
-            .assertNext(result -> assertThat(result).containsExactlyInAnyOrder(
-                "ext-1", "ext-2"))
+            .assertNext(result -> {
+                assertThat(result.names()).containsExactlyInAnyOrder("ext-1", "ext-2");
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
     @Test
-    void shouldReturnEmptySetWhenNoLabelsMatch() {
+    void shouldReturnEmptyNamesWhenNoLabelsMatch() {
         when(labelRepository.findExtensionNamesByLabelKeyAndLabelValue(
             anyString(), anyString()))
             .thenReturn(Flux.empty());
@@ -160,17 +177,23 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .expectNext(Set.of())
+            .assertNext(result -> {
+                assertThat(result.names()).isEmpty();
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
     @Test
-    void shouldReturnEmptySetForNotExistsCondition() {
+    void shouldReturnEmptyResultForNotExistsCondition() {
         var condition = new LabelNotExistsCondition("some-key");
 
         resolver.resolve(List.of(condition))
             .as(StepVerifier::create)
-            .expectNext(Set.of())
+            .assertNext(result -> {
+                assertThat(result.names()).isEmpty();
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 
@@ -188,7 +211,10 @@ class LabelConditionResolverTest {
 
         resolver.resolve(List.of(condition1, condition2))
             .as(StepVerifier::create)
-            .expectNext(Set.of())
+            .assertNext(result -> {
+                assertThat(result.names()).isEmpty();
+                assertThat(result.negated()).isFalse();
+            })
             .verifyComplete();
     }
 }

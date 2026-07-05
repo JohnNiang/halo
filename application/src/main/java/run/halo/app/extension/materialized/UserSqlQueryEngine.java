@@ -2,6 +2,7 @@ package run.halo.app.extension.materialized;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityOperations;
@@ -23,7 +24,7 @@ import run.halo.app.extension.index.query.Condition;
  * <p>Orchestrates condition extraction, label/role resolution, criteria conversion, and SQL
  * execution via {@link R2dbcEntityOperations}.</p>
  *
- * @author johnniang
+ * @author halo
  * @since 2.22.0
  */
 @Component
@@ -67,15 +68,9 @@ public class UserSqlQueryEngine {
      */
     public Mono<ListResult<User>> listBy(ListOptions options, Sort sort, PageRequest page) {
         var result = conditionExtractor.extract(options.toCondition());
-        return Mono.zip(
-                resolveLabelNames(result.labelConditions()),
-                resolveRoleNames(result.roleConditions())
-            )
-            .flatMap(tuple -> {
-                var labelNames = tuple.getT1();
-                var roleNames = tuple.getT2();
-                var nameSet = combineNameSets(labelNames, roleNames);
-                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+        return resolveNameSet(result.labelConditions(), result.roleConditions())
+            .flatMap(optional -> {
+                var criteria = buildCriteria(result.fieldCondition(), optional);
                 var query = Query.query(criteria).sort(mapSort(sort)).with(toPageable(page));
                 var items = entityOperations.select(UserPo.class).matching(query).all()
                     .map(this::convertUserPoToUser)
@@ -96,15 +91,9 @@ public class UserSqlQueryEngine {
      */
     public Flux<User> listAll(ListOptions options, Sort sort) {
         var result = conditionExtractor.extract(options.toCondition());
-        return Mono.zip(
-                resolveLabelNames(result.labelConditions()),
-                resolveRoleNames(result.roleConditions())
-            )
-            .flatMapMany(tuple -> {
-                var labelNames = tuple.getT1();
-                var roleNames = tuple.getT2();
-                var nameSet = combineNameSets(labelNames, roleNames);
-                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+        return resolveNameSet(result.labelConditions(), result.roleConditions())
+            .flatMapMany(optional -> {
+                var criteria = buildCriteria(result.fieldCondition(), optional);
                 var query = Query.query(criteria).sort(mapSort(sort));
                 return entityOperations.select(UserPo.class).matching(query).all()
                     .map(this::convertUserPoToUser);
@@ -119,15 +108,9 @@ public class UserSqlQueryEngine {
      */
     public Mono<Long> countBy(ListOptions options) {
         var result = conditionExtractor.extract(options.toCondition());
-        return Mono.zip(
-                resolveLabelNames(result.labelConditions()),
-                resolveRoleNames(result.roleConditions())
-            )
-            .flatMap(tuple -> {
-                var labelNames = tuple.getT1();
-                var roleNames = tuple.getT2();
-                var nameSet = combineNameSets(labelNames, roleNames);
-                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+        return resolveNameSet(result.labelConditions(), result.roleConditions())
+            .flatMap(optional -> {
+                var criteria = buildCriteria(result.fieldCondition(), optional);
                 return entityOperations.count(Query.query(criteria), UserPo.class);
             });
     }
@@ -142,15 +125,9 @@ public class UserSqlQueryEngine {
      */
     public Mono<ListResult<String>> listNamesBy(ListOptions options, Sort sort, PageRequest page) {
         var result = conditionExtractor.extract(options.toCondition());
-        return Mono.zip(
-                resolveLabelNames(result.labelConditions()),
-                resolveRoleNames(result.roleConditions())
-            )
-            .flatMap(tuple -> {
-                var labelNames = tuple.getT1();
-                var roleNames = tuple.getT2();
-                var nameSet = combineNameSets(labelNames, roleNames);
-                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+        return resolveNameSet(result.labelConditions(), result.roleConditions())
+            .flatMap(optional -> {
+                var criteria = buildCriteria(result.fieldCondition(), optional);
                 var query = Query.query(criteria).sort(mapSort(sort)).with(toPageable(page));
                 var items = entityOperations.select(UserPo.class).matching(query).all()
                     .map(UserPo::getName)
@@ -171,71 +148,88 @@ public class UserSqlQueryEngine {
      */
     public Flux<String> listAllNames(ListOptions options, Sort sort) {
         var result = conditionExtractor.extract(options.toCondition());
-        return Mono.zip(
-                resolveLabelNames(result.labelConditions()),
-                resolveRoleNames(result.roleConditions())
-            )
-            .flatMapMany(tuple -> {
-                var labelNames = tuple.getT1();
-                var roleNames = tuple.getT2();
-                var nameSet = combineNameSets(labelNames, roleNames);
-                var criteria = buildCriteria(result.fieldCondition(), nameSet);
+        return resolveNameSet(result.labelConditions(), result.roleConditions())
+            .flatMapMany(optional -> {
+                var criteria = buildCriteria(result.fieldCondition(), optional);
                 var query = Query.query(criteria).sort(mapSort(sort));
                 return entityOperations.select(UserPo.class).matching(query).all()
                     .map(UserPo::getName);
             });
     }
 
-    private Mono<Set<String>> resolveLabelNames(
-        java.util.List<run.halo.app.extension.index.query.LabelCondition> conditions
-    ) {
-        if (conditions.isEmpty()) {
-            return Mono.just(Set.of());
-        }
-        return labelConditionResolver.resolve(conditions);
-    }
+    /**
+     * Holds the resolved name filter with negation info.
+     *
+     * @param names    store names
+     * @param negated  if true, these names should be EXCLUDED (NOT IN); if false, INCLUDED (IN)
+     */
+    private record NameFilter(Set<String> names, boolean negated) {}
 
-    private Mono<Set<String>> resolveRoleNames(
-        java.util.List<run.halo.app.extension.index.query.IndexCondition> conditions
-    ) {
-        if (conditions.isEmpty()) {
-            return Mono.just(Set.of());
-        }
-        return roleConditionResolver.resolve(conditions);
-    }
+    /** Sentinel indicating no name filter should be applied. */
+    private static final NameFilter NO_FILTER = new NameFilter(null, false);
 
     /**
-     * Combines label names and role names with AND semantics.
-     *
-     * <p>Empty sets from the resolvers indicate no conditions were provided (no restriction).
-     * Both sets being non-empty means we intersect. Only one non-empty means use that one.</p>
+     * Resolves label and role conditions into a combined name filter.
+     * Returns {@link #NO_FILTER} if no label/role conditions were provided (no restriction).
      */
-    Set<String> combineNameSets(Set<String> labelNames, Set<String> roleNames) {
-        boolean labelEmpty = labelNames.isEmpty();
-        boolean roleEmpty = roleNames.isEmpty();
-        if (labelEmpty && roleEmpty) {
-            return Set.of();
+    private Mono<NameFilter> resolveNameSet(
+        java.util.List<run.halo.app.extension.index.query.LabelCondition> labelConditions,
+        java.util.List<run.halo.app.extension.index.query.IndexCondition> roleConditions
+    ) {
+        boolean noLabels = labelConditions.isEmpty();
+        boolean noRoles = roleConditions.isEmpty();
+        if (noLabels && noRoles) {
+            return Mono.just(NO_FILTER);
         }
-        if (labelEmpty) {
-            return roleNames;
+        if (noLabels) {
+            return roleConditionResolver.resolve(roleConditions)
+                .map(names -> new NameFilter(names, false));
         }
-        if (roleEmpty) {
-            return labelNames;
+        var labelMono = labelConditionResolver.resolve(labelConditions);
+        if (noRoles) {
+            return labelMono.map(result ->
+                new NameFilter(result.names(), result.negated()));
         }
-        var result = new HashSet<>(labelNames);
-        result.retainAll(roleNames);
-        return result;
+        return Mono.zip(
+            labelMono,
+            roleConditionResolver.resolve(roleConditions)
+        ).map(tuple -> {
+            var labelResult = tuple.getT1();
+            var roleNames = tuple.getT2();
+            if (labelResult.negated()) {
+                // Negated label: exclude those names from role results.
+                var result = new HashSet<>(roleNames);
+                result.removeAll(labelResult.names());
+                return new NameFilter(result, false);
+            }
+            var result = new HashSet<>(labelResult.names());
+            result.retainAll(roleNames);
+            return new NameFilter(result, false);
+        });
     }
 
-    private Criteria buildCriteria(Condition fieldCondition, Set<String> nameSet) {
+    private Criteria buildCriteria(Condition fieldCondition, NameFilter filter) {
         var criteria = conditionToCriteria.convert(fieldCondition);
-        if (!nameSet.isEmpty()) {
-            var shortNames = nameSet.stream()
-                .map(UserSqlQueryEngine::extractShortName)
-                .collect(java.util.stream.Collectors.toSet());
-            criteria = criteria.and(Criteria.where("name").in(shortNames));
+        if (filter == null || filter.names() == null) {
+            // No label/role conditions — no name filter needed.
+            return criteria;
         }
-        return criteria;
+        var nameSet = filter.names();
+        if (nameSet.isEmpty()) {
+            if (filter.negated()) {
+                // Negated with empty set = exclude nothing = no filter.
+                return criteria;
+            }
+            // Positive with empty set = include nothing = exclude all.
+            return criteria.and(Criteria.where("name").is("__no_match__"));
+        }
+        var shortNames = nameSet.stream()
+            .map(UserSqlQueryEngine::extractShortName)
+            .collect(java.util.stream.Collectors.toSet());
+        if (filter.negated()) {
+            return criteria.and(Criteria.where("name").notIn(shortNames));
+        }
+        return criteria.and(Criteria.where("name").in(shortNames));
     }
 
     /**
