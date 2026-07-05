@@ -108,10 +108,8 @@ public class ConditionToCriteria {
             case IsNotNullCondition c -> Criteria.where(mapColumn(c.indexName())).isNull();
             case GreaterThanCondition c -> negateGreaterThan(c);
             case LessThanCondition c -> negateLessThan(c);
-            case BetweenCondition c ->
-                Criteria.where(mapColumn(c.indexName())).notBetween(c.fromKey(), c.toKey());
-            case NotBetweenCondition c ->
-                Criteria.where(mapColumn(c.indexName())).between(c.fromKey(), c.toKey());
+            case BetweenCondition c -> convert(c.not());
+            case NotBetweenCondition c -> convert(c.not());
             case StringContainsCondition c ->
                 Criteria.where(mapColumn(c.indexName())).notLike("%" + c.keyword() + "%");
             case StringStartsWithCondition c ->

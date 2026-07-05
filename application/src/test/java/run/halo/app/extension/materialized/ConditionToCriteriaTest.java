@@ -366,7 +366,23 @@ class ConditionToCriteriaTest {
         var condition = new NotCondition(inner);
         var criteria = converter.convert(condition);
 
-        var expected = Criteria.where("disabled").notBetween(from, to);
+        // NOT BETWEEN [from, to] = <= from OR >= to
+        var expected = Criteria.where("disabled").lessThanOrEquals(from)
+            .or(Criteria.where("disabled").greaterThanOrEquals(to));
+        assertThat(criteria.toString()).isEqualTo(expected.toString());
+    }
+
+    @Test
+    void shouldConvertNotConditionOfBetweenExclusive() {
+        var ts1 = Instant.parse("2024-01-01T00:00:00Z");
+        var ts2 = Instant.parse("2024-12-31T23:59:59Z");
+        var inner = new BetweenCondition("metadata.creationTimestamp", ts1, false, ts2, false);
+        var condition = new NotCondition(inner);
+        var criteria = converter.convert(condition);
+
+        // NOT (> ts1 AND < ts2) → NotBetweenCondition(ts1, inclusive=true, ts2, inclusive=true)
+        // → notBetween(ts1, ts2)
+        var expected = Criteria.where("creationTimestamp").notBetween(ts1, ts2);
         assertThat(criteria.toString()).isEqualTo(expected.toString());
     }
 
@@ -378,7 +394,24 @@ class ConditionToCriteriaTest {
         var condition = new NotCondition(inner);
         var criteria = converter.convert(condition);
 
-        var expected = Criteria.where("disabled").between(from, to);
+        // NOT NOT BETWEEN [from, to] → BetweenCondition(from, exclusive, to, exclusive)
+        // = > from AND < to
+        var expected = Criteria.where("disabled").greaterThan(from)
+            .and(Criteria.where("disabled").lessThan(to));
+        assertThat(criteria.toString()).isEqualTo(expected.toString());
+    }
+
+    @Test
+    void shouldConvertNotConditionOfNotBetweenExclusive() {
+        var ts1 = Instant.parse("2024-01-01T00:00:00Z");
+        var ts2 = Instant.parse("2024-12-31T23:59:59Z");
+        var inner = new NotBetweenCondition("metadata.creationTimestamp", ts1, false, ts2, false);
+        var condition = new NotCondition(inner);
+        var criteria = converter.convert(condition);
+
+        // NOT NOT BETWEEN (ts1, ts2) → BetweenCondition(ts1, inclusive=true, ts2, inclusive=true)
+        // = between(ts1, ts2)
+        var expected = Criteria.where("creationTimestamp").between(ts1, ts2);
         assertThat(criteria.toString()).isEqualTo(expected.toString());
     }
 
