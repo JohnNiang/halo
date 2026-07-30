@@ -61,7 +61,7 @@ public class IndexSnapshotManager {
         }
         try (InputStream in = Files.newInputStream(file)) {
             return Optional.of(IndexSnapshotCodec.read(in));
-        } catch (IndexSnapshotCorruptedException | IOException e) {
+        } catch (RuntimeException | IOException e) {
             log.warn(
                     "Index snapshot for type {} is corrupted ({}), falling back to full build",
                     type.getName(),

@@ -31,6 +31,9 @@ final class IndexSnapshotCodec {
 
     private static final int FORMAT_VERSION = 1;
 
+    /** Upper bound for every count field; anything larger is treated as corruption instead of allocated. */
+    private static final int MAX_COUNT = 1 << 24; // 16_777_216
+
     private IndexSnapshotCodec() {}
 
     static void write(IndicesSnapshot snapshot, OutputStream out) throws IOException {
@@ -74,26 +77,26 @@ final class IndexSnapshotCodec {
             if (data.readInt() != FORMAT_VERSION) {
                 throw new IndexSnapshotCorruptedException("Unsupported format version");
             }
-            var indexCount = data.readInt();
+            var indexCount = readCount(data);
             var indices = new ArrayList<IndexSnapshot>(indexCount);
             for (var i = 0; i < indexCount; i++) {
                 var name = data.readUTF();
                 var fingerprint = data.readUTF();
                 var keyType = data.readUTF();
-                var nullKeyCount = data.readInt();
+                var nullKeyCount = readCount(data);
                 var nullKeys = new ArrayList<String>(nullKeyCount);
                 for (var j = 0; j < nullKeyCount; j++) {
                     nullKeys.add(data.readUTF());
                 }
-                var entryCount = data.readInt();
+                var entryCount = readCount(data);
                 var entries = new ArrayList<IndexSnapshot.Entry>(entryCount);
                 for (var j = 0; j < entryCount; j++) {
-                    var partCount = data.readInt();
+                    var partCount = readCount(data);
                     var keyParts = new ArrayList<String>(partCount);
                     for (var k = 0; k < partCount; k++) {
                         keyParts.add(data.readUTF());
                     }
-                    var pkCount = data.readInt();
+                    var pkCount = readCount(data);
                     var primaryKeys = new ArrayList<String>(pkCount);
                     for (var k = 0; k < pkCount; k++) {
                         primaryKeys.add(data.readUTF());
@@ -102,7 +105,7 @@ final class IndexSnapshotCodec {
                 }
                 indices.add(new IndexSnapshot(name, fingerprint, keyType, List.copyOf(entries), List.copyOf(nullKeys)));
             }
-            var versionCount = data.readInt();
+            var versionCount = readCount(data);
             var versions = new LinkedHashMap<String, Long>(versionCount);
             for (var i = 0; i < versionCount; i++) {
                 versions.put(data.readUTF(), data.readLong());
@@ -115,6 +118,13 @@ final class IndexSnapshotCodec {
         } catch (IOException e) {
             throw new IndexSnapshotCorruptedException("Corrupted snapshot: " + e.getMessage(), e);
         }
+    }
+    private static int readCount(DataInputStream data) throws IOException {
+        var count = data.readInt();
+        if (count < 0 || count > MAX_COUNT) {
+            throw new IndexSnapshotCorruptedException("Invalid count: " + count);
+        }
+        return count;
     }
 }
 

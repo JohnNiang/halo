@@ -53,6 +53,17 @@ class IndexSnapshotManagerTest {
     }
 
     @Test
+    void loadShouldReturnEmptyForInvalidCountFileAndDeleteIt() throws Exception {
+        var manager = newManager();
+        var file = workDir.resolve("indices").resolve(FakeType.class.getName() + ".snapshot.gz");
+        Files.createDirectories(file.getParent());
+        Files.write(file, IndexSnapshotCodecTest.craftedStreamWithIndexCount(-1));
+
+        assertThat(manager.load(FakeType.class)).isEmpty();
+        assertThat(file).doesNotExist();
+    }
+
+    @Test
     void saveFailureShouldNotThrow() {
         // 指向一个不可创建的路径（文件当目录用）制造失败
         var blocker = workDir.resolve("blocker");

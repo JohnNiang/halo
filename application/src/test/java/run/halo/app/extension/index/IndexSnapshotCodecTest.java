@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 
 class IndexSnapshotCodecTest {
@@ -54,5 +57,32 @@ class IndexSnapshotCodecTest {
         System.arraycopy(out.toByteArray(), 0, truncated, 0, truncated.length);
         assertThatThrownBy(() -> IndexSnapshotCodec.read(new ByteArrayInputStream(truncated)))
                 .isInstanceOf(IndexSnapshotCorruptedException.class);
+    }
+
+    @Test
+    void shouldRejectNegativeCount() throws Exception {
+        var crafted = craftedStreamWithIndexCount(-1);
+        assertThatThrownBy(() -> IndexSnapshotCodec.read(new ByteArrayInputStream(crafted)))
+                .isInstanceOf(IndexSnapshotCorruptedException.class)
+                .hasMessageContaining("Invalid count: -1");
+    }
+
+    @Test
+    void shouldRejectExcessiveCount() throws Exception {
+        var crafted = craftedStreamWithIndexCount(Integer.MAX_VALUE);
+        assertThatThrownBy(() -> IndexSnapshotCodec.read(new ByteArrayInputStream(crafted)))
+                .isInstanceOf(IndexSnapshotCorruptedException.class)
+                .hasMessageContaining("Invalid count: " + Integer.MAX_VALUE);
+    }
+
+    /** Writes a valid GZIP stream with the magic and format version, followed by the given index count. */
+    static byte[] craftedStreamWithIndexCount(int indexCount) throws IOException {
+        var out = new ByteArrayOutputStream();
+        try (var data = new DataOutputStream(new GZIPOutputStream(out))) {
+            data.writeInt(0x48414953); // magic 'HAIS'
+            data.writeInt(1); // format version
+            data.writeInt(indexCount);
+        }
+        return out.toByteArray();
     }
 }
