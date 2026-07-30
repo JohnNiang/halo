@@ -62,7 +62,9 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         // get primary key
         var primaryKey = extension.getMetadata().getName();
         var version = extension.getMetadata().getVersion();
-        applyAll(extension, Index::prepareInsert, primaryKey, version, false, false);
+        // the stale-version guard passes trivially for genuine creates (no recorded version) and skips
+        // deferred inserts that are older than an already-applied update
+        applyAll(extension, Index::prepareInsert, primaryKey, version, false, true);
     }
 
     @Override

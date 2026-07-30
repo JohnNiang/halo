@@ -65,6 +65,23 @@ class DefaultIndicesSnapshotTest {
     }
 
     @Test
+    void staleInsertShouldBeSkippedByVersionGuard() {
+        var indices = newIndices();
+        var v2 = new FakePost("post-1", "new", null);
+        v2.getMetadata().setVersion(2L);
+        indices.update(v2);
+
+        // a deferred insert with an older version must not resurrect stale content
+        var v1 = new FakePost("post-1", "old", null);
+        v1.getMetadata().setVersion(1L);
+        indices.insert(v1);
+
+        assertThat(valueIndex(indices, "spec.slug").equal("new")).containsExactly("post-1");
+        assertThat(valueIndex(indices, "spec.slug").equal("old")).isEmpty();
+        assertThat(indices.dump().versions()).containsEntry("post-1", 2L);
+    }
+
+    @Test
     void concurrentUpdatesShouldKeepHighestVersion() throws InterruptedException {
         var indices = newIndices();
         var threadCount = 16;
