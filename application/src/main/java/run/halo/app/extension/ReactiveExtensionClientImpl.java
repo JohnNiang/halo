@@ -372,8 +372,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             return client.create(name, data)
                     .map(created -> converter.convertFrom(type, created))
                     .flatMap(extension -> indexOperationRegistrar
-                                    .afterCommit(
-                                            () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
+                            .afterCommit(() -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
                             .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
@@ -396,8 +395,7 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             return client.update(name, version, data)
                     .map(updated -> converter.convertFrom(type, updated))
                     .flatMap(extension -> indexOperationRegistrar
-                                    .afterCommit(
-                                            () -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
+                            .afterCommit(() -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
                             .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });

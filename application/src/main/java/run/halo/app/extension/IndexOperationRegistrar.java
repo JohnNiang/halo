@@ -9,9 +9,9 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Registers index operations to be applied after the current transaction commits, so that index mutations never
- * precede the database changes they reflect. If there is no active transaction (e.g. in tests with a pass-through
- * operator), the operation is applied immediately.
+ * Registers index operations to be applied after the current transaction commits, so that index mutations never precede
+ * the database changes they reflect. If there is no active transaction (e.g. in tests with a pass-through operator),
+ * the operation is applied immediately.
  *
  * @since 2.26.0
  */

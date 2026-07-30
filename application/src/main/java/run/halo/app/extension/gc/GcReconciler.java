@@ -78,8 +78,7 @@ class GcReconciler implements Reconciler<GcRequest> {
 
         return storeClient
                 .delete(extensionStore.getName(), extensionStore.getVersion())
-                .flatMap(deleted ->
-                        indexOperationRegistrar.afterCommit(() -> indexEngine.delete(List.of(extension))))
+                .flatMap(deleted -> indexOperationRegistrar.afterCommit(() -> indexEngine.delete(List.of(extension))))
                 .as(tx::transactional)
                 .then()
                 .doOnSuccess(

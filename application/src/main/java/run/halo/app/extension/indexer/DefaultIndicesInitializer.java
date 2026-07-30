@@ -87,9 +87,8 @@ class DefaultIndicesInitializer implements IndicesInitializer {
                     // purge the restored-but-possibly-stale state before the insert-only full build,
                     // otherwise rows deleted from the database would survive as ghost entries; the full
                     // build below re-inserts everything that actually exists in the database
-                    loaded.ifPresent(snapshot -> snapshot.versions()
-                            .keySet()
-                            .forEach(name -> indexEngine.deleteByName(type, name)));
+                    loaded.ifPresent(snapshot ->
+                            snapshot.versions().keySet().forEach(name -> indexEngine.deleteByName(type, name)));
                 }
             }
             fullBuild(type, prefix);

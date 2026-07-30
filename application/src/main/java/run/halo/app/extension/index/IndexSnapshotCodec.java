@@ -119,6 +119,7 @@ final class IndexSnapshotCodec {
             throw new IndexSnapshotCorruptedException("Corrupted snapshot: " + e.getMessage(), e);
         }
     }
+
     private static int readCount(DataInputStream data) throws IOException {
         var count = data.readInt();
         if (count < 0 || count > MAX_COUNT) {
