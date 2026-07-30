@@ -15,10 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Predicates;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.NoTransactionException;
 import org.springframework.transaction.ReactiveTransactionManager;
-import org.springframework.transaction.reactive.TransactionSynchronization;
-import org.springframework.transaction.reactive.TransactionSynchronizationManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
@@ -49,6 +46,8 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final IndexEngine indexEngine;
 
+    private final IndexOperationRegistrar indexOperationRegistrar;
+
     private Scheduler scheduler;
 
     private TransactionalOperator transactionalOperator;
@@ -59,12 +58,14 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             SchemeManager schemeManager,
             ObjectMapper objectMapper,
             IndexEngine indexEngine,
-            ReactiveTransactionManager reactiveTransactionManager) {
+            ReactiveTransactionManager reactiveTransactionManager,
+            IndexOperationRegistrar indexOperationRegistrar) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
         this.objectMapper = objectMapper;
         this.indexEngine = indexEngine;
+        this.indexOperationRegistrar = indexOperationRegistrar;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
         this.scheduler = Schedulers.boundedElastic();
     }
@@ -370,8 +371,9 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             var type = (Class<E>) oldExtension.getClass();
             return client.create(name, data)
                     .map(created -> converter.convertFrom(type, created))
-                    .flatMap(extension -> registerIndexOperationAfterCommit(
-                                    () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
+                    .flatMap(extension -> indexOperationRegistrar
+                                    .afterCommit(
+                                            () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
                             .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
@@ -393,39 +395,12 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             var type = (Class<E>) oldExtension.getClass();
             return client.update(name, version, data)
                     .map(updated -> converter.convertFrom(type, updated))
-                    .flatMap(extension -> registerIndexOperationAfterCommit(
-                                    () -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
+                    .flatMap(extension -> indexOperationRegistrar
+                                    .afterCommit(
+                                            () -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
                             .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
-    }
-
-    /**
-     * Registers an index operation to be applied after the current transaction commits. If there is no active
-     * transaction (e.g. in tests with a pass-through operator), the operation is applied immediately, preserving the
-     * previous behavior.
-     *
-     * @param indexOperation the index operation to apply
-     * @return a {@link Mono} that completes once the operation has been registered (or applied, when no transaction is
-     *     active)
-     * @since 2.26.0
-     */
-    private Mono<Void> registerIndexOperationAfterCommit(Runnable indexOperation) {
-        return TransactionSynchronizationManager.forCurrentTransaction()
-                .doOnNext(tsm -> tsm.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public Mono<Void> afterCommit() {
-                        return Mono.fromRunnable(indexOperation)
-                                .subscribeOn(scheduler)
-                                .then();
-                    }
-                }))
-                .then()
-                .onErrorResume(
-                        NoTransactionException.class,
-                        e -> Mono.fromRunnable(indexOperation)
-                                .subscribeOn(scheduler)
-                                .then());
     }
 
     private Extension convertToRealExtension(Extension extension) {

@@ -67,6 +67,9 @@ class ReactiveExtensionClientTest {
     @Mock
     IndexEngine indexEngine;
 
+    @Spy
+    IndexOperationRegistrar indexOperationRegistrar = new IndexOperationRegistrar();
+
     @InjectMocks
     ReactiveExtensionClientImpl client;
 
