@@ -65,6 +65,39 @@ class DefaultIndicesSnapshotTest {
     }
 
     @Test
+    void concurrentUpdatesShouldKeepHighestVersion() throws InterruptedException {
+        var indices = newIndices();
+        var threadCount = 16;
+        var ready = new java.util.concurrent.CountDownLatch(threadCount);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        var done = new java.util.concurrent.CountDownLatch(threadCount);
+        for (int i = 1; i <= threadCount; i++) {
+            var version = (long) i;
+            var thread = new Thread(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                var post = new FakePost("post-1", "v" + version, null);
+                post.getMetadata().setVersion(version);
+                indices.update(post);
+                done.countDown();
+            });
+            thread.start();
+        }
+        assertThat(ready.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        // the highest version must win no matter in which order the updates committed
+        assertThat(valueIndex(indices, "spec.slug").equal("v" + threadCount)).containsExactly("post-1");
+        assertThat(indices.dump().versions()).containsEntry("post-1", (long) threadCount);
+    }
+
+    @Test
     void deleteByNameShouldRemoveAllIndexEntries() {
         var indices = newIndices();
         var post = new FakePost("post-1", "hello", null);

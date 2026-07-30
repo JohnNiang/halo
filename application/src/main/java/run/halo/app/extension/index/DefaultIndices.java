@@ -62,7 +62,7 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         // get primary key
         var primaryKey = extension.getMetadata().getName();
         var version = extension.getMetadata().getVersion();
-        applyAll(extension, Index::prepareInsert, primaryKey, version, false);
+        applyAll(extension, Index::prepareInsert, primaryKey, version, false, false);
     }
 
     @Override
@@ -70,19 +70,16 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
         ensureNotClosed();
         var primaryKey = extension.getMetadata().getName();
         var version = extension.getMetadata().getVersion();
-        var recorded = versionMap.get(primaryKey);
-        if (version != null && recorded != null && version < recorded) {
-            // stale update, skip it entirely
-            return;
-        }
-        applyAll(extension, Index::prepareUpdate, primaryKey, version, false);
+        // the stale-version guard is checked under the per-primary-key write lock inside
+        // applyAll, so that check-and-act is atomic
+        applyAll(extension, Index::prepareUpdate, primaryKey, version, false, true);
     }
 
     @Override
     public void delete(E extension) {
         ensureNotClosed();
         var primaryKey = extension.getMetadata().getName();
-        applyAll(extension, (index, ext) -> index.prepareDelete(primaryKey), primaryKey, null, true);
+        applyAll(extension, (index, ext) -> index.prepareDelete(primaryKey), primaryKey, null, true, false);
     }
 
     @Override
@@ -180,12 +177,20 @@ class DefaultIndices<E extends Extension> implements Indices<E> {
             BiFunction<Index<E, ?>, E, TransactionalOperation> opFactory,
             String primaryKey,
             Long version,
-            boolean deletion) {
+            boolean deletion,
+            boolean staleGuard) {
         var lock = Objects.requireNonNull(lockCache.get(primaryKey, pk -> new ReentrantReadWriteLock()))
                 .writeLock();
         var ops = new ArrayList<TransactionalOperation>();
         lock.lock();
         try {
+            if (staleGuard) {
+                var recorded = versionMap.get(primaryKey);
+                if (version != null && recorded != null && version < recorded) {
+                    // stale update, skip it entirely
+                    return;
+                }
+            }
             for (var index : indexMap.values()) {
                 var op = opFactory.apply(index, extension);
                 op.prepare();
