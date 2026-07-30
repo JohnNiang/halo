@@ -34,6 +34,7 @@ public interface IndexSpecBuilder<E extends Extension, K extends Comparable<K>, 
      *
      * @param version the index version, must be positive, default is 1
      * @return the updated IndexSpecBuilder
+     * @since 2.26.0
      */
     B version(int version);
 

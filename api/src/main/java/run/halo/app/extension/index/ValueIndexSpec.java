@@ -45,7 +45,7 @@ public interface ValueIndexSpec<E extends Extension, K extends Comparable<K>> {
      * index function change without any structural change.
      *
      * @return the version of this index spec, defaults to 1
-     * @since 2.23.0
+     * @since 2.26.0
      */
     default int getVersion() {
         return 1;
