@@ -61,6 +61,9 @@ class DefaultIndicesManager implements IndicesManager {
 
     @Override
     public void close() throws IOException {
+        // release shutdown-time awaiters immediately instead of letting them block until the timeout
+        readyLatches.forEach((type, latch) -> latch.countDown());
+        readyLatches.clear();
         IOUtils.close(indicesMap.values().toArray(Indices[]::new));
         indicesMap.clear();
     }
