@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -18,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -224,6 +226,37 @@ class DefaultIndicesInitializerTest {
         var options =
                 ListOptions.builder().andQuery(Queries.equal(indexName, value)).build();
         return indexEngine.retrieveAll(FakePost.class, options, null);
+    }
+
+    @Test
+    void shouldPurgeRestoredManifestBeforeFullBuildFallback() {
+        registerType();
+        // snapshot taken when the indices contained a(v1) and ghost(v1)
+        indexEngine.insert(List.of(fakePost("a", 1L), fakePost("ghost", 1L)));
+        var indices = indexEngine.getIndicesManager().get(FakePost.class);
+        snapshotManager.save(FakePost.class, indices.dump());
+        // simulate a restart: drop the in-memory indices and register the type from scratch
+        indexEngine.getIndicesManager().remove(FakePost.class);
+        registerType();
+
+        // the database now contains a(v1) and the new row b(v1); ghost was deleted meanwhile
+        when(storeClient.listNameVersionsByNamePrefix(PREFIX))
+                .thenReturn(List.of(new NameVersion(PREFIX + "/a", 1L), new NameVersion(PREFIX + "/b", 1L)));
+        // simulate a failure mid-delta-recovery: the refetch of the stale row fails after the
+        // snapshot (including the ghost entry) has already been restored into the indices
+        when(storeClient.listByNames(anyList())).thenThrow(new RuntimeException("simulated refetch failure"));
+        when(storeClient.listBy(anyString(), any(), anyInt()))
+                .thenReturn(List.of(storeOf("a", 1L), storeOf("b", 1L)))
+                .thenReturn(List.of());
+
+        initializer.doInitialize(scheme);
+
+        // the full build ran as the fallback
+        verify(storeClient, atLeastOnce()).listBy(anyString(), any(), anyInt());
+        // the restored-but-stale manifest entries must have been purged: ghost must not survive
+        var indexedNames = new ArrayList<String>();
+        indexEngine.retrieveAll(FakePost.class, null, null).forEach(indexedNames::add);
+        assertThat(indexedNames).containsExactlyInAnyOrder("a", "b");
     }
 
     @Test
