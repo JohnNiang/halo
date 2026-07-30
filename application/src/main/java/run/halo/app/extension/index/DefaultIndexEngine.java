@@ -79,6 +79,7 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
             options = ListOptions.builder().build();
         }
         var finalCondition = options.toCondition();
+        indicesManager.awaitReady(type);
         var indices = indicesManager.get(type);
         var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
@@ -135,6 +136,7 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
             sort = Sort.unsorted();
         }
         var finalCondition = options.toCondition();
+        indicesManager.awaitReady(type);
         var indices = indicesManager.get(type);
         var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
@@ -159,6 +161,7 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
             sort = Sort.unsorted();
         }
         var finalCondition = options.toCondition();
+        indicesManager.awaitReady(type);
         var indices = indicesManager.get(type);
         var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
@@ -186,6 +189,7 @@ class DefaultIndexEngine implements IndexEngine, DisposableBean {
             options = ListOptions.builder().build();
         }
         var finalCondition = options.toCondition();
+        indicesManager.awaitReady(type);
         var indices = indicesManager.get(type);
         var queryVisitor = new QueryVisitor<>(indices, conversionService);
         queryVisitor.enter(finalCondition);
