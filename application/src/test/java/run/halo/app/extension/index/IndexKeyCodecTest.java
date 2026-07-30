@@ -29,6 +29,19 @@ class IndexKeyCodecTest {
     }
 
     @Test
+    void shouldRoundTripEnumType() {
+        assertThat(IndexKeyCodec.decode(TestVisibility.class, IndexKeyCodec.encode(TestVisibility.PUBLIC)))
+                .isEqualTo(TestVisibility.PUBLIC);
+        assertThat(IndexKeyCodec.decode(TestVisibility.class, IndexKeyCodec.encode(TestVisibility.PRIVATE)))
+                .isEqualTo(TestVisibility.PRIVATE);
+    }
+
+    enum TestVisibility {
+        PUBLIC,
+        PRIVATE
+    }
+
+    @Test
     void shouldRejectUnsupportedType() {
         assertThatThrownBy(() -> IndexKeyCodec.decode(java.math.BigInteger.class, "42"))
                 .isInstanceOf(IllegalArgumentException.class)

@@ -39,6 +39,9 @@ final class IndexKeyCodec {
         if (keyType == Boolean.class) {
             return (K) Boolean.valueOf(text);
         }
+        if (keyType.isEnum()) {
+            return (K) Enum.valueOf((Class<? extends Enum>) keyType.asSubclass(Enum.class), text);
+        }
         throw new IllegalArgumentException("Unsupported index key type: " + keyType.getName());
     }
 }

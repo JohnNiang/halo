@@ -51,6 +51,24 @@ class IndexDumpRestoreTest {
     }
 
     @Test
+    void singleValueIndexWithEnumKeyShouldRoundTrip() {
+        var spec = (SingleValueIndexSpec<FakePost, Visibility>)
+                IndexSpecs.<FakePost, Visibility>single("spec.visible", Visibility.class)
+                        .indexFunc(p -> p.visible)
+                        .nullable(false)
+                        .build();
+        var index = new SingleValueIndex<>(spec);
+        var post = new FakePost("post-1", "a", null);
+        post.visible = Visibility.PUBLIC;
+        insert(index, post);
+
+        var restored = new SingleValueIndex<>(spec);
+        restored.restore(index.dump());
+        assertThat(restored.equal(Visibility.PUBLIC)).containsExactly("post-1");
+        assertThat(restored.getKey("post-1")).isEqualTo(Visibility.PUBLIC);
+    }
+
+    @Test
     void multiValueIndexShouldRoundTrip() {
         var spec = (MultiValueIndexSpec<FakePost, String>) IndexSpecs.<FakePost, String>multi("spec.tags", String.class)
                 .indexFunc(p -> p.tags)
@@ -102,11 +120,17 @@ class IndexDumpRestoreTest {
         operation.commit();
     }
 
+    enum Visibility {
+        PUBLIC,
+        INTERNAL
+    }
+
     static class FakePost implements Extension {
         private final Metadata metadata = new Metadata();
         String slug;
         Instant publishTime;
         Set<String> tags = Set.of();
+        Visibility visible;
 
         FakePost(String name, String slug, Instant publishTime) {
             metadata.setName(name);
