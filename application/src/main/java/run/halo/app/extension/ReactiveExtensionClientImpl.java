@@ -46,6 +46,8 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final IndexEngine indexEngine;
 
+    private final IndexOperationRegistrar indexOperationRegistrar;
+
     private Scheduler scheduler;
 
     private TransactionalOperator transactionalOperator;
@@ -56,12 +58,14 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             SchemeManager schemeManager,
             ObjectMapper objectMapper,
             IndexEngine indexEngine,
-            ReactiveTransactionManager reactiveTransactionManager) {
+            ReactiveTransactionManager reactiveTransactionManager,
+            IndexOperationRegistrar indexOperationRegistrar) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
         this.objectMapper = objectMapper;
         this.indexEngine = indexEngine;
+        this.indexOperationRegistrar = indexOperationRegistrar;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
         this.scheduler = Schedulers.boundedElastic();
     }
@@ -367,11 +371,9 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             var type = (Class<E>) oldExtension.getClass();
             return client.create(name, data)
                     .map(created -> converter.convertFrom(type, created))
-                    .flatMap(extension -> Mono.fromCallable(() -> {
-                                this.indexEngine.insert(List.of(convertToRealExtension(extension)));
-                                return extension;
-                            })
-                            .subscribeOn(this.scheduler))
+                    .flatMap(extension -> indexOperationRegistrar
+                            .afterCommit(() -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
+                            .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
     }
@@ -392,11 +394,9 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             var type = (Class<E>) oldExtension.getClass();
             return client.update(name, version, data)
                     .map(updated -> converter.convertFrom(type, updated))
-                    .flatMap(extension -> Mono.fromCallable(() -> {
-                                this.indexEngine.update(List.of(convertToRealExtension(extension)));
-                                return extension;
-                            })
-                            .subscribeOn(this.scheduler))
+                    .flatMap(extension -> indexOperationRegistrar
+                            .afterCommit(() -> this.indexEngine.update(List.of(convertToRealExtension(extension))))
+                            .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
     }
