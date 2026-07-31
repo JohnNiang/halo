@@ -107,53 +107,53 @@ Expected: 编译失败，`getVersion()` / `version(int)` 不存在。
 `ValueIndexSpec.java` 增加默认方法：
 
 ```java
-    /**
-     * Gets the version of this index spec. Bump the version to trigger a rebuild of the index
-     * when the semantics of the index function change without any structural change.
-     *
-     * @return the version of this index spec, defaults to 1
-     * @since 2.23.0
-     */
-    default int getVersion() {
-        return 1;
-    }
+/**
+ * Gets the version of this index spec. Bump the version to trigger a rebuild of the index
+ * when the semantics of the index function change without any structural change.
+ *
+ * @return the version of this index spec, defaults to 1
+ * @since 2.23.0
+ */
+default int getVersion() {
+    return 1;
+}
 ```
 
 `IndexSpecBuilder.java` 增加接口方法（放在 `nullable` 之后）：
 
 ```java
-    /**
-     * Sets the version of the index. Bump it when the index function changes its semantics
-     * so that persisted snapshots of this index are invalidated.
-     *
-     * @param version the index version, must be positive, default is 1
-     * @return the updated IndexSpecBuilder
-     */
-    B version(int version);
+/**
+ * Sets the version of the index. Bump it when the index function changes its semantics
+ * so that persisted snapshots of this index are invalidated.
+ *
+ * @param version the index version, must be positive, default is 1
+ * @return the updated IndexSpecBuilder
+ */
+B version(int version);
 ```
 
 `AbstractValueIndexSpecBuilder.java` 增加字段与方法：
 
 ```java
-    protected int version = 1;
+protected int version = 1;
 ```
 
 ```java
-    @Override
-    public B version(int version) {
-        Assert.isTrue(version > 0, "Index version must be positive");
-        this.version = version;
-        return (B) this;
-    }
+@Override
+public B version(int version) {
+    Assert.isTrue(version > 0, "Index version must be positive");
+    this.version = version;
+    return (B) this;
+}
 ```
 
 `SingleValueBuilder.java` 的匿名 `SingleValueIndexSpec` 中增加：
 
 ```java
-            @Override
-            public int getVersion() {
-                return version;
-            }
+@Override
+public int getVersion() {
+    return version;
+}
 ```
 
 `MultiValueBuilder.java` 的匿名 `MultiValueIndexSpec` 中增加同样的 `getVersion()` 覆写。
@@ -428,10 +428,10 @@ git commit -m "feat: add index key codec and spec fingerprint utils for index sn
 **Interfaces:**
 - Consumes: Task 2 的 `IndexKeyCodec`、`IndexFingerprints`（含 `LABEL_FINGERPRINT`）。
 - Produces:
-  - `record IndexSnapshot(String name, String fingerprint, String keyType, List<Entry> entries, List<String> nullKeys)`，内嵌 `record Entry(List<String> keyParts, List<String> primaryKeys)`
-  - `record IndicesSnapshot(List<IndexSnapshot> indices, Map<String, Long> versions)`
-  - `Index` 新增：`IndexSnapshot dump()`、`void restore(IndexSnapshot snapshot)`、`String getFingerprint()`
-  - Task 4（DefaultIndices）与 Task 7（Codec）依赖以上签名。
+- `record IndexSnapshot(String name, String fingerprint, String keyType, List<Entry> entries, List<String> nullKeys)`，内嵌 `record Entry(List<String> keyParts, List<String> primaryKeys)`
+- `record IndicesSnapshot(List<IndexSnapshot> indices, Map<String, Long> versions)`
+- `Index` 新增：`IndexSnapshot dump()`、`void restore(IndexSnapshot snapshot)`、`String getFingerprint()`
+- Task 4（DefaultIndices）与 Task 7（Codec）依赖以上签名。
 
 - [ ] **Step 1: Write the failing test**
 
@@ -753,12 +753,12 @@ git commit -m "feat: add dump and restore capabilities to index implementations"
 **Interfaces:**
 - Consumes: Task 3 的 `IndicesSnapshot`/`IndexSnapshot`、`Index#dump/restore/getFingerprint`。
 - Produces（Task 7/8/9/10 依赖）：
-  - `Indices#dump() → IndicesSnapshot`（内部顺序：**先复制 version 映射，再 dump 各索引**）
-  - `Indices#restore(IndicesSnapshot)`（按名称匹配灌入索引 + 加载 version 映射）
-  - `Indices#deleteByName(String primaryKey)`
-  - `Indices#updateIndices(E extension, Set<String> indexNames)`（只对指定索引做 upsert）
-  - `Indices#currentFingerprints() → Map<String, String>`
-  - 版本守卫：`update` 时 incoming version < 已记录 version → 跳过；version 映射在索引条目提交**之后**更新。
+- `Indices#dump() → IndicesSnapshot`（内部顺序：**先复制 version 映射，再 dump 各索引**）
+- `Indices#restore(IndicesSnapshot)`（按名称匹配灌入索引 + 加载 version 映射）
+- `Indices#deleteByName(String primaryKey)`
+- `Indices#updateIndices(E extension, Set<String> indexNames)`（只对指定索引做 upsert）
+- `Indices#currentFingerprints() → Map<String, String>`
+- 版本守卫：`update` 时 incoming version < 已记录 version → 跳过；version 映射在索引条目提交**之后**更新。
 
 - [ ] **Step 1: Write the failing test**
 
@@ -938,8 +938,8 @@ Expected: 编译失败。
 1. 新增字段：
 
 ```java
-    private final java.util.concurrent.ConcurrentMap<String, Long> versionMap =
-            new java.util.concurrent.ConcurrentHashMap<>();
+private final java.util.concurrent.ConcurrentMap<String, Long> versionMap =
+        new java.util.concurrent.ConcurrentHashMap<>();
 ```
 
 2. `insert`/`update`/`delete` 改造：把三段重复的"遍历 indexMap + 两阶段提交"抽成私有方法
@@ -947,7 +947,6 @@ Expected: 编译失败。
    String primaryKey, Long version, boolean deletion)`；行为变化：
    - `update` 开头加版本守卫：`var recorded = versionMap.get(primaryKey); if (version != null && recorded != null && version < recorded) { return; }`
    - 所有 `ops.forEach(TransactionalOperation::commit)` 之后：非删除且 `version != null` 时 `versionMap.put(primaryKey, version)`；删除时 `versionMap.remove(primaryKey)`（即 version 映射在索引条目提交之后更新）。
-
 3. 新增方法：
 
 ```java
@@ -1059,10 +1058,10 @@ git commit -m "feat: add version manifest, version guard and snapshot support to
 
 **Interfaces:**
 - Produces:
-  - `IndicesManager#awaitReady(Class<? extends Extension> type)`：门闩未就绪则阻塞至超时（30s），超时抛 `IllegalStateException`；类型未注册抛 `IllegalArgumentException`。
-  - `IndicesManager#markReady(Class<? extends Extension> type)`：`countDown`，幂等。
-  - `DefaultIndexEngine` 的 `retrieve/retrieveAll/retrieveTopN/count` 在 `indicesManager.get(type)` 之前调用 `awaitReady(type)`。
-  - Task 8（Initializer）调用 `markReady`。
+- `IndicesManager#awaitReady(Class<? extends Extension> type)`：门闩未就绪则阻塞至超时（30s），超时抛 `IllegalStateException`；类型未注册抛 `IllegalArgumentException`。
+- `IndicesManager#markReady(Class<? extends Extension> type)`：`countDown`，幂等。
+- `DefaultIndexEngine` 的 `retrieve/retrieveAll/retrieveTopN/count` 在 `indicesManager.get(type)` 之前调用 `awaitReady(type)`。
+- Task 8（Initializer）调用 `markReady`。
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1150,15 +1149,15 @@ class IndicesReadinessTest {
 超时路径（30s）不写真实等待测试；把超时做成 `DefaultIndicesManager` 的包级可配置字段（构造器或 setter）以便测试用 100ms 验证超时：
 
 ```java
-    @Test
-    void awaitReadyShouldTimeout() {
-        var manager = new DefaultIndicesManager();
-        manager.setReadyTimeout(Duration.ofMillis(100));
-        manager.add(FakeExt.class, List.of());
-        assertThatThrownBy(() -> manager.awaitReady(FakeExt.class))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("not ready");
-    }
+@Test
+void awaitReadyShouldTimeout() {
+    var manager = new DefaultIndicesManager();
+    manager.setReadyTimeout(Duration.ofMillis(100));
+    manager.add(FakeExt.class, List.of());
+    assertThatThrownBy(() -> manager.awaitReady(FakeExt.class))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not ready");
+}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1207,7 +1206,7 @@ Expected: 编译失败。
 `add(...)` 的 `computeIfAbsent` 之前加：
 
 ```java
-        readyLatches.putIfAbsent(type, new CountDownLatch(1));
+readyLatches.putIfAbsent(type, new CountDownLatch(1));
 ```
 
 `remove(...)` 中加 `readyLatches.remove(type);`。
@@ -1246,7 +1245,7 @@ Expected: 编译失败。
 `DefaultIndexEngine.java`：`retrieve`、`retrieveAll`、`retrieveTopN`、`count` 四个方法中，`var indices = indicesManager.get(type);` 之前加：
 
 ```java
-        indicesManager.awaitReady(type);
+indicesManager.awaitReady(type);
 ```
 
 - [ ] **Step 4: Run tests**
@@ -1351,15 +1350,15 @@ public record NameVersion(String name, Long version) {}
 `ExtensionStoreRepository.java` 增加：
 
 ```java
-    /**
-     * Finds only name and version of all ExtensionStores matching the name like pattern.
-     *
-     * @param nameLike the name like pattern, e.g. {@code "/registry/posts/%"}
-     * @return a flux of name-version projections
-     */
-    @org.springframework.data.r2dbc.repository.Query(
-            "SELECT name, version FROM extensions WHERE name LIKE :nameLike")
-    reactor.core.publisher.Flux<NameVersion> findAllNameVersionByNameLike(String nameLike);
+/**
+ * Finds only name and version of all ExtensionStores matching the name like pattern.
+ *
+ * @param nameLike the name like pattern, e.g. {@code "/registry/posts/%"}
+ * @return a flux of name-version projections
+ */
+@org.springframework.data.r2dbc.repository.Query(
+        "SELECT name, version FROM extensions WHERE name LIKE :nameLike")
+reactor.core.publisher.Flux<NameVersion> findAllNameVersionByNameLike(String nameLike);
 ```
 
 （import 提到文件头，遵循 Spotless。）
@@ -1367,45 +1366,45 @@ public record NameVersion(String name, Long version) {}
 `ReactiveExtensionStoreClient.java` 增加：
 
 ```java
-    /**
-     * Lists name and version only, by name prefix. Does not load the data column.
-     *
-     * @param prefix the name prefix
-     * @return a flux of name-version projections
-     */
-    Flux<NameVersion> listNameVersionsByNamePrefix(String prefix);
+/**
+ * Lists name and version only, by name prefix. Does not load the data column.
+ *
+ * @param prefix the name prefix
+ * @return a flux of name-version projections
+ */
+Flux<NameVersion> listNameVersionsByNamePrefix(String prefix);
 ```
 
 `ReactiveExtensionStoreClientImpl.java` 增加：
 
 ```java
-    @Override
-    public Flux<NameVersion> listNameVersionsByNamePrefix(String prefix) {
-        Assert.hasText(prefix, "Prefix must not be blank");
-        prefix = Strings.CS.appendIfMissing(prefix, "/");
-        return repository.findAllNameVersionByNameLike(prefix + "%");
-    }
+@Override
+public Flux<NameVersion> listNameVersionsByNamePrefix(String prefix) {
+    Assert.hasText(prefix, "Prefix must not be blank");
+    prefix = Strings.CS.appendIfMissing(prefix, "/");
+    return repository.findAllNameVersionByNameLike(prefix + "%");
+}
 ```
 
 `ExtensionStoreClient.java` 增加：
 
 ```java
-    /**
-     * Lists name and version only, by name prefix. Does not load the data column.
-     *
-     * @param prefix the name prefix
-     * @return list of name-version projections
-     */
-    List<NameVersion> listNameVersionsByNamePrefix(String prefix);
+/**
+ * Lists name and version only, by name prefix. Does not load the data column.
+ *
+ * @param prefix the name prefix
+ * @return list of name-version projections
+ */
+List<NameVersion> listNameVersionsByNamePrefix(String prefix);
 ```
 
 `ExtensionStoreClientJPAImpl.java` 增加：
 
 ```java
-    @Override
-    public List<NameVersion> listNameVersionsByNamePrefix(String prefix) {
-        return storeClient.listNameVersionsByNamePrefix(prefix).collectList().block(TIMEOUT);
-    }
+@Override
+public List<NameVersion> listNameVersionsByNamePrefix(String prefix) {
+    return storeClient.listNameVersionsByNamePrefix(prefix).collectList().block(TIMEOUT);
+}
 ```
 
 - [ ] **Step 4: Run tests**
@@ -1669,9 +1668,9 @@ git commit -m "feat: add binary codec for index snapshots"
 **Interfaces:**
 - Consumes: Task 7 的 `IndexSnapshotCodec`；`run.halo.app.infra.properties.HaloProperties#getWorkDir()`（实现时先确认 getter 名与类型 `Path`）。
 - Produces:
-  - `IndexSnapshotManager#save(Class<? extends Extension> type, IndicesSnapshot snapshot)`：临时文件 + `ATOMIC_MOVE` rename；IO 失败只记 error 日志，不抛出。
-  - `IndexSnapshotManager#load(Class<? extends Extension> type) → Optional<IndicesSnapshot>`：文件不存在→empty；损坏→记 warn、删除坏文件、返回 empty。
-  - 快照路径：`<workDir>/indices/<type.getName()>.snapshot.gz`。Task 9/10 依赖。
+- `IndexSnapshotManager#save(Class<? extends Extension> type, IndicesSnapshot snapshot)`：临时文件 + `ATOMIC_MOVE` rename；IO 失败只记 error 日志，不抛出。
+- `IndexSnapshotManager#load(Class<? extends Extension> type) → Optional<IndicesSnapshot>`：文件不存在→empty；损坏→记 warn、删除坏文件、返回 empty。
+- 快照路径：`<workDir>/indices/<type.getName()>.snapshot.gz`。Task 9/10 依赖。
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2054,23 +2053,23 @@ Expected: 编译失败（构造器签名、`deleteByName`、`listNameVersionsByN
 `IndexEngine.java` 增加：
 
 ```java
-    /**
-     * Deletes all index entries for the given primary key of the given type.
-     *
-     * @param type the extension type
-     * @param primaryKey the primary key
-     * @param <E> the extension type
-     */
-    <E extends Extension> void deleteByName(Class<E> type, String primaryKey);
+/**
+ * Deletes all index entries for the given primary key of the given type.
+ *
+ * @param type the extension type
+ * @param primaryKey the primary key
+ * @param <E> the extension type
+ */
+<E extends Extension> void deleteByName(Class<E> type, String primaryKey);
 ```
 
 `DefaultIndexEngine.java` 增加：
 
 ```java
-    @Override
-    public <E extends Extension> void deleteByName(Class<E> type, String primaryKey) {
-        indicesManager.get(type).deleteByName(primaryKey);
-    }
+@Override
+public <E extends Extension> void deleteByName(Class<E> type, String primaryKey) {
+    indicesManager.get(type).deleteByName(primaryKey);
+}
 ```
 
 `DefaultIndicesInitializer.java` 全量替换为（构造器加 `IndexSnapshotManager`）：
@@ -2281,14 +2280,14 @@ class DefaultIndicesInitializer implements IndicesInitializer {
 
 注意点：
 - **事件监听顺序（防死锁，必须做）**：`onSchemeAddedEvent` 上的
-  `@Order(Ordered.HIGHEST_PRECEDENCE)` 是硬性要求。Spring 的 `@EventListener` 在发布线程上
-  同步执行；`GcSynchronizer` 也监听 `SchemeAddedEvent` 且会通过 client 查询索引（走
-  `awaitReady` 阻塞）。若 GC 监听器先于 Initializer 执行，它会阻塞在等待门闩上，而
-  Initializer 永远得不到执行——死锁直到 30s 超时。Initializer 必须先于一切查询方执行。
-  实现后 grep 确认没有其他监听 `SchemeAddedEvent` 且会查询索引的组件需要同样约束。
+`@Order(Ordered.HIGHEST_PRECEDENCE)` 是硬性要求。Spring 的 `@EventListener` 在发布线程上
+同步执行；`GcSynchronizer` 也监听 `SchemeAddedEvent` 且会通过 client 查询索引（走
+`awaitReady` 阻塞）。若 GC 监听器先于 Initializer 执行，它会阻塞在等待门闩上，而
+Initializer 永远得不到执行——死锁直到 30s 超时。Initializer 必须先于一切查询方执行。
+实现后 grep 确认没有其他监听 `SchemeAddedEvent` 且会查询索引的组件需要同样约束。
 - 快照不可用时 `fullBuild` 与现状一致；快照恢复失败回退 `fullBuild` 是安全的（insert 为 upsert 语义）。
 - `IndexSnapshot` 需在文件头部 import（上面 import 列表中已包含 `IndicesSnapshot`，
-  需同时加 `run.halo.app.extension.index.IndexSnapshot`）。若编译报缺 import 按 IDE 提示补。
+需同时加 `run.halo.app.extension.index.IndexSnapshot`）。若编译报缺 import 按 IDE 提示补。
 - 恢复回退路径中 `fullBuild` 前索引可能已被部分 restore，upsert 语义保证幂等。
 
 - [ ] **Step 4: Run tests**
@@ -2460,35 +2459,35 @@ Expected: 改动前全部 PASS（记录基线）。
 `ReactiveExtensionClientImpl.java` 增加私有方法：
 
 ```java
-    /**
-     * Registers an index operation to be applied after the current transaction commits. If
-     * there is no active transaction (e.g. in tests with a pass-through operator), the
-     * operation is applied immediately, preserving the previous behavior.
-     */
-    private Mono<Void> registerIndexOperationAfterCommit(Runnable indexOperation) {
-        return TransactionSynchronizationManager.forCurrentTransaction()
-                .doOnNext(tsm -> tsm.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public Mono<Void> afterCommit() {
-                        return Mono.fromRunnable(indexOperation).subscribeOn(scheduler).then();
-                    }
-                }))
-                .then()
-                .onErrorResume(
-                        NoTransactionException.class,
-                        e -> Mono.fromRunnable(indexOperation).subscribeOn(scheduler).then());
-    }
+/**
+ * Registers an index operation to be applied after the current transaction commits. If
+ * there is no active transaction (e.g. in tests with a pass-through operator), the
+ * operation is applied immediately, preserving the previous behavior.
+ */
+private Mono<Void> registerIndexOperationAfterCommit(Runnable indexOperation) {
+    return TransactionSynchronizationManager.forCurrentTransaction()
+            .doOnNext(tsm -> tsm.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public Mono<Void> afterCommit() {
+                    return Mono.fromRunnable(indexOperation).subscribeOn(scheduler).then();
+                }
+            }))
+            .then()
+            .onErrorResume(
+                    NoTransactionException.class,
+                    e -> Mono.fromRunnable(indexOperation).subscribeOn(scheduler).then());
+}
 ```
 
 `doCreate` 的返回链改为：
 
 ```java
-            return client.create(name, data)
-                    .map(created -> converter.convertFrom(type, created))
-                    .flatMap(extension -> registerIndexOperationAfterCommit(
-                                    () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
-                            .thenReturn(extension))
-                    .as(transactionalOperator::transactional);
+return client.create(name, data)
+        .map(created -> converter.convertFrom(type, created))
+        .flatMap(extension -> registerIndexOperationAfterCommit(
+                        () -> this.indexEngine.insert(List.of(convertToRealExtension(extension))))
+                .thenReturn(extension))
+        .as(transactionalOperator::transactional);
 ```
 
 `doUpdate` 同理（`indexEngine.update`）。新增 import：
@@ -2619,3 +2618,4 @@ git commit -m "test: add end-to-end index snapshot recovery integration test"
 2. 就绪超时简化为常量 30s（`DefaultIndicesManager.DEFAULT_READY_TIMEOUT`），不做配置项。
 3. Task 11 无事务上下文时降级为立即应用索引变更（保持既有行为与测试兼容）；有事务时严格 afterCommit。
 4. 6.1 中"afterRollback 补偿"不需要实现：索引变更只在 afterCommit 应用，rollback 天然无副作用。
+
