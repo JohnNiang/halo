@@ -103,26 +103,7 @@ class SchemeInitializer implements SmartLifecycle {
                             .map(RoleBinding.Subject::toString)
                             .collect(Collectors.toSet())));
         });
-        schemeManager.register(User.class, indexSpecs -> {
-            indexSpecs.add(IndexSpecs.<User, String>single("spec.displayName", String.class)
-                    .indexFunc(user -> user.getSpec().getDisplayName()));
-            indexSpecs.add(IndexSpecs.<User, Boolean>single("spec.emailVerified", Boolean.class)
-                    .indexFunc(user -> user.getSpec().isEmailVerified()));
-            indexSpecs.add(IndexSpecs.<User, String>single("spec.email", String.class)
-                    .indexFunc(user -> Optional.ofNullable(user.getSpec().getEmail())
-                            .map(String::toLowerCase)
-                            .orElse(null)));
-            indexSpecs.add(IndexSpecs.<User, String>multi(User.USER_RELATED_ROLES_INDEX, String.class)
-                    .indexFunc(user -> Optional.ofNullable(user.getMetadata())
-                            .map(MetadataOperator::getAnnotations)
-                            .map(annotations -> annotations.get(User.ROLE_NAMES_ANNO))
-                            .filter(StringUtils::isNotBlank)
-                            .map(rolesJson -> JsonUtils.jsonToObject(rolesJson, new TypeReference<Set<String>>() {}))
-                            .orElseGet(Set::of)));
-            indexSpecs.add(IndexSpecs.<User, Boolean>single("spec.disabled", Boolean.class)
-                    .indexFunc(user -> requireNonNullElse(user.getSpec().getDisabled(), Boolean.FALSE))
-                    .nullable(false));
-        });
+        schemeManager.register(User.class);
         schemeManager.register(ReverseProxy.class);
         schemeManager.register(Setting.class);
         schemeManager.register(

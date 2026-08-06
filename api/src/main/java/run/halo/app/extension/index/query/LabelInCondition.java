@@ -3,7 +3,7 @@ package run.halo.app.extension.index.query;
 import java.util.Collection;
 import org.springframework.util.Assert;
 
-record LabelInCondition(String labelKey, Collection<String> labelValues) implements LabelCondition {
+public record LabelInCondition(String labelKey, Collection<String> labelValues) implements LabelCondition {
 
     public LabelInCondition {
         Assert.notNull(labelValues, "labelValues of " + labelKey + " must not be null");

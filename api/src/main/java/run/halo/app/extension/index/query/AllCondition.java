@@ -1,6 +1,6 @@
 package run.halo.app.extension.index.query;
 
-record AllCondition(String indexName) implements Condition {
+public record AllCondition(String indexName) implements Condition {
 
     @Override
     public Condition not() {

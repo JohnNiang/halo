@@ -2,7 +2,7 @@ package run.halo.app.extension.index.query;
 
 import org.springframework.util.Assert;
 
-record NotCondition(Condition condition) implements Condition {
+public record NotCondition(Condition condition) implements Condition {
 
     public NotCondition {
         Assert.notNull(condition, "Condition must not be null");

@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Predicates;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -23,9 +24,12 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
+import run.halo.app.core.extension.User;
 import run.halo.app.extension.exception.ExtensionNotFoundException;
 import run.halo.app.extension.index.IndexEngine;
 import run.halo.app.extension.index.IndexedQueryEngine;
+import run.halo.app.extension.materialized.MaterializedUserStoreWriter;
+import run.halo.app.extension.materialized.UserSqlQueryEngine;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
 
 @Slf4j
@@ -46,6 +50,12 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     private final IndexEngine indexEngine;
 
+    @Nullable
+    private final UserSqlQueryEngine userSqlQueryEngine;
+
+    @Nullable
+    private final MaterializedUserStoreWriter materializedUserStoreWriter;
+
     private Scheduler scheduler;
 
     private TransactionalOperator transactionalOperator;
@@ -56,7 +66,9 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             SchemeManager schemeManager,
             ObjectMapper objectMapper,
             IndexEngine indexEngine,
-            ReactiveTransactionManager reactiveTransactionManager) {
+            ReactiveTransactionManager reactiveTransactionManager,
+            @Nullable UserSqlQueryEngine userSqlQueryEngine,
+            @Nullable MaterializedUserStoreWriter materializedUserStoreWriter) {
         this.client = client;
         this.converter = converter;
         this.schemeManager = schemeManager;
@@ -64,6 +76,8 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
         this.indexEngine = indexEngine;
         this.transactionalOperator = TransactionalOperator.create(reactiveTransactionManager);
         this.scheduler = Schedulers.boundedElastic();
+        this.userSqlQueryEngine = userSqlQueryEngine;
+        this.materializedUserStoreWriter = materializedUserStoreWriter;
     }
 
     /**
@@ -111,6 +125,11 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Flux<E> listAll(Class<E> type, ListOptions options, Sort sort) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            return userSqlQueryEngine.listAll(options,
+                    Optional.ofNullable(sort).orElse(Sort.unsorted()))
+                .cast(type);
+        }
         var nullSafeSort = Optional.ofNullable(sort).orElseGet(() -> {
             log.warn("The sort parameter is null, it is recommended to use Sort.unsorted() "
                     + "instead and the compatibility support for null will be removed in the "
@@ -144,6 +163,10 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Flux<String> listAllNames(Class<E> type, ListOptions options, Sort sort) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            return userSqlQueryEngine.listAllNames(options,
+                    Optional.ofNullable(sort).orElse(Sort.unsorted()));
+        }
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieveAll(scheme.type(), options, sort))
                 .flatMapMany(Flux::fromIterable);
@@ -151,6 +174,13 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Flux<String> listTopNames(Class<E> type, ListOptions options, Sort sort, int topN) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            // UserSqlQueryEngine does not support topN directly; fall back to listAllNames
+            // with limit applied at the subscriber level
+            return userSqlQueryEngine.listAllNames(options,
+                    Optional.ofNullable(sort).orElse(Sort.unsorted()))
+                .take(topN);
+        }
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieveTopN(scheme.type(), options, sort, topN))
                 .flatMapMany(Flux::fromIterable);
@@ -158,6 +188,15 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
 
     @Override
     public <E extends Extension> Mono<ListResult<E>> listBy(Class<E> type, ListOptions options, PageRequest page) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            var sort = Optional.ofNullable(page.getSort()).orElse(Sort.unsorted());
+            return userSqlQueryEngine.listBy(options, sort, page)
+                .map(listResult -> {
+                    @SuppressWarnings("unchecked")
+                    var castResult = (ListResult<E>) (ListResult<?>) listResult;
+                    return castResult;
+                });
+        }
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, page))
                 .flatMap(listResult -> {
@@ -182,12 +221,19 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
     @Override
     public <E extends Extension> Mono<ListResult<String>> listNamesBy(
             Class<E> type, ListOptions options, PageRequest pageable) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            var sort = Optional.ofNullable(pageable.getSort()).orElse(Sort.unsorted());
+            return userSqlQueryEngine.listNamesBy(options, sort, pageable);
+        }
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.retrieve(scheme.type(), options, pageable));
     }
 
     @Override
     public <E extends Extension> Mono<Long> countBy(Class<E> type, ListOptions options) {
+        if (isUserType(type) && userSqlQueryEngine != null) {
+            return userSqlQueryEngine.countBy(options);
+        }
         var scheme = schemeManager.get(type);
         return Mono.fromCallable(() -> indexEngine.count(scheme.type(), options));
     }
@@ -372,6 +418,8 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                                 return extension;
                             })
                             .subscribeOn(this.scheduler))
+                    .flatMap(extension -> syncToMaterialized(extension)
+                            .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
     }
@@ -397,6 +445,8 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
                                 return extension;
                             })
                             .subscribeOn(this.scheduler))
+                    .flatMap(extension -> syncToMaterialized(extension)
+                            .thenReturn(extension))
                     .as(transactionalOperator::transactional);
         });
     }
@@ -411,6 +461,26 @@ public class ReactiveExtensionClientImpl implements ReactiveExtensionClient {
             realExtension = jsonExtension.getObjectMapper().convertValue(jsonExtension, realType);
         }
         return realExtension;
+    }
+
+    /**
+     * Check if the given extension type is {@link User}.
+     */
+    private <E extends Extension> boolean isUserType(Class<E> type) {
+        return User.class.equals(type);
+    }
+
+    /**
+     * Sync a real extension to the materialized tables if it is a User and the writer is available.
+     */
+    private Mono<Void> syncToMaterialized(Extension extension) {
+        if (materializedUserStoreWriter != null) {
+            var realExt = convertToRealExtension(extension);
+            if (realExt instanceof User user) {
+                return materializedUserStoreWriter.syncUser(user);
+            }
+        }
+        return Mono.empty();
     }
 
     @Override

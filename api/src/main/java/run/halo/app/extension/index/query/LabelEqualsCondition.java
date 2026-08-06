@@ -1,6 +1,6 @@
 package run.halo.app.extension.index.query;
 
-record LabelEqualsCondition(String labelKey, String labelValue) implements LabelCondition {
+public record LabelEqualsCondition(String labelKey, String labelValue) implements LabelCondition {
 
     @Override
     public LabelCondition not() {

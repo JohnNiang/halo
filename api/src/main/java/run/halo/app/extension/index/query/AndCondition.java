@@ -2,7 +2,7 @@ package run.halo.app.extension.index.query;
 
 import org.springframework.util.Assert;
 
-record AndCondition(Condition left, Condition right) implements Condition {
+public record AndCondition(Condition left, Condition right) implements Condition {
 
     public AndCondition {
         Assert.notNull(left, "Left condition must not be null");
