@@ -20,6 +20,7 @@ import run.halo.app.extension.SchemeManager;
 import run.halo.app.extension.controller.*;
 import run.halo.app.extension.event.SchemeAddedEvent;
 import run.halo.app.extension.index.IndexEngine;
+import run.halo.app.extension.index.IndexSnapshotWriteBarrier;
 import run.halo.app.extension.store.ReactiveExtensionStoreClient;
 
 @Slf4j
@@ -81,9 +82,12 @@ class GcReconciler implements Reconciler<GcRequest> {
                 .flatMap(deleted -> Mono.fromRunnable(() -> indexEngine.delete(List.of(extension)))
                         .subscribeOn(this.scheduler))
                 .as(tx::transactional)
+                .contextWrite(context -> context.put(IndexSnapshotWriteBarrier.INDEXED_WRITE, true))
                 .then()
-                .doOnSuccess(
-                        ignored -> log.info("Extension {}/{} was deleted", extension.groupVersionKind(), extension));
+                .doOnSuccess(ignored -> log.info(
+                        "Extension {}/{} was deleted",
+                        extension.groupVersionKind(),
+                        extension.getMetadata().getName()));
     }
 
     @Override

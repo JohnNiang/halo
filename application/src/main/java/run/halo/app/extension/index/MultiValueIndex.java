@@ -64,6 +64,35 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
     }
 
     @Override
+    public IndexSnapshot dump() {
+        var entries = index.entrySet().stream()
+                .map(e -> new IndexSnapshot.Entry(List.of(IndexKeyCodec.encode(e.getKey())), List.copyOf(e.getValue())))
+                .toList();
+        return new IndexSnapshot(
+                getName(), getFingerprint(), getKeyType().getName(), entries, List.copyOf(nullKeyValues));
+    }
+
+    @Override
+    public void restore(IndexSnapshot snapshot) {
+        for (var entry : snapshot.entries()) {
+            K key = IndexKeyCodec.decode(getKeyType(), entry.keyParts().getFirst());
+            var primaryKeys = ConcurrentHashMap.<String>newKeySet();
+            primaryKeys.addAll(entry.primaryKeys());
+            index.put(key, primaryKeys);
+            entry.primaryKeys()
+                    .forEach(pk -> invertedIndex
+                            .computeIfAbsent(pk, k -> ConcurrentHashMap.newKeySet())
+                            .add(key));
+        }
+        nullKeyValues.addAll(snapshot.nullKeys());
+    }
+
+    @Override
+    public String getFingerprint() {
+        return IndexFingerprints.fingerprint(spec);
+    }
+
+    @Override
     public TransactionalOperation prepareInsert(E extension) {
         var keys = spec.getValues(extension);
         return new UpsertTransactionalOperation(extension.getMetadata().getName(), keys);
@@ -86,10 +115,16 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
      * Get the keys associated with the given primary key.
      *
      * @param primaryKey the primary key
-     * @return the associated keys
+     * @return the associated keys, or an empty set if the primary key does not exist
      */
     Set<K> getKeys(String primaryKey) {
-        return Collections.unmodifiableSet(invertedIndex.get(primaryKey));
+        return Collections.unmodifiableSet(invertedIndex.getOrDefault(primaryKey, Set.of()));
+    }
+
+    /** A deterministic representative, independent of the set's iteration order. */
+    K getSortKey(String primaryKey) {
+        var keys = getKeys(primaryKey);
+        return CollectionUtils.isEmpty(keys) ? null : Collections.min(keys);
     }
 
     @Override
@@ -105,14 +140,14 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
     @Override
     public Set<String> in(Collection<K> keys) {
         if (CollectionUtils.isEmpty(keys)) {
-            return Set.of();
+            return new HashSet<>();
         }
         return keys.stream()
                 .distinct()
                 .map(index::get)
                 .filter(Objects::nonNull)
                 .flatMap(Set::stream)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     @Override
@@ -124,7 +159,7 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
         return index.values().stream()
                 .flatMap(Set::stream)
                 .filter(v -> !inResult.contains(v))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     @Override
@@ -139,12 +174,12 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
 
     @Override
     public Set<String> isNull() {
-        return Collections.unmodifiableSet(nullKeyValues);
+        return new HashSet<>(nullKeyValues);
     }
 
     @Override
     public Set<String> isNotNull() {
-        return index.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
+        return index.values().stream().flatMap(Set::stream).collect(Collectors.toCollection(HashSet::new));
     }
 
     @Override
@@ -184,14 +219,15 @@ class MultiValueIndex<E extends Extension, K extends Comparable<K>> implements V
 
     @Override
     public Set<String> equal(K key) {
-        return index.getOrDefault(key, Set.of());
+        var primaryKeys = index.get(key);
+        return primaryKeys == null ? new HashSet<>() : new HashSet<>(primaryKeys);
     }
 
     @Override
     public Set<String> all() {
         return Stream.concat(index.values().stream(), Stream.of(nullKeyValues))
                 .flatMap(Set::stream)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     class UpsertTransactionalOperation implements TransactionalOperation {

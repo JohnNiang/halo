@@ -11,14 +11,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import run.halo.app.core.user.service.UserService;
 import run.halo.app.security.authentication.UserAccountStatusChecker;
 
 /**
- * A {@link ReactiveAuthenticationManager} that authenticates by trying multiple login strategies in order: username
- * first, then verified email. Each strategy only executes when the login identifier matches its expected format (e.g.,
- * email lookup only runs for identifiers containing {@code @}).
+ * A {@link ReactiveAuthenticationManager} that authenticates by trying multiple login strategies in order: verified
+ * email first, then username. Each strategy only executes when the login identifier matches its expected format (e.g.,
+ * email lookup only runs for identifiers containing {@code @}, while username lookup acts as a generic fallback for any
+ * identifier). The password is checked after each lookup, and only a strategy that both resolves the identifier and
+ * matches the password wins; otherwise the chain falls through to the next strategy.
  */
 @RequiredArgsConstructor
 class LoginReactiveAuthenticationManager implements ReactiveAuthenticationManager {
@@ -31,14 +34,27 @@ class LoginReactiveAuthenticationManager implements ReactiveAuthenticationManage
 
     private final ReactiveUserDetailsPasswordService passwordService;
 
+    private Scheduler scheduler = Schedulers.boundedElastic();
+
+    /**
+     * Sets the scheduler used to offload password encoder operations. Package-private so that unit tests can inject a
+     * deterministic scheduler.
+     */
+    void setScheduler(Scheduler scheduler) {
+        this.scheduler = scheduler;
+    }
+
     @Override
     public Mono<Authentication> authenticate(Authentication authentication) {
         var loginId = authentication.getName();
         var credentials = authentication.getCredentials();
         var password = credentials != null ? credentials.toString() : null;
 
-        return Flux.concat(lookupByUsername(loginId), lookupByEmail(loginId))
-                .publishOn(Schedulers.boundedElastic())
+        // Note: when the email strategy wins, the username fallback is raced by the cancel from
+        // next() below (it runs on a boundedElastic thread while this chain subscribes on the
+        // caller thread), so the fallback subscription is best-effort and may be skipped.
+        return Flux.concat(Mono.defer(() -> lookupByEmail(loginId)), Mono.defer(() -> lookupByUsername(loginId)))
+                .publishOn(scheduler)
                 .filter(userDetails -> password != null && passwordEncoder.matches(password, userDetails.getPassword()))
                 .next()
                 .switchIfEmpty(Mono.error(() -> new BadCredentialsException("Invalid Credentials")))
@@ -48,14 +64,9 @@ class LoginReactiveAuthenticationManager implements ReactiveAuthenticationManage
                         userDetails, userDetails.getPassword(), userDetails.getAuthorities()));
     }
 
-    /** Looks up the user by username. Skips email-like identifiers since usernames never contain {@code @}. */
+    /** Looks up the user by username. This is the generic fallback strategy for any identifier. */
     Mono<UserDetails> lookupByUsername(String loginId) {
-        if (loginId.contains("@")) {
-            return Mono.empty();
-        }
-        return userDetailsService
-                .findByUsername(loginId)
-                .onErrorResume(BadCredentialsException.class, e -> Mono.empty());
+        return userDetailsService.findByUsername(loginId);
     }
 
     /** Looks up the user by verified email. Skips identifiers that don't look like email addresses. */
@@ -65,9 +76,8 @@ class LoginReactiveAuthenticationManager implements ReactiveAuthenticationManage
         }
         return userService
                 .findUserByVerifiedEmail(loginId)
-                .flatMap(user -> userDetailsService
-                        .findByUsername(user.getMetadata().getName())
-                        .onErrorResume(BadCredentialsException.class, e -> Mono.empty()));
+                .flatMap(user ->
+                        userDetailsService.findByUsername(user.getMetadata().getName()));
     }
 
     private Mono<UserDetails> upgradePasswordIfNeeded(UserDetails userDetails, String password) {
